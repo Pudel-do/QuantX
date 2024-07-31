@@ -11,6 +11,4 @@ def read_json(file_name):
     with open (os.path.join(os.getcwd(), "config", file_name)) as file:
         config = json.load(file)
 
-    print("break")
-
     return config
