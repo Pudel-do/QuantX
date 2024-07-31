@@ -4,12 +4,33 @@ import yfinance as yf
 import requests
 import warnings
 from datetime import datetime
-from config import Config
 from bs4 import BeautifulSoup
 
-warnings.filterwarnings("ignore", category=FutureWarning)
-
 class YahooFinance:
+    def __init__(self):
+        pass
+
+    def get_quotes(self, tick, start):
+        end = datetime.now()
+        quotes = yf.download(
+            tickers=tick,
+            start=start,
+            end=end,
+            progress=False,
+            interval="1d",
+            ignore_tz=True
+        )
+        currency = yf.Ticker(tick).info["currency"]
+        print("break")
+
+        return quotes
+
+    def _get_exchange_rates(self, tick):
+        #Create and read json file for exchange rates --> exchange_rates.json
+        #Include except block when currency is not in exchange_rates.json
+        pass
+
+class YahooFinance_old:
     def __init__(self):
         self.date_format = '%Y-%m-%d'
         self.quote_id = 'Adj Close'
