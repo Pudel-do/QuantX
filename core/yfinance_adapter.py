@@ -22,30 +22,45 @@ class YahooFinance:
             ignore_tz=True
         )
         currency = yf.Ticker(tick).info["currency"]
-        converted_quotes = self._convert_quotes(quotes, currency)
+        if not currency == "EUR":
+            quotes = self._convert_quotes(quotes, currency)
         print("break")
 
         return quotes
 
     def _convert_quotes(self, quotes, currency):
-        exchange_rates = read_json("exchange_rates.json")
+        exchange_ticks = read_json("exchange_rates.json")
         try:
-            ticker = exchange_rates[currency]
+            ticker = exchange_ticks[currency]
+            try:
+                start = quotes.index[0]
+                end = quotes.index[-1]
+                exchange_rates = yf.download(
+                    tickers=ticker,
+                    start=start,
+                    end=end,
+                    progress=False,
+                    interval="1d",
+                    ignore_tz=True
+                )["Close"]
+                
+                exchange_rates_clean = pd.DataFrame(
+                    index=quotes.index
+                )
+                exchange_rates_clean = exchange_rates_clean.join(exchange_rates)
+                exchange_rates_clean = exchange_rates_clean.ffill()
+                exchange_rates_clean = np.array(exchange_rates_clean).flatten()
+            except:
+                print(f"Download failed for exchange rate symbol {ticker}")
         except KeyError:
             print(f"Ticker {currency} not in config file")
+            exchange_rates_clean = np.ones(shape=(len(quotes), ))
+        gen = (col for col in quotes.columns if not col == "Volume")
+        for col in gen:
+            quotes[col] = quotes[col] * exchange_rates_clean
+            
+        return quotes
 
-        start = quotes.index[0]
-        end = quotes.index[-1]
-        exchange_rate = yf.download(
-            tickers=ticker,
-            start=start,
-            end=end,
-            progress=False,
-            interval="1d",
-            ignore_tz=True
-        )
-        exchange_rate = exchange_rate["Close"]
-        print("break")
 
 
 class YahooFinance_old:

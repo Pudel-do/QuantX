@@ -18,8 +18,11 @@ def combine_quotes(ticker, start, quote_id):
     )
 
     for tick in ticker:
-        quotes = YahooFinance().get_quotes(tick=tick, start=start)
-        print("break")
+        ticker_quotes = YahooFinance().get_quotes(tick=tick, start=start)
+        ticker_quote = ticker_quotes[quote_id]
+        ticker_quote.name = tick
+        quotes = quotes.join(ticker_quote)
+    return quotes
     
     
 
@@ -27,5 +30,4 @@ if __name__ == "__main__":
     ticker = read_json("inputs.json")["ticker"]
     base_start = read_json("inputs.json")["base_start"]
     closing_quotes = combine_quotes(ticker=ticker, start=base_start, quote_id="Adj Close")
-    print("break")
 
