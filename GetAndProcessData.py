@@ -4,7 +4,7 @@ import os
 import json
 from datetime import datetime
 from core.yfinance_adapter import YahooFinance
-from misc.misc import *
+from misc.misc import read_json
 
 def combine_quotes(ticker, start, quote_id):
     end = datetime.now()

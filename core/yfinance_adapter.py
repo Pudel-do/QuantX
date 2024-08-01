@@ -5,6 +5,7 @@ import requests
 import warnings
 from datetime import datetime
 from bs4 import BeautifulSoup
+from misc.misc import *
 
 class YahooFinance:
     def __init__(self):
@@ -21,14 +22,31 @@ class YahooFinance:
             ignore_tz=True
         )
         currency = yf.Ticker(tick).info["currency"]
+        converted_quotes = self._convert_quotes(quotes, currency)
         print("break")
 
         return quotes
 
-    def _get_exchange_rates(self, tick):
-        #Create and read json file for exchange rates --> exchange_rates.json
-        #Include except block when currency is not in exchange_rates.json
-        pass
+    def _convert_quotes(self, quotes, currency):
+        exchange_rates = read_json("exchange_rates.json")
+        try:
+            ticker = exchange_rates[currency]
+        except KeyError:
+            print(f"Ticker {currency} not in config file")
+
+        start = quotes.index[0]
+        end = quotes.index[-1]
+        exchange_rate = yf.download(
+            tickers=ticker,
+            start=start,
+            end=end,
+            progress=False,
+            interval="1d",
+            ignore_tz=True
+        )
+        exchange_rate = exchange_rate["Close"]
+        print("break")
+
 
 class YahooFinance_old:
     def __init__(self):
