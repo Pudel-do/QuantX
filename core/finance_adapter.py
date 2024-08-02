@@ -3,7 +3,7 @@ import numpy as np
 import yfinance as yf
 import requests
 import warnings
-from yahoofinancials import YahooFinancials
+from financetoolkit import Toolkit
 from datetime import datetime
 from bs4 import BeautifulSoup
 from misc.misc import *
@@ -29,6 +29,9 @@ class FinanceAdapter:
         return quotes
     
     def get_fundamentals(self, tick, start):
+        tick_info = Toolkit(tick, api_key=os.getenv("API_KEY"), start_date=start)
+        balance_sheet = tick_info.get_balance_sheet_statement()
+        print("break")
         pass
 
 
