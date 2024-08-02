@@ -3,13 +3,14 @@ import numpy as np
 import yfinance as yf
 import requests
 import warnings
+from yahoofinancials import YahooFinancials
 from datetime import datetime
 from bs4 import BeautifulSoup
 from misc.misc import *
 
-class YahooFinance:
+class FinanceAdapter:
     def __init__(self):
-        pass
+        self.config = read_json("exchange_rates.json")
 
     def get_quotes(self, tick, start):
         end = datetime.now()
@@ -22,19 +23,22 @@ class YahooFinance:
             ignore_tz=True
         )
         currency = yf.Ticker(tick).info["currency"]
-        if not currency == "EUR":
-            quotes = self._convert_quotes(quotes, currency)
-        print("break")
+        if not currency == self.config["base_currency"]:
+            quotes = self._currency_converter(quotes, currency)
 
         return quotes
+    
+    def get_fundamentals(self, tick, start):
+        pass
 
-    def _convert_quotes(self, quotes, currency):
-        exchange_ticks = read_json("exchange_rates.json")
+
+
+    def _currency_converter(self, data, currency):
         try:
-            ticker = exchange_ticks[currency]
+            ticker = self.config["currency_ticker"][currency]
             try:
-                start = quotes.index[0]
-                end = quotes.index[-1]
+                start = data.index[0]
+                end = data.index[-1]
                 exchange_rates = yf.download(
                     tickers=ticker,
                     start=start,
@@ -44,22 +48,21 @@ class YahooFinance:
                     ignore_tz=True
                 )["Close"]
                 
-                exchange_rates_clean = pd.DataFrame(
-                    index=quotes.index
-                )
-                exchange_rates_clean = exchange_rates_clean.join(exchange_rates)
-                exchange_rates_clean = exchange_rates_clean.ffill()
-                exchange_rates_clean = np.array(exchange_rates_clean).flatten()
-            except:
+                converter = pd.DataFrame(index=data.index)
+                converter = converter.join(exchange_rates)
+                converter = converter.ffill()
+                converter = np.array(converter).flatten()
+            except KeyError:
                 print(f"Download failed for exchange rate symbol {ticker}")
         except KeyError:
             print(f"Ticker {currency} not in config file")
-            exchange_rates_clean = np.ones(shape=(len(quotes), ))
-        gen = (col for col in quotes.columns if not col == "Volume")
+            converter = np.ones(shape=(len(data), ))
+
+        gen = (col for col in data.columns if not col == "Volume")
         for col in gen:
-            quotes[col] = quotes[col] * exchange_rates_clean
+            data[col] = data[col] * converter
             
-        return quotes
+        return data
 
 
 
