@@ -3,7 +3,10 @@ import numpy as np
 import yfinance as yf
 import requests
 import warnings
+import logging
+from core import logging_config
 from financetoolkit import Toolkit
+from alpha_vantage.fundamentaldata import FundamentalData
 from datetime import datetime
 from bs4 import BeautifulSoup
 from misc.misc import *
@@ -11,6 +14,7 @@ from misc.misc import *
 class FinanceAdapter:
     def __init__(self):
         self.config = read_json("exchange_rates.json")
+        self.fd = self._establish_connection_av()
 
     def get_quotes(self, tick, start):
         end = datetime.now()
@@ -28,13 +32,35 @@ class FinanceAdapter:
 
         return quotes
     
-    def get_fundamentals(self, tick, start):
-        tick_info = Toolkit(tick, api_key=os.getenv("API_KEY"), start_date=start)
-        balance_sheet = tick_info.get_balance_sheet_statement()
-        print("break")
-        pass
+    def get_income_statement(self, tick):
+        try:
+            income_statement, _ = self.fd.get_income_statement_quarterly(
+                symbol=tick
+                )
+        except ValueError:
+            logging.info(f"No income statement data available for ticker {tick}")
+            return None
+        
+        return income_statement
+    
+    def get_balance_sheet(self, tick):
+        try:
+            balance_sheet_data, _ = self.fd.get_balance_sheet_quarterly(
+                symbol=tick
+                )
+            
+        except ValueError:
+            logging.info(f"No balance sheet data available for ticker {tick}")
+            return None
 
+        return balance_sheet_data
 
+    def _establish_connection_av(self):
+        fd = FundamentalData(
+            key=os.getenv("API_KEY_AV"), 
+            output_format='pandas'
+            )
+        return fd
 
     def _currency_converter(self, data, currency):
         try:

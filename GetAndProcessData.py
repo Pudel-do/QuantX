@@ -25,13 +25,19 @@ def combine_quotes(ticker, start, quote_id):
     return quotes
     
 def combine_fundamentals(ticker, start):
+    liste = []
     for tick in ticker:
-        fundamental = FinanceAdapter().get_fundamentals(tick=tick, start=start)
+        balance_sheet = FinanceAdapter().get_balance_sheet(tick=tick)
+        income_statement = FinanceAdapter().get_income_statement(tick=tick)
+        print("break")
+
+    return liste
     
 
 if __name__ == "__main__":
     ticker = read_json("inputs.json")["ticker"]
     base_start = read_json("inputs.json")["base_start"]
-    closing_quotes = combine_quotes(ticker=ticker, start=base_start, quote_id="Adj Close")
+    #closing_quotes = combine_quotes(ticker=ticker, start=base_start, quote_id="Adj Close")
     fundamental = combine_fundamentals(ticker, base_start)
+
 

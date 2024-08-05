@@ -1,5 +1,5 @@
 {
-    "ticker":["MSFT", "AAPL"],
+    "ticker":["BMW.DE", "MSFT", "AAPL"],
     "base_start": "2021-01-01",
     "portfolio_start": "2021-01-01"
 }
