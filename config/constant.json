@@ -1,0 +1,12 @@
+{
+    "datamodel": {
+        "data": "data",
+        "model": "model",
+        "features": "features"
+    },
+    "fundamentals": {
+        "income": "income-statement",
+        "balance_sheet": "balance-sheet-statement",
+        "cashflow": "cash-flow-statement"
+    }
+}
