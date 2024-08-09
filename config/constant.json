@@ -1,8 +1,8 @@
 {
     "datamodel": {
-        "data": "data",
-        "model": "model",
-        "features": "features"
+        "data_path": "data",
+        "model_path": "model",
+        "feature_path": "features"
     },
     "fundamentals": {
         "income": "income-statement",
