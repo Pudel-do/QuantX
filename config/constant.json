@@ -1,8 +1,9 @@
 {
     "datamodel": {
-        "data_path": "data",
-        "model_path": "model",
-        "feature_path": "features"
+        "data_dir": "data",
+        "model_dir": "model",
+        "feature_dir": "features",
+        "returns_file": "stock_returns.csv"
     },
     "fundamentals": {
         "income": "income-statement",
