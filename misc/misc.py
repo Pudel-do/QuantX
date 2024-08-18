@@ -32,3 +32,15 @@ def get_business_day(date):
     else:
         bday = date.strftime(format="%Y-%m-%d")
     return bday
+
+def get_last_business_day():
+    """Function calculates the last business day
+    compared to actual date
+
+    :return: Last busines day based on actual date
+    :rtype: String
+    """
+    now = datetime.now()
+    last_bday = now - pd.offsets.BDay(1)
+    last_bday = last_bday.strftime(format="%Y-%m-%d")
+    return last_bday
