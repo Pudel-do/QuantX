@@ -14,17 +14,17 @@ class FinanceAdapter:
     def __init__(self, tick):
         self.tick = tick
         self.fx_config = read_json("exchange_rates.json")
-        self.fd_config = read_json("constant.json")["fundamentals"]
 
-    def get_quotes(self, start):
-        """Function extracts all currency converted price data information and volume data for single ticker
+    def get_trade_data(self, start):
+        """Function extracts all currency converted price data information 
+        and volume data from Yahoo Finance for single ticker
 
         :param start: Start date for retrieving stock data for single ticker
         :type start: String
         :return: Dataframe with all price and volume data information. 
         :rtype: Dataframe
         """
-        end = datetime.now()
+        end = get_last_business_day()
         quotes = yf.download(
             tickers=self.tick,
             start=start,
@@ -42,30 +42,32 @@ class FinanceAdapter:
     def get_fundamental(self, fd_kpi):
         """Function extracts converted fundamental stock data from FMP
 
-        :param fd_kpi: Considered fundamental KPI. Can be <income>, <balance_sheet> or <cashflow>
+        :param fd_kpi: Considered fundamental KPI. 
+        Can be <income>, <balance_sheet> or <cashflow>
         :type fd_kpi: String
-        :return: Daframe contaiing fundamental stock data. If no fundamental data was extracted, the dataframe is empty
+        :return: Daframe contaiing fundamental stock data. 
+        If no fundamental data was extracted, the dataframe is empty
         :rtype: Dataframe
         """
         fd_list = self._establish_fmb_connection(fd_kpi=fd_kpi)
         fd_list_converted = self._fundamental_converter(fd_list=fd_list)
         fd = pd.DataFrame(fd_list_converted)
         if not fd.empty:
-            fd.set_index("date")
+            fd.set_index("date", inplace=True)
+            fd.index = pd.to_datetime(fd.index).normalize()
         return fd
 
     def _establish_fmb_connection(self, fd_kpi):
-        """Function connects to FMP via API call. If quarterly fundamental data is needed, set period to <quarter>
+        """Function connects to FMP via API call. If quarterly 
+        fundamental data is needed, set period to <quarter>
 
         :param fd_kpi: String which fundamental data to download
         :type fd_kpi: String
         :return: Raw fundamental data for given stock
         :rtype: Json file
         """
-        fd_kpi_values = self.fd_config
-        fd_kpi_value = fd_kpi_values[fd_kpi]
         api_key = os.getenv("API_KEY_FMP")
-        url = f"https://financialmodelingprep.com/api/v3/{fd_kpi_value}/{self.tick}?period=annual&apikey={api_key}"
+        url = f"https://financialmodelingprep.com/api/v3/{fd_kpi}/{self.tick}?period=annual&apikey={api_key}"
         response = requests.get(url)
         if response.status_code == 200:
             fd_list = response.json()
@@ -75,8 +77,9 @@ class FinanceAdapter:
             return []
         
     def _fundamental_converter(self, fd_list):
-        """Converts fundamental data values to defined base currency. Fundamental data values for conversion
-        refers to all integer data values. All other fundamental data is adopted from raw value
+        """Converts fundamental data values to defined base currency. 
+        Fundamental data values for conversion refers to all integer data values. 
+        All other fundamental data is adopted from raw value
 
         :param fd_list: List containing fundamental data for selected perido
         :type fd_list: List
@@ -118,7 +121,8 @@ class FinanceAdapter:
 
 
     def _quote_converter(self, data, currency):
-        """Function converts stock quote data to base currency. Volume columns remains unchanged.
+        """Function converts stock quote data to base currency. 
+        Volume columns remains unchanged.
 
         :param data: Minimum, maximum, open, close, adjusted close and volume stock data
         :type data: Dataframe
