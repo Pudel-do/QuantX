@@ -1,0 +1,6 @@
+{
+    "base_currency": "EUR",
+    "currency_ticker": {
+        "USD": "EUR=X"
+    }
+}
