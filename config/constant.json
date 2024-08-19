@@ -1,12 +1,12 @@
 {
     "datamodel": {
         "data_dir": "data",
-        "model_dir": "model",
+        "models_dir": "models",
         "feature_dir": "features",
-        "quotes_file": "quotes.csv",
+        "quotes_file": "closing_quotes.csv",
         "returns_file": "returns.csv",
         "fundamentals_file": "fundamentals.pkl",
-        "daily_trading_data_file": "daily_trade_data.pkl"
+        "daily_trading_data_file": "daily_trading_data.pkl"
     },
     "fundamentals": {
         "income": "income-statement",

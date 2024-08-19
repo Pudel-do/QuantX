@@ -119,10 +119,13 @@ if __name__ == "__main__":
     closing_quotes = get_merged_quotes(ticker_list=ticker_list, 
                                        start=base_start, 
                                        quote_id="Adj Close")
+    returns = get_returns(closing_quotes)
     daily_trading_data = get_daily_stock_data(ticker_list, base_start)
     fundamentals = get_fundamentals(ticker_list, base_start)
-    returns = get_returns(closing_quotes)
-    FileAdapter().write_stock_rets(returns)
+    FileAdapter().save_closing_quotes(closing_quotes)
+    FileAdapter().save_stock_returns(returns)
+    FileAdapter().save_trading_data(daily_trading_data)
+    FileAdapter().save_fundamentals(fundamentals)
 
 
 

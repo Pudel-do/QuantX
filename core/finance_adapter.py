@@ -73,7 +73,7 @@ class FinanceAdapter:
             fd_list = response.json()
             return fd_list
         else:
-            logging.error(f"Connection to FMP failed for ticker {self.tick}")
+            logging.warning(f"FMP conenction failed for ticker {self.tick}")
             return []
         
     def _fundamental_converter(self, fd_list):
