@@ -1,5 +1,6 @@
 import pandas as pd
 import pickle
+import logging
 import os
 from misc.misc import read_json
 
@@ -78,6 +79,20 @@ class FileAdapter:
             file_name=file_name
         )
         return None
+    
+    def load_closing_quotes(self):
+        """Function loads closing quotes from data directory
+
+        :return: Closing quotes
+        :rtype: Dataframe
+        """
+        dir = os.path.join(os.getcwd(), self.config["data_dir"])
+        file_name = self.config["quotes_file"]
+        closing_quotes = self._load_csv(
+            dir=dir, 
+            file_name=file_name
+            )
+        return closing_quotes
 
     def _write_csv(self, data, dir, file_name):
         """Function writes data to given directory 
@@ -120,6 +135,32 @@ class FileAdapter:
         with open(path, "wb") as file:
             pickle.dump(data, file=file)
         return None
+    
+    def _load_csv(self, dir, file_name):
+        """Function loads csv file from given
+        directory and file_name
+
+        :param dir: Directory to load data from
+        :type dir: String
+        :param file_name: Csv file to load
+        :type file_name: String
+        :return: Data from csv file
+        :rtype: Dataframe
+        """
+        path = os.path.join(dir, file_name)
+        try:
+            data = pd.read_csv(
+                path,
+                sep=",",
+                decimal=".",
+                index_col=0,
+                parse_dates=True
+            )
+            return data
+        except FileNotFoundError:
+            logging.error(f"File {file_name} from {dir} directory not found")
+            return None
+        return data
 
     def _dir_check(self, dir):
         """Function checks if given directory exists.
