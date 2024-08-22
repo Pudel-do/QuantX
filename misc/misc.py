@@ -1,7 +1,9 @@
 import pandas as pd
-from datetime import datetime
 import json
 import os
+import logging
+from core import logging_config
+from datetime import datetime
 
 def read_json(file_name):
     """
@@ -10,10 +12,13 @@ def read_json(file_name):
     :return: Loaded json file
     :rtype: dictionary
     """
-    with open (os.path.join(os.getcwd(), "config", file_name)) as file:
-        config = json.load(file)
-
-    return config
+    try:
+        with open (os.path.join(os.getcwd(), "config", file_name)) as file:
+            config = json.load(file)
+        return config
+    except FileNotFoundError:
+        logging.error(f"File {file_name} not found")
+        return None
 
 def get_business_day(date):
     """
