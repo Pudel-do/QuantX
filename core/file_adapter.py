@@ -93,6 +93,20 @@ class FileAdapter:
             file_name=file_name
             )
         return closing_quotes
+    
+    def load_returns(self):
+        """Function loads stock returns from data directory
+
+        :return: Stock returns
+        :rtype: Dataframe
+        """
+        dir = os.path.join(os.getcwd(), self.config["data_dir"])
+        file_name = self.config["returns_file"]
+        returns = self._load_csv(
+            dir=dir,
+            file_name=file_name
+        )
+        return returns
 
     def _write_csv(self, data, dir, file_name):
         """Function writes data to given directory 
