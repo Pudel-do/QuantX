@@ -8,61 +8,59 @@ import logging
 import os
 
 class AnalysisDashboard:
-    def __init__(self, quotes):
-        self.quotes = quotes
+    def __init__(self, tickers, ma_data, returns):
+        self.tickers = tickers
+        self.ma_data = ma_data
+        self.returns = returns
         self.app = Dash(__name__)
-        self.setup_layout()
-        self.register_callbacks()
+        self._setup_layout()
+        self._register_callbacks()
 
-    def layout_with_dropdown(self, df, chart_id):
-        tickers = df['Ticker'].unique()
-        return html.Div([
-            dcc.Dropdown(
-                id=f'Ticker {chart_id}',
-                options=[{'label': ticker, 'value': ticker} for ticker in tickers],
-                value=tickers[0],
-                clearable=False,
-                style={'width': '50%'}
-            ),
-            dcc.Graph(id=chart_id)
-        ])
-
-    def setup_layout(self):
-        self.app.layout = html.Div([
-        self.layout_with_dropdown(self.quotes, 'Moving Averages'),
-        self.layout_with_dropdown(self.quotes, 'Return Histogram')
-        ])
-
-    def register_callbacks(self):
-        # Register callbacks for the line chart
-        @self.app.callback(
-            Output('Moving Averages', 'figure'),
-            [Input('Ticker Moving Averages', 'value')]
+    def _setup_layout(self):
+        self.app.layout = html.Div(
+            [
+                dcc.Dropdown(
+                    id="Dropdown Ticker",
+                    options=[{'label': ticker, 'value': ticker} \
+                             for ticker in self.tickers],
+                    value=self.tickers[0]
+                ),
+                dcc.Graph(id="LineChart"),
+                dcc.Graph(id="Histogram")
+            ]
         )
-        def update_line_chart(selected_ticker):
-            filter_mask = self.quotes["Ticker"] == selected_ticker
-            filtered_df = self.quotes[filter_mask]
-            fig = {
+
+    def _register_callbacks(self):
+        @self.app.callback(
+            [Output("LineChart", "figure"),
+             Output("Histogram", "figure")],
+            [Input("Dropdown Ticker", "value")]
+        )
+        def update_charts(selected_ticker):
+            filter_mask_line = self.ma_data["Ticker"] == selected_ticker
+            filtered_line = self.ma_data[filter_mask_line]
+            filtered_hist = self.returns[selected_ticker]
+            line_chart_fig = {
                 'data': [
                     {
-                        'x': filtered_df.index, 
-                        'y': filtered_df['Quote'], 
+                        'x': filtered_line.index, 
+                        'y': filtered_line["Quote"], 
                         'type': 'line', 
                         'name': 'Quote',
                         'line': {'color': 'blue'}
                     },
                     {
-                        'x': filtered_df.index, 
-                        'y': filtered_df['MA_42'], 
+                        'x': filtered_line.index, 
+                        'y': filtered_line["MovingAverage42"], 
                         'type': 'line', 
-                        'name': 'SMA1',
+                        'name': 'Moving Average Short',
                         'line': {'color': 'green'}
                     },
                     {
-                        'x': filtered_df.index, 
-                        'y': filtered_df['MA_252'], 
+                        'x': filtered_line.index, 
+                        'y': filtered_line["MovingAverage252"], 
                         'type': 'line', 
-                        'name': 'SMA2',
+                        'name': 'Moving Average Long',
                         'line': {'color': 'red'}
                     },
                 ],
@@ -72,31 +70,23 @@ class AnalysisDashboard:
                     'yaxis': {'title': 'Values'},
                 }
             }
-            return fig
-
-        # Register callbacks for the histogram
-        @self.app.callback(
-            Output('Return Histogram', 'figure'),
-            [Input('Ticker Return Histogram', 'value')]
-        )
-        def update_histogram(selected_ticker):
-            filter_mask = self.quotes["Ticker"] == selected_ticker
-            filtered_df = self.quotes[filter_mask]
-            return {
-                'data': [{'x': filtered_df['Quote'], 'type': 'histogram', 'name': selected_ticker}],
-                'layout': {'title': f'Histogram for {selected_ticker}'}
+            hist_fig = {
+                'data': [
+                    {
+                        'x': filtered_hist, 
+                        'type': 'histogram', 
+                        'name': selected_ticker
+                    }
+                ],
+                'layout': {'title': f'Histogram for {selected_ticker} returns'}
             }
+            return line_chart_fig, hist_fig
         
     def run(self, debug=True):
-        def open_browser():
-            webbrowser.open_new("http://127.0.0.1:8050/")
 
         def run_dash():
             self.app.run_server(debug=debug, use_reloader=False)
-        
-        # Start the Dash app in a separate thread
+
         dash_thread = threading.Thread(target=run_dash)
         dash_thread.start()
-
-        # Open the web browser
-        open_browser()
+        webbrowser.open_new("http://127.0.0.1:8050/")
