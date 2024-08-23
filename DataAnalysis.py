@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 from core.file_adapter import FileAdapter
+from core.dashboard_adapter import AnalysisDashboard
 from misc.misc import *
 
 def get_moving_average(quotes, ma_days):
@@ -29,14 +30,16 @@ def get_moving_average(quotes, ma_days):
         ma_dict[name] = ma_df
     return ma_dict
 
-def plot_moving_averages(ma_dict):
+def concat_ma_dict(ma_dict):
     for key, value in ma_dict.items():
         value["Ticker"] = key
+
     ma_concat = pd.concat(
         objs=ma_dict.values(),
         axis=0,
         ignore_index=False
     )
+    return ma_concat
         
 
 
@@ -48,5 +51,8 @@ if __name__ == "__main__":
         quotes=closing_quotes, 
         ma_days=ma_days
         )
-    plot_moving_averages(moving_average_dict)
+    concat_moving_averages = concat_ma_dict(moving_average_dict)
+    app = AnalysisDashboard(quotes=concat_moving_averages)
+    app.run()
+    print("Finished")
 
