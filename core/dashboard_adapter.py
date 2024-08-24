@@ -1,6 +1,7 @@
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import pandas as pd
+import numpy as np
 import plotly.express as px
 import time
 import threading
@@ -10,6 +11,15 @@ import os
 
 class AnalysisDashboard:
     def __init__(self, tickers, ma_data, returns):
+        """
+
+        :param tickers: 
+        :type tickers: _type_
+        :param ma_data: _description_
+        :type ma_data: _type_
+        :param returns: _description_
+        :type returns: _type_
+        """
         self.tickers = tickers
         self.ma_data = ma_data
         self.returns = returns
@@ -18,108 +28,144 @@ class AnalysisDashboard:
         self._register_callbacks()
 
     def _setup_layout(self):
-        ma_tickers = self.ma_data["Ticker"].unique()
-        return_tickers = self.returns.columns
-        tickers = list(set(ma_tickers) & set(return_tickers))
+        """Function sets the layout for the dashboard app.
+        All dashboard items like dropdowns, sliders and graphs 
+        must be defined in this method
+        """
         date_range = self.returns.index
+        raw_marks = {i: str(date.year) for i, date in enumerate(date_range)}
+        seen_years = set()
+        marks = {}
+        for key, value in raw_marks.items():
+            if value not in seen_years:
+                marks[key] = value
+                seen_years.add(value)
         self.app.layout = html.Div(
-            [
+            [   
+                html.H1("Technical and fundamental stock analysis"),
                 dcc.Dropdown(
-                    id="Dropdown Ticker",
+                    id="tick_dropdown",
                     options=[{'label': ticker, 'value': ticker} \
-                             for ticker in tickers],
-                    value=tickers[0]
+                             for ticker in self.tickers],
+                    value=self.tickers[0]
                 ),
-                dcc.Graph(id="LineChart"),
-                dcc.Graph(id="Histogram"),
+                dcc.Graph(id="ma_line"),
+                dcc.Graph(id="return_hist"),
                 html.Label("Adjust Time Period for correlation matrix"),
                 dcc.RangeSlider(
-                    id="Date Range Slider",
+                    id="time_range_slider",
                     min=0,
                     max=len(date_range) - 1,
                     value=[0, len(date_range) - 1],
-                    marks={i: date.strftime('%Y-%m') \
-                           for i, date in enumerate(date_range) \
-                            if date.month == 1},
-                    tooltip={"placement": "bottom", "always_visible": True}
+                    marks=marks,
+                    step=1,
+                    allowCross=False,
                 ),
-                dcc.Graph(id="Heatmap")
+                dcc.Graph(id="corr_heatmap")
             ]
         )
 
     def _register_callbacks(self):
+        """Functions defines the app callbacks to adjust
+        the graphs basend on the given selections and filters.
+        Here each callback and sub function is grouped by
+        the defined callback options
+
+        :return: None
+        :rtype: None
+        """
         @self.app.callback(
-            [Output("LineChart", "figure"),
-             Output("Histogram", "figure")],
-            [Input("Dropdown Ticker", "value")]
+            [Output("ma_line", "figure"),
+             Output("return_hist", "figure")],
+            [Input("tick_dropdown", "value")]
         )
-        def update_dropdwon_charts(selected_ticker):
-            filter_mask_line = self.ma_data["Ticker"] == selected_ticker
-            filtered_line = self.ma_data[filter_mask_line]
-            filtered_hist = self.returns[selected_ticker]
+        def dropdwon_charts(tick_filter):
+            """Function defines all graphs on
+            which the ticker dropdown should be applied
+
+            :param selected_ticker: Ticker from dropdown item
+            :type selected_ticker: String
+            :return: Line Chart and histogram
+            :rtype: Plotly object
+            """
+            #filter_mask_line = self.ma_data["Ticker"] == tick_filter
+            ma_line_filtered = self.ma_data[tick_filter]
+            returns_filtered = self.returns[tick_filter]
             line_chart_fig = {
                 'data': [
                     {
-                        'x': filtered_line.index, 
-                        'y': filtered_line["Quote"], 
-                        'type': 'line', 
-                        'name': 'Quote',
-                        'line': {'color': 'blue'}
+                        "x": ma_line_filtered.index, 
+                        "y": ma_line_filtered.iloc[:, 0], 
+                        "type": "line", 
+                        "name": "Quote",
+                        "line": {"color": "blue"}
                     },
                     {
-                        'x': filtered_line.index, 
-                        'y': filtered_line["MovingAverage42"], 
-                        'type': 'line', 
-                        'name': 'Moving Average Short',
-                        'line': {'color': 'green'}
+                        "x": ma_line_filtered.index, 
+                        "y": ma_line_filtered.iloc[:, 1], 
+                        "type": "line", 
+                        "name": "Moving Average Short",
+                        "line": {"color": "green"}
                     },
                     {
-                        'x': filtered_line.index, 
-                        'y': filtered_line["MovingAverage252"], 
-                        'type': 'line', 
-                        'name': 'Moving Average Long',
-                        'line': {'color': 'red'}
+                        "x": ma_line_filtered.index, 
+                        "y": ma_line_filtered.iloc[:, 2], 
+                        "type": "line", 
+                        "name": f"{ma_line_filtered.iloc[:, 2].name}",
+                        "line": {"color": "red"}
                     },
                 ],
-                'layout': {
-                    'title': f'Stock Data for {selected_ticker}',
-                    'xaxis': {'title': 'Date'},
-                    'yaxis': {'title': 'Values'},
+                "layout": {
+                    "title": f"Moving Averages for {tick_filter}",
+                    "xaxis": {"title": "Date"},
+                    "yaxis": {"title": "Values"},
                 }
             }
             hist_fig = {
-                'data': [
+                "data": [
                     {
-                        'x': filtered_hist, 
-                        'type': 'histogram', 
-                        'name': selected_ticker
+                        "x": returns_filtered, 
+                        "type": "histogram",
+                        "nbins": 100,
+                        "name": tick_filter
                     }
                 ],
-                'layout': {'title': f'Histogram for {selected_ticker} returns'}
+                "layout": {"title": f"Histogram for {tick_filter} returns"}
             }
             return line_chart_fig, hist_fig
         
         @self.app.callback(
-            Output('Heatmap', 'figure'),
-            [Input('Date Range Slider', 'value')]
+            Output("corr_heatmap", "figure"),
+            [Input("time_range_slider", "value")]
         )    
-        def update_slider_charts(slider_value):
-            # Determine the end date for the correlation period based on the slider value
-            full_date_range = self.returns.index
-            start_date = full_date_range[slider_value[0]]
-            end_date = full_date_range[slider_value[1]]
+        def range_slider_charts(slider_array):
+            """Function defines all graphs on which the time range slider 
+            should be applied. Rearranging the time range triggers callback
+            and recalculates the underlying data.
 
-            # Filter the returns DataFrame up to the selected date
-            filtered_returns_df = self.returns[(self.returns.index >= start_date) & (self.returns.index <= end_date)]
+            :param slider_array: Containing lower and upper value for time range selection
+            :type slider_value: Array
+            :return: Correlation heatmap
+            :rtype: Plotly object
+            """
+            date_range = self.returns.index
+            start = date_range[slider_array[0]]
+            end = date_range[slider_array[1]]
 
-            # Calculate the correlation matrix
-            correlation_matrix = filtered_returns_df.corr()
+            start_filter = self.returns.index >= start
+            end_filter = self.returns.index <= end
+            returns_filtered = self.returns[(start_filter) & (end_filter)]
+            corr_matrix = returns_filtered.corr()
 
             # Create the heatmap figure
-            heatmap_figure = px.imshow(correlation_matrix, text_auto=True, aspect="auto", color_continuous_scale='RdBu_r')
-            heatmap_figure.update_layout(title=f"Return Correlation Heatmap ({start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')})")
-
-            return heatmap_figure
+            heatmap = px.imshow(corr_matrix, 
+                                text_auto=True, 
+                                aspect="auto", 
+                                color_continuous_scale="RdBu_r"
+                                )
+            title = title=f"Return correlation {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
+            heatmap.update_layout(title=title)
+            return heatmap
         
     def run(self, debug=True):
 
