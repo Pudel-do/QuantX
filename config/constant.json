@@ -15,7 +15,7 @@
         "measures": [
             "revenue", "ebitda", "operatingIncome",
             "totalAssets", "retainedEarnings", "totalLiabilities",
-            "accountsPayables", "netIncome", "operatingCashFlow"
+            "accountsPayables", "operatingCashFlow"
         ]
     }
 }
