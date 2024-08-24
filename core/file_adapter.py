@@ -107,6 +107,15 @@ class FileAdapter:
             file_name=file_name
         )
         return returns
+    
+    def load_fundamentals(self):
+        dir = os.path.join(os.getcwd(), self.config["data_dir"])
+        file_name = self.config["fundamentals_file"]
+        fundamentals = self._load_pickel(
+            dir=dir,
+            file_name=file_name
+        )
+        return fundamentals
 
     def _write_csv(self, data, dir, file_name):
         """Function writes data to given directory 
@@ -175,6 +184,26 @@ class FileAdapter:
             logging.error(f"File {file_name} from {dir} directory not found")
             return None
         return data
+    
+    def _load_pickel(self, dir, file_name):
+        """Function loads pickel file from given
+        directory and file_name
+
+        :param dir: Directory to load data from
+        :type dir: String
+        :param file_name: Pickel file to load
+        :type file_name: Strong
+        :return: Data from pickel file
+        :rtype: Pickel object
+        """
+        path = os.path.join(dir, file_name)
+        try:
+            with open(path, "rb") as file:
+                data = pickle.load(file=file)
+            return data
+        except:
+            logging.error(f"File {file_name} from {dir} directory not found")
+            return None
 
     def _dir_check(self, dir):
         """Function checks if given directory exists.
