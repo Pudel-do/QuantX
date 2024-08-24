@@ -47,16 +47,21 @@ def concat_ma_dict(ma_dict):
 if __name__ == "__main__":
     parameter = read_json("parameter.json")["analysis"]
     ticker_list = read_json("inputs.json")["ticker"]
+    fundamental_list = read_json("constant.json")["fundamentals"]["measures"]
     ma_days = parameter["ma_days"]
     closing_quotes = FileAdapter().load_closing_quotes()
     returns = FileAdapter().load_returns()
+    fundamentals = FileAdapter().load_fundamentals()
     moving_average_dict = get_moving_average(
         quotes=closing_quotes, 
         ma_days=ma_days
         )
-    concat_moving_averages = concat_ma_dict(moving_average_dict)
+    #concat_moving_averages = concat_ma_dict(moving_average_dict)
     app = AnalysisDashboard(tickers=ticker_list,
-                            ma_data=concat_moving_averages,
-                            returns=returns)
+                            ma_data=moving_average_dict,
+                            returns=returns,
+                            fundamentals=fundamentals,
+                            fundamental_list=fundamental_list)
     app.run()
+    print("Finished")
 

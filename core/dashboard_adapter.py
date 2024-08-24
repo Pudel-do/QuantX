@@ -3,6 +3,7 @@ from dash.dependencies import Input, Output
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import plotly.graph_objects as go
 import time
 import threading
 import webbrowser
@@ -10,19 +11,28 @@ import logging
 import os
 
 class AnalysisDashboard:
-    def __init__(self, tickers, ma_data, returns):
+    def __init__(self, 
+                 tickers, 
+                 ma_data, 
+                 returns, 
+                 fundamentals, 
+                 fundamental_list):
         """
 
-        :param tickers: 
-        :type tickers: _type_
-        :param ma_data: _description_
-        :type ma_data: _type_
-        :param returns: _description_
-        :type returns: _type_
+        :param tickers: Tickers from project inputs.json
+        :type tickers: List
+        :param ma_data: Dictionary with moving average values for each stock
+        :type ma_data: Dictionary
+        :param returns: Log returns for each stock
+        :type returns: Dataframe
+        :param fundamentals: Fundamental data for each stock
+        :type fundamentals: Dictionary
         """
         self.tickers = tickers
         self.ma_data = ma_data
         self.returns = returns
+        self.fundamentals = fundamentals
+        self.fundamental_list = fundamental_list
         self.app = Dash(__name__)
         self._setup_layout()
         self._register_callbacks()
@@ -33,7 +43,8 @@ class AnalysisDashboard:
         must be defined in this method
         """
         date_range = self.returns.index
-        raw_marks = {i: str(date.year) for i, date in enumerate(date_range)}
+        raw_marks = {i: str(date.year) \
+            for i, date in enumerate(date_range)}
         seen_years = set()
         marks = {}
         for key, value in raw_marks.items():
@@ -51,6 +62,14 @@ class AnalysisDashboard:
                 ),
                 dcc.Graph(id="ma_line"),
                 dcc.Graph(id="return_hist"),
+                dcc.Checklist(
+                    id='checklist_fundamentals',
+                    options=[{'label': col, 'value': col} \
+                             for col in self.fundamental_list],
+                    value=[self.fundamental_list[0]],
+                    labelStyle={'display': 'inline-block'}
+                ),
+                dcc.Graph(id='fundamentals_bar'),
                 html.Label("Adjust Time Period for correlation matrix"),
                 dcc.RangeSlider(
                     id="time_range_slider",
@@ -88,7 +107,6 @@ class AnalysisDashboard:
             :return: Line Chart and histogram
             :rtype: Plotly object
             """
-            #filter_mask_line = self.ma_data["Ticker"] == tick_filter
             ma_line_filtered = self.ma_data[tick_filter]
             returns_filtered = self.returns[tick_filter]
             line_chart_fig = {
@@ -135,9 +153,20 @@ class AnalysisDashboard:
             return line_chart_fig, hist_fig
         
         @self.app.callback(
+            Output("fundamentals_bar", "figure"),
+            [Input("tick_dropdown", "value"),
+            Input("checklist_fundamentals", "value")
+             ]
+        )
+        def dropdown_checklist_chart(tick_filter, fundamental_filter):
+            data = self.fundamentals[tick_filter][fundamental_filter]
+            fig = px.bar(data, barmode="group")
+            return fig
+
+        @self.app.callback(
             Output("corr_heatmap", "figure"),
             [Input("time_range_slider", "value")]
-        )    
+        )
         def range_slider_charts(slider_array):
             """Function defines all graphs on which the time range slider 
             should be applied. Rearranging the time range triggers callback
