@@ -1,5 +1,6 @@
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
+from core import logging_config
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -38,6 +39,7 @@ class AnalysisDashboard:
         self._register_callbacks()
 
     def _setup_layout(self):
+        #TODO: Outsource preprocessing in separate function
         """Function sets the layout for the dashboard app.
         All dashboard items like dropdowns, sliders and graphs 
         must be defined in this method
@@ -122,7 +124,7 @@ class AnalysisDashboard:
                         "x": ma_line_filtered.index, 
                         "y": ma_line_filtered.iloc[:, 1], 
                         "type": "line", 
-                        "name": "Moving Average Short",
+                        "name": f"{ma_line_filtered.iloc[:, 1].name}",
                         "line": {"color": "green"}
                     },
                     {
@@ -159,8 +161,15 @@ class AnalysisDashboard:
              ]
         )
         def dropdown_checklist_chart(tick_filter, fundamental_filter):
-            data = self.fundamentals[tick_filter][fundamental_filter]
-            fig = px.bar(data, barmode="group")
+            try:
+                data = self.fundamentals[tick_filter]
+                data = data[fundamental_filter]
+            except KeyError:
+                logging.warning(f"No fundamental data for ticker {tick_filter}")
+                data = pd.DataFrame()
+            fig = px.bar(data, 
+                         barmode="group"
+                         )
             return fig
 
         @self.app.callback(
