@@ -38,6 +38,9 @@ class AnalysisDashboard:
         self._setup_layout()
         self._register_callbacks()
 
+        log = logging.getLogger('dash')
+        log.setLevel(logging.ERROR)
+
     def _setup_layout(self):
         #TODO: Outsource preprocessing in separate function
         """Function sets the layout for the dashboard app.
@@ -193,9 +196,8 @@ class AnalysisDashboard:
             start_filter = self.returns.index >= start
             end_filter = self.returns.index <= end
             returns_filtered = self.returns[(start_filter) & (end_filter)]
+            returns_filtered = returns_filtered[self.tickers]
             corr_matrix = returns_filtered.corr()
-
-            # Create the heatmap figure
             heatmap = px.imshow(corr_matrix, 
                                 text_auto=True, 
                                 aspect="auto", 
