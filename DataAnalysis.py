@@ -56,7 +56,6 @@ if __name__ == "__main__":
         quotes=closing_quotes, 
         ma_days=ma_days
         )
-    #concat_moving_averages = concat_ma_dict(moving_average_dict)
     app = AnalysisDashboard(tickers=ticker_list,
                             ma_data=moving_average_dict,
                             returns=returns,
