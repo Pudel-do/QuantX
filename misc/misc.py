@@ -49,3 +49,35 @@ def get_last_business_day():
     last_bday = now - pd.offsets.BDay(1)
     last_bday = last_bday.strftime(format="%Y-%m-%d")
     return last_bday
+
+def harmonize_tickers(object):
+    """Functions harmonizes ticker symbols in input object
+    with base tickers in inputs.json for dataframes and
+    dictionary. If input object is different type, the 
+    function returns the raw input object
+
+    :param object: Quotes or fundamental data
+    :type object: Dataframe, Dictionary
+    :return: Input object adjusted for base tickers
+    :rtype: Dataframe, Dictionary
+    """
+    base_tickers = read_json("inputs.json")["ticker"]
+    if isinstance(object, pd.DataFrame):
+        for col in object.columns:
+            if col not in base_tickers:
+                object.drop(
+                    columns=col, 
+                    inplace=True
+                    )
+            else:
+                pass
+        return object
+    elif isinstance(object, dict):
+        for key in object:
+            if key not in base_tickers:
+                object.pop(key)
+            else:
+                pass
+        return object 
+    else:
+        return object
