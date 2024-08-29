@@ -1,6 +1,7 @@
 from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 from core import logging_config
+from misc.misc import read_json
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -22,12 +23,12 @@ class AnalysisDashboard:
 
         :param tickers: Tickers from project inputs.json
         :type tickers: List
-        :param ma_data: Dictionary with moving average values for each stock
-        :type ma_data: Dictionary
+        :param ma_data: Dataframe with moving average values for each stock
+        :type ma_data: Dataframe
         :param returns: Log returns for each stock
         :type returns: Dataframe
         :param fundamentals: Fundamental data for each stock
-        :type fundamentals: Dictionary
+        :type fundamentals: Dataframe
         """
         self.tickers = tickers
         self.ma_data = ma_data
@@ -38,11 +39,31 @@ class AnalysisDashboard:
         self._setup_layout()
         self._register_callbacks()
 
-        log = logging.getLogger('dash')
-        log.setLevel(logging.ERROR)
+    def _tick_filter(self, df, tick):
+        """Function filters dataframe for given ticker symbol.
+        If symbol is not in ticker column or ticker column
+        does not exist, the functin returns an empty dataframe
+
+        :param df: Fundamental data or quotes to filter 
+        for given ticker symbol
+        :type df: Dataframe
+        :param tick: Ticker symbol for filtering
+        :type tick: String
+        :return: Filtered object
+        :rtype: Dataframe
+        """
+        constant_cols = read_json("constant.json")["columns"]
+        tick_col = constant_cols["ticker"]
+        try:
+            filter_mask = df[tick_col] == tick
+            df_filtered = df[filter_mask]
+            df_filtered = df_filtered.drop(columns=tick_col)
+            return df_filtered
+        except KeyError:
+            logging.error(f"Column {tick_col} or ticker symbol {tick} not in dataframe")
+            return pd.DataFrame()
 
     def _setup_layout(self):
-        #TODO: Outsource preprocessing in separate function
         """Function sets the layout for the dashboard app.
         All dashboard items like dropdowns, sliders and graphs 
         must be defined in this method
@@ -103,7 +124,7 @@ class AnalysisDashboard:
              Output("return_hist", "figure")],
             [Input("tick_dropdown", "value")]
         )
-        def dropdwon_charts(tick_filter):
+        def _dropdwon_charts(tick_filter):
             """Function defines all graphs on
             which the ticker dropdown should be applied
 
@@ -112,7 +133,10 @@ class AnalysisDashboard:
             :return: Line Chart and histogram
             :rtype: Plotly object
             """
-            ma_line_filtered = self.ma_data[tick_filter]
+            ma_line_filtered = self._tick_filter(
+                df=self.ma_data,
+                tick=tick_filter
+            )
             returns_filtered = self.returns[tick_filter]
             line_chart_fig = {
                 'data': [
@@ -163,15 +187,30 @@ class AnalysisDashboard:
             Input("checklist_fundamentals", "value")
              ]
         )
-        def dropdown_checklist_chart(tick_filter, fundamental_filter):
+        def _dropdown_checklist_chart(tick_filter, fundamental_filter):
+            """Function defines all graphs on which the checklist
+            dropdown should be applied. Selecting columns triggers
+            the callback and rearranges the calculated data
+
+            :param tick_filter: _description_
+            :type tick_filter: _type_
+            :param fundamental_filter: _description_
+            :type fundamental_filter: _type_
+            :return: _description_
+            :rtype: _type_
+            """
             try:
-                data = self.fundamentals[tick_filter]
-                data = data[fundamental_filter]
+                data = self._tick_filter(
+                    df=self.fundamentals,
+                    tick=tick_filter
+                )
             except KeyError:
-                logging.warning(f"No fundamental data for ticker {tick_filter}")
-                data = pd.DataFrame()
+                data = pd.DataFrame(columns=self.fundamental_list)
+                logging.warning(f"No fundamental data available for ticker {tick_filter}")
+
+            data = data[fundamental_filter]
             fig = px.bar(data, 
-                         barmode="group"
+                         barmode="group",
                          )
             return fig
 
@@ -179,7 +218,7 @@ class AnalysisDashboard:
             Output("corr_heatmap", "figure"),
             [Input("time_range_slider", "value")]
         )
-        def range_slider_charts(slider_array):
+        def _range_slider_charts(slider_array):
             """Function defines all graphs on which the time range slider 
             should be applied. Rearranging the time range triggers callback
             and recalculates the underlying data.
