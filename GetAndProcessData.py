@@ -8,6 +8,24 @@ from core.file_adapter import FileAdapter
 from itertools import chain
 from misc.misc import *
 
+def drop_duplicate_fundamental_cols(fundamentals):
+    """Function drops duplicate fundamental KPIs
+
+    :param fundamentals: Dictionary for fundamental data
+    with ticker symbols as keys
+    :type fundamentals: Dictionary
+    :return: Fundamental dictionary adjusted by duplicate
+    fundamental KPIs
+    :rtype: Dictionary
+    """
+    fundamentals_clean = {}
+    for tick, funds in fundamentals.items():
+        dup_mask = funds.columns.duplicated()
+        funds = funds.loc[:, ~dup_mask]
+        fundamentals_clean[tick] = funds
+
+    return fundamentals_clean
+
 def get_merged_quotes(ticker_list, start, quote_id):
     """Function concats quotes for given quote id and ticker symbols. The ticker quotes are
     joined to a base time series with business days only ranging up to actual time.
@@ -122,6 +140,7 @@ if __name__ == "__main__":
     returns = get_returns(closing_quotes)
     daily_trading_data = get_daily_stock_data(ticker_list, base_start)
     fundamentals = get_fundamentals(ticker_list, base_start)
+    fundamentals = drop_duplicate_fundamental_cols(fundamentals)
     FileAdapter().save_closing_quotes(closing_quotes)
     FileAdapter().save_stock_returns(returns)
     FileAdapter().save_trading_data(daily_trading_data)
