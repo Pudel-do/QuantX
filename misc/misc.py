@@ -81,3 +81,9 @@ def harmonize_tickers(object):
         return object 
     else:
         return object
+    
+def ts_train_test_split(ts, train_ratio=0.75):
+    split_index = int(len(ts) * train_ratio)
+    train = ts.iloc[:split_index]
+    test = ts.iloc[split_index:]
+    return train, test
