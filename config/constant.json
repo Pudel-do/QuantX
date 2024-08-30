@@ -19,6 +19,9 @@
         ]
     },
     "columns": {
-        "ticker": "Ticker"
+        "ticker": "Ticker",
+        "quote": "Quote",
+        "sma1": "SMA1",
+        "sma2": "SMA2"
     }
 }

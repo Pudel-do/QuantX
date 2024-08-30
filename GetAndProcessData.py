@@ -102,18 +102,17 @@ def get_fundamentals(ticker_list, start):
     :return: Fundamental data
     :rtype: Dictionary
     """
-    fd_constant = read_json("constant.json")["fundamentals"]
     fundamental_dict = {}
     for tick in ticker_list:
         fd_adapter = FinanceAdapter(tick)
         income_statement = fd_adapter.get_fundamental(
-            fd_kpi=fd_constant["income"]
+            fd_kpi=CONST_FUNDS["income"]
             )
         balance_sheet = fd_adapter.get_fundamental(
-            fd_kpi=fd_constant["balance_sheet"]
+            fd_kpi=CONST_FUNDS["balance_sheet"]
             )
         cashflow = fd_adapter.get_fundamental(
-            fd_kpi=fd_constant["cashflow"]
+            fd_kpi=CONST_FUNDS["cashflow"]
             )
         fundamentals = pd.concat(
             objs=[
@@ -124,7 +123,7 @@ def get_fundamentals(ticker_list, start):
             axis=1
         )
         if not fundamentals.empty:
-            fundamentals = fundamentals[fd_constant["measures"]]
+            fundamentals = fundamentals[CONST_FUNDS["measures"]]
             fundamental_dict[tick] = fundamentals
         else:
             pass
@@ -134,9 +133,8 @@ def get_fundamentals(ticker_list, start):
 if __name__ == "__main__":
     ticker_list = read_json("inputs.json")["ticker"]
     base_start = read_json("inputs.json")["base_start"]
-    closing_quotes = get_merged_quotes(ticker_list=ticker_list, 
-                                       start=base_start, 
-                                       quote_id="Adj Close")
+    CONST_FUNDS = read_json("constant.json")["fundamentals"]
+    closing_quotes = get_merged_quotes(ticker_list=ticker_list, start=base_start, quote_id="Adj Close")
     returns = get_returns(closing_quotes)
     daily_trading_data = get_daily_stock_data(ticker_list, base_start)
     fundamentals = get_fundamentals(ticker_list, base_start)
