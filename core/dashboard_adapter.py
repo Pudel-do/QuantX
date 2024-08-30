@@ -14,15 +14,11 @@ import os
 
 class AnalysisDashboard:
     def __init__(self, 
-                 tickers, 
                  ma_data, 
                  returns, 
-                 fundamentals, 
-                 fundamental_list):
+                 fundamentals
+                 ):
         """
-
-        :param tickers: Tickers from project inputs.json
-        :type tickers: List
         :param ma_data: Dataframe with moving average values for each stock
         :type ma_data: Dataframe
         :param returns: Log returns for each stock
@@ -30,11 +26,11 @@ class AnalysisDashboard:
         :param fundamentals: Fundamental data for each stock
         :type fundamentals: Dataframe
         """
-        self.tickers = tickers
+        self.tickers = read_json("inputs.json")["ticker"]
+        self.fundamental_list = read_json("constant.json")["fundamentals"]["measures"]
         self.ma_data = ma_data
         self.returns = returns
         self.fundamentals = fundamentals
-        self.fundamental_list = fundamental_list
         self.app = Dash(__name__)
         self._setup_layout()
         self._register_callbacks()
