@@ -1,9 +1,101 @@
-
 import pandas as pd
 import numpy as np
+from itertools import product
 from core.file_adapter import FileAdapter
 from core.dashboard_adapter import AnalysisDashboard
 from misc.misc import *
+
+def get_moving_averages(quote_data, train):
+    for ticker, quotes in quote_data.items():
+        if train:
+            train_set, test_set = ts_train_test_split(
+                ts=quotes,
+                train_ratio=0.75
+            )
+            opt_parameters = optimization(quotes=train_set)
+            sma1 = int(opt_parameters.loc[SMA1_COL])
+            sma2 = int(opt_parameters.loc[SMA2_COL])
+            backtest = vectorized_backtesting(
+                quotes=test_set, 
+                SMA1=sma1, 
+                SMA2=sma2
+            )
+        else:
+            opt_parameters = optimization(quotes=quotes)
+            sma1 = int(opt_parameters.loc[SMA1_COL])
+            sma2 = int(opt_parameters.loc[SMA2_COL])
+            backtest = vectorized_backtesting(
+                quotes=quotes, 
+                SMA1=sma1, 
+                SMA2=sma2
+            )
+        backtest = backtest.drop(columns=QUOTE_COL)
+        cum_rets = backtest["Returns"].cumsum()
+        cum_rets = cum_rets.apply(np.exp)
+        cum_strat = backtest["Strategy"].cumsum()
+        cum_strat = cum_strat.apply(np.exp)
+        cum_rets.name = "CumReturns"
+        cum_strat.name = "CumStrategy"
+        ma_results = pd.DataFrame(quotes)
+        ma_results = ma_results.dropna()
+        ma_results = ma_results.join(
+            [backtest, cum_rets, cum_strat],
+            how="outer"
+        )
+        print("break")
+
+def vectorized_backtesting(quotes, SMA1, SMA2):
+    quotes = quotes.dropna()
+    sma1 = quotes.rolling(SMA1).mean()
+    sma2 = quotes.rolling(SMA2).mean()
+
+    data = pd.DataFrame(quotes)
+    data.columns = [QUOTE_COL]
+    data[SMA1_COL] = sma1
+    data[SMA2_COL] = sma2
+    data = data.dropna()
+    position_mask = np.where(
+        data[SMA1_COL] > data[SMA2_COL], 1, -1
+    )
+    data["Position"] = position_mask
+    data["Returns"] = np.log(
+        data[QUOTE_COL] / data[QUOTE_COL].shift(1)
+    )
+    data["Strategy"] = data["Position"].shift(1) * data["Returns"]
+    data = data.dropna()
+    return data
+
+def optimization(quotes):
+    total_results_list = []
+    sma1 = range(20, 61, 4)
+    sma2 = range(180, 281, 10)
+    for SMA1, SMA2 in product(sma1, sma2):
+        ma_data = vectorized_backtesting(
+            quotes=quotes,
+            SMA1=SMA1,
+            SMA2=SMA2
+        )
+        performance = np.exp(
+            ma_data[["Returns", "Strategy"]].sum()
+        )
+        market = performance["Returns"]
+        strategy = performance["Strategy"]
+        results = {
+            SMA1_COL: SMA1,
+            SMA2_COL: SMA2,
+            "MARKET": market,
+            "STRATEGY": strategy,
+            "OUT": strategy - market
+        }
+        total_results_list.append(results)
+    total_results = pd.DataFrame(total_results_list)
+    total_results = total_results.sort_values(
+        by="OUT",
+        ascending=False
+    )
+    optimal_result = total_results.iloc[0, :]
+    optimal_result = optimal_result.transpose()
+    return optimal_result
 
 def get_moving_average(quotes, ma_days):
     """Function calculates simple moving averages for given
@@ -68,30 +160,33 @@ def concat_dict_to_df(dict):
 if __name__ == "__main__":
     parameter = read_json("parameter.json")["analysis"]
     ticker_list = read_json("inputs.json")["ticker"]
-    fundamental_list = read_json("constant.json")["fundamentals"]["measures"]
-    ma_days = parameter["ma_days"]
+    constant_cols = read_json("constant.json")["columns"]
+    SMA1_COL = constant_cols["sma1"]
+    SMA2_COL = constant_cols["sma2"]
+    QUOTE_COL = constant_cols["quote"]
     returns = FileAdapter().load_returns()
     closing_quotes = FileAdapter().load_closing_quotes()
     fundamentals_dict = FileAdapter().load_fundamentals()
     closing_quotes = harmonize_tickers(object=closing_quotes)
     fundamentals_dict = harmonize_tickers(object=fundamentals_dict)
-    moving_average_dict = get_moving_average(
-        quotes=closing_quotes, 
-        ma_days=ma_days
-        )
-    moving_average_df = concat_dict_to_df(
-        dict=moving_average_dict
-        )
-    fundamentals_df = concat_dict_to_df(
-        dict=fundamentals_dict
-    )
-    app = AnalysisDashboard(
-        tickers=ticker_list,
-        ma_data=moving_average_df,
-        returns=returns,
-        fundamentals=fundamentals_df,
-        fundamental_list=fundamental_list
-        )
-    app.run()
-    print("Finished")
+
+    ma_test = get_moving_averages(quote_data=closing_quotes, train=False)
+
+    # moving_average_dict = get_moving_average(
+    #     quotes=closing_quotes, 
+    #     ma_days=ma_days
+    #     )
+    # moving_average_df = concat_dict_to_df(
+    #     dict=moving_average_dict
+    #     )
+    # fundamentals_df = concat_dict_to_df(
+    #     dict=fundamentals_dict
+    # )
+    # app = AnalysisDashboard(
+    #     ma_data=moving_average_df,
+    #     returns=returns,
+    #     fundamentals=fundamentals_df,
+    #     )
+    # app.run()
+    # print("Finished")
 
