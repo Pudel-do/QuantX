@@ -14,7 +14,8 @@ import os
 
 class AnalysisDashboard:
     def __init__(self, 
-                 ma_data, 
+                 ma_data,
+                 ma_values,
                  returns, 
                  fundamentals
                  ):
@@ -28,7 +29,9 @@ class AnalysisDashboard:
         """
         self.tickers = read_json("inputs.json")["ticker"]
         self.fundamental_list = read_json("constant.json")["fundamentals"]["measures"]
+        self.constant_cols = read_json("constant.json")["columns"]
         self.ma_data = ma_data
+        self.ma_values = ma_values
         self.returns = returns
         self.fundamentals = fundamentals
         self.app = Dash(__name__)
@@ -82,7 +85,8 @@ class AnalysisDashboard:
                              for ticker in self.tickers],
                     value=self.tickers[0]
                 ),
-                dcc.Graph(id="ma_line"),
+                dcc.Graph(id="quote_ma_line"),
+                dcc.Graph(id="ma_performance_line"),
                 dcc.Graph(id="return_hist"),
                 dcc.Checklist(
                     id='checklist_fundamentals',
@@ -116,7 +120,8 @@ class AnalysisDashboard:
         :rtype: None
         """
         @self.app.callback(
-            [Output("ma_line", "figure"),
+            [Output("quote_ma_line", "figure"),
+             Output("ma_performance_line", "figure"),
              Output("return_hist", "figure")],
             [Input("tick_dropdown", "value")]
         )
@@ -129,53 +134,93 @@ class AnalysisDashboard:
             :return: Line Chart and histogram
             :rtype: Plotly object
             """
-            ma_line_filtered = self._tick_filter(
+            ma_data_filtered = self._tick_filter(
                 df=self.ma_data,
                 tick=tick_filter
             )
+            quote_cols = [self.constant_cols["quote"], "SMA1", "SMA2"]
+            performance_cols = ["Position", "CumReturns", "CumStrategy"]
+            ma_data_quote = ma_data_filtered[quote_cols]
+            ma_data_performance = ma_data_filtered[performance_cols]
+            #ma_data_performance = ma_data_performance.dropna()
+            ma_values_filtered = self.ma_values[tick_filter]
+            performance = np.round(ma_values_filtered.loc["Performance"], 2)
             returns_filtered = self.returns[tick_filter]
-            line_chart_fig = {
-                'data': [
+            quote_line_fig = {
+                "data": [
                     {
-                        "x": ma_line_filtered.index, 
-                        "y": ma_line_filtered.iloc[:, 0], 
+                        "x": ma_data_quote.index, 
+                        "y": ma_data_quote.loc[:, self.constant_cols["quote"]], 
                         "type": "line", 
                         "name": "Quote",
                         "line": {"color": "blue"}
                     },
                     {
-                        "x": ma_line_filtered.index, 
-                        "y": ma_line_filtered.iloc[:, 1], 
+                        "x": ma_data_quote.index, 
+                        "y": ma_data_quote.loc[:, "SMA1"], 
                         "type": "line", 
-                        "name": f"{ma_line_filtered.iloc[:, 1].name}",
+                        "name": f"SMA {int(ma_values_filtered.loc["SMA1"])} Days",
                         "line": {"color": "green"}
                     },
                     {
-                        "x": ma_line_filtered.index, 
-                        "y": ma_line_filtered.iloc[:, 2], 
+                        "x": ma_data_quote.index, 
+                        "y": ma_data_quote.loc[:, "SMA2"], 
                         "type": "line", 
-                        "name": f"{ma_line_filtered.iloc[:, 2].name}",
+                        "name": f"SMA {int(ma_values_filtered.loc["SMA2"])} Days",
                         "line": {"color": "red"}
                     },
                 ],
                 "layout": {
-                    "title": f"Moving Averages for {tick_filter}",
+                    "title": f"Optimal Moving Averages for ticker {tick_filter}",
                     "xaxis": {"title": "Date"},
-                    "yaxis": {"title": "Values"},
+                    "yaxis": {"title": "Values"}
                 }
+            }
+            ma_performance_fig = {
+                "data": [
+                    {
+                        'x': ma_data_performance.index, 
+                        'y': ma_data_performance["CumReturns"], 
+                        'mode': 'lines', 
+                        'name': "Cumulative Market Returns", 
+                        'type': 'scatter'
+                    },
+                    {
+                        'x': ma_data_performance.index, 
+                        'y': ma_data_performance["CumStrategy"], 
+                        'mode': 'lines', 
+                        'name': "Cumulative Strategy Returns", 
+                        'type': 'scatter'
+                    },
+                    {
+                        'x': ma_data_performance.index, 
+                        'y': ma_data_performance["Position"], 
+                        'mode': 'lines', 
+                        'name': 'Trading Strategy', 
+                        'line': {'dash': 'dash'}, 
+                        'yaxis': 'y2', 
+                        'type': 'scatter'
+                    }
+                ],
+                "layout": {
+                        'title': f"Trading strategy with out-performance of {performance}",
+                        'xaxis': {'title': 'Date'},
+                        'yaxis': {'title': 'Cumulative Returns', 'side': 'right'},
+                        'yaxis2': {'title': 'Trading Strategy', 'overlaying': 'y', 'side': 'left', 'showgrid': False}
+                }
+
             }
             hist_fig = {
                 "data": [
                     {
                         "x": returns_filtered, 
                         "type": "histogram",
-                        "nbins": 100,
                         "name": tick_filter
                     }
                 ],
                 "layout": {"title": f"Histogram for {tick_filter} returns"}
             }
-            return line_chart_fig, hist_fig
+            return quote_line_fig, ma_performance_fig, hist_fig
         
         @self.app.callback(
             Output("fundamentals_bar", "figure"),
