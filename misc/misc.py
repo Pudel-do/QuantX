@@ -82,7 +82,17 @@ def harmonize_tickers(object):
     else:
         return object
     
-def ts_train_test_split(ts, train_ratio=0.75):
+def ts_train_test_split(ts, train_ratio):
+    """Function splits time series into
+    train and test set
+
+    :param ts: Time series to split
+    :type ts: Pandas series
+    :param train_ratio: Ratio for training sample
+    :type train_ratio: float
+    :return: Train and test set
+    :rtype: Pandas series
+    """
     split_index = int(len(ts) * train_ratio)
     train = ts.iloc[:split_index]
     test = ts.iloc[split_index:]
