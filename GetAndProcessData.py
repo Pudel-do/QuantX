@@ -52,8 +52,9 @@ def get_merged_quotes(ticker_list, start, quote_id):
     for tick in ticker_list:
         ticker_quotes = FinanceAdapter(tick).get_trade_data(start=start)
         ticker_quote = ticker_quotes[quote_id]
-        ticker_quote.name = tick
-        quotes = quotes.join(ticker_quote)
+        if not ticker_quote.empty:
+            ticker_quote.name = tick
+            quotes = quotes.join(ticker_quote)
     return quotes
 
 def get_daily_stock_data(ticker_list, start):
