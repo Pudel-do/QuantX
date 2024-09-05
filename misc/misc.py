@@ -62,23 +62,24 @@ def harmonize_tickers(object):
     :rtype: Dataframe, Dictionary
     """
     base_tickers = read_json("inputs.json")["ticker"]
+    object_clean = object.copy()
     if isinstance(object, pd.DataFrame):
         for col in object.columns:
             if col not in base_tickers:
-                object.drop(
+                object_clean.drop(
                     columns=col, 
                     inplace=True
                     )
             else:
                 pass
-        return object
+        return object_clean
     elif isinstance(object, dict):
         for key in object:
             if key not in base_tickers:
-                object.pop(key)
+                object_clean.pop(key)
             else:
                 pass
-        return object 
+        return object_clean 
     else:
         return object
     
