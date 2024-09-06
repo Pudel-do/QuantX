@@ -142,7 +142,6 @@ class AnalysisDashboard:
             performance_cols = ["Position", "CumReturns", "CumStrategy"]
             ma_data_quote = ma_data_filtered[quote_cols]
             ma_data_performance = ma_data_filtered[performance_cols]
-            #ma_data_performance = ma_data_performance.dropna()
             ma_values_filtered = self.ma_values[tick_filter]
             performance = np.round(ma_values_filtered.loc["Performance"], 2)
             returns_filtered = self.returns[tick_filter]
@@ -160,20 +159,34 @@ class AnalysisDashboard:
                         "y": ma_data_quote.loc[:, "SMA1"], 
                         "type": "line", 
                         "name": f"SMA {int(ma_values_filtered.loc["SMA1"])} Days",
-                        "line": {"color": "green"}
+                        "opacity": 0.75,
+                        "line": {
+                            "color": "green",
+                            "width": 1.5
+                        }
                     },
                     {
                         "x": ma_data_quote.index, 
                         "y": ma_data_quote.loc[:, "SMA2"], 
                         "type": "line", 
                         "name": f"SMA {int(ma_values_filtered.loc["SMA2"])} Days",
-                        "line": {"color": "red"}
+                        "opacity": 0.75,
+                        "line": {
+                            "color": "red",
+                            "width": 1.5
+                        }
                     },
                 ],
                 "layout": {
                     "title": f"Optimal Moving Averages for ticker {tick_filter}",
                     "xaxis": {"title": "Date"},
-                    "yaxis": {"title": "Values"}
+                    "yaxis": {"title": "Values"},
+                    "legend": {
+                                'x': 0,
+                                'y': 1,
+                                'xanchor': 'left',
+                                'yanchor': 'top'
+                    }
                 }
             }
             ma_performance_fig = {
@@ -182,14 +195,15 @@ class AnalysisDashboard:
                         'x': ma_data_performance.index, 
                         'y': ma_data_performance["CumReturns"], 
                         'mode': 'lines', 
-                        'name': "Cumulative Market Returns", 
-                        'type': 'scatter'
+                        'name': "Market Returns", 
+                        'type': 'scatter',
+                        "opacity": 0.5
                     },
                     {
                         'x': ma_data_performance.index, 
                         'y': ma_data_performance["CumStrategy"], 
                         'mode': 'lines', 
-                        'name': "Cumulative Strategy Returns", 
+                        'name': "Strategy Returns", 
                         'type': 'scatter'
                     },
                     {
@@ -206,7 +220,17 @@ class AnalysisDashboard:
                         'title': f"Trading strategy with out-performance of {performance}",
                         'xaxis': {'title': 'Date'},
                         'yaxis': {'title': 'Cumulative Returns', 'side': 'right'},
-                        'yaxis2': {'title': 'Trading Strategy', 'overlaying': 'y', 'side': 'left', 'showgrid': False}
+                        'yaxis2': {
+                            'title': 'Trading Strategy', 
+                            'overlaying': 'y', 
+                            'side': 'left', 
+                            'showgrid': False},
+                        "legend": {
+                                'x': 0,
+                                'y': 1,
+                                'xanchor': 'left',
+                                'yanchor': 'top'                            
+                        }
                 }
 
             }

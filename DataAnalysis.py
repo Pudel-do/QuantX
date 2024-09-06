@@ -6,30 +6,48 @@ from core.dashboard_adapter import AnalysisDashboard
 from misc.misc import *
 
 def get_moving_averages(quote_data, train):
+    """Function calculates moving averages as well as
+    historical trading strategy returns and determines
+    the strategy outperformance by comparing strategy
+    returns with market returns for the same stock
+
+    :param quote_data: Historical stock quote data
+    :type quote_data: Series
+    :param train: Parameter to control for training and testing 
+    samples when calculating the trading strategy performance and
+    the underlying moving average parameters
+    :type train: Boolean
+    :return: Stock quotes extended by moving average quotes and market
+    and strategy returns as well as optimal moving average parameters
+    :rtype: Dictionary, Series
+    """
+    moving_average_dict = {}
+    optimal_ma_value_list = []
     for ticker, quotes in quote_data.items():
+        quotes.name = QUOTE_COL
         if train:
             train_set, test_set = ts_train_test_split(
                 ts=quotes,
                 train_ratio=0.75
             )
-            opt_parameters = optimization(quotes=train_set)
-            sma1 = int(opt_parameters.loc[SMA1_COL])
-            sma2 = int(opt_parameters.loc[SMA2_COL])
+            opt_values = ma_optimization(quotes=train_set)
+            sma1 = int(opt_values.loc["SMA1"])
+            sma2 = int(opt_values.loc["SMA2"])
             backtest = vectorized_backtesting(
                 quotes=test_set, 
                 SMA1=sma1, 
                 SMA2=sma2
             )
         else:
-            opt_parameters = optimization(quotes=quotes)
-            sma1 = int(opt_parameters.loc[SMA1_COL])
-            sma2 = int(opt_parameters.loc[SMA2_COL])
+            opt_values = ma_optimization(quotes=quotes)
+            sma1 = int(opt_values.loc["SMA1"])
+            sma2 = int(opt_values.loc["SMA2"])
             backtest = vectorized_backtesting(
                 quotes=quotes, 
                 SMA1=sma1, 
                 SMA2=sma2
             )
-        backtest = backtest.drop(columns=QUOTE_COL)
+        opt_values.name = ticker
         cum_rets = backtest["Returns"].cumsum()
         cum_rets = cum_rets.apply(np.exp)
         cum_strat = backtest["Strategy"].cumsum()
@@ -39,20 +57,43 @@ def get_moving_averages(quote_data, train):
         ma_results = pd.DataFrame(quotes)
         ma_results = ma_results.dropna()
         ma_results = ma_results.join(
-            [backtest, cum_rets, cum_strat],
+            [backtest[["SMA1", "SMA2", "Position"]], 
+            cum_rets, cum_strat],
             how="outer"
         )
-        print("break")
+        moving_average_dict[ticker] = ma_results
+        optimal_ma_value_list.append(opt_values)
+    optimal_ma_values = pd.DataFrame(optimal_ma_value_list)
+    optimal_ma_values = optimal_ma_values.transpose()
+    return moving_average_dict, optimal_ma_values
 
 def vectorized_backtesting(quotes, SMA1, SMA2):
+    """Function performs backtesting for the simple
+    moving average trading strategy for historical quotes.
+    Trading strategy states a long position when the shorter
+    moving average is above the longer moving average and 
+    otherwise a short position. Here the returns are 
+    multiplied with the position value of 1 or -1 to calculate
+    the strategy performance
+
+    :param quotes: Series of historical quotes
+    :type quotes: Series
+    :param SMA1: Value for calculating the shorter moving average
+    :type SMA1: Integer
+    :param SMA2: Value for calculating the longer moving average
+    :type SMA2: Integer
+    :return: Daily strategy and trading position values as well as
+    daily quotes and moving averaged quotes
+    :rtype: Dataframe
+    """
     quotes = quotes.dropna()
     sma1 = quotes.rolling(SMA1).mean()
     sma2 = quotes.rolling(SMA2).mean()
 
     data = pd.DataFrame(quotes)
     data.columns = [QUOTE_COL]
-    data[SMA1_COL] = sma1
-    data[SMA2_COL] = sma2
+    data["SMA1"] = sma1
+    data["SMA2"] = sma2
     data = data.dropna()
     position_mask = np.where(
         data[SMA1_COL] > data[SMA2_COL], 1, -1
@@ -65,7 +106,20 @@ def vectorized_backtesting(quotes, SMA1, SMA2):
     data = data.dropna()
     return data
 
-def optimization(quotes):
+def ma_optimization(quotes):
+    """Function searches for optimal moving average periods
+    to calculate a short term and long term moving average.
+    Vectorized backtesting is used to seach for optimal 
+    parameters indicating the highest out performance
+    of market returns
+
+    :param quotes: Historical stock quotes to calculate 
+    moving averages
+    :type quotes: Series
+    :return: Series of optimal performance indicators with 
+    ticker symbol as name
+    :rtype: Series
+    """
     total_results_list = []
     sma1 = range(20, 61, 4)
     sma2 = range(180, 281, 10)
@@ -81,60 +135,20 @@ def optimization(quotes):
         market = performance["Returns"]
         strategy = performance["Strategy"]
         results = {
-            SMA1_COL: SMA1,
-            SMA2_COL: SMA2,
-            "MARKET": market,
-            "STRATEGY": strategy,
-            "OUT": strategy - market
+            "SMA1": int(SMA1),
+            "SMA2": SMA2,
+            "Market": market,
+            "Strategy": strategy,
+            "Performance": strategy - market
         }
         total_results_list.append(results)
     total_results = pd.DataFrame(total_results_list)
     total_results = total_results.sort_values(
-        by="OUT",
+        by="Performance",
         ascending=False
     )
     optimal_result = total_results.iloc[0, :]
-    optimal_result = optimal_result.transpose()
     return optimal_result
-
-def get_moving_average(quotes, ma_days):
-    """Function calculates simple moving averages for given
-    amount of short period and long period days in inputs.json file. 
-    All missing values are removed for calculation for the underlying 
-    quote data
-
-    :param quotes: Quotes data for given stocks
-    :type quotes: Dataframe
-    :param ma_days: Days for calculating moving averages
-    :type ma_days: List
-    :return: Dictionary with ticker symbols as key and
-    quote and moving averages as value
-    :rtype: Dictionary
-    """
-    ma_dict = {}
-    days_short = ma_days[0]
-    days_long = ma_days[1]
-    quotes = quotes.dropna()
-    for name, values in quotes.items():
-        values.name = "Quote"
-        ma_short = values.rolling(
-            window=days_short
-        ).mean()
-        ma_short.name = f"MovingAverage{days_short}"
-
-        ma_long = values.rolling(
-            window=days_long
-        ).mean()
-        ma_long.name = f"MovingAverage{days_long}"
-
-        ma_df = pd.concat(
-            objs=[values, ma_short, ma_long],
-            axis=1,
-            join="inner",
-            ignore_index=False
-        )
-        ma_dict[name] = ma_df
-    return ma_dict
 
 def concat_dict_to_df(dict):
     """Function concats a python dictionary
@@ -169,24 +183,18 @@ if __name__ == "__main__":
     fundamentals_dict = FileAdapter().load_fundamentals()
     closing_quotes = harmonize_tickers(object=closing_quotes)
     fundamentals_dict = harmonize_tickers(object=fundamentals_dict)
-
-    ma_test = get_moving_averages(quote_data=closing_quotes, train=False)
-
-    # moving_average_dict = get_moving_average(
-    #     quotes=closing_quotes, 
-    #     ma_days=ma_days
-    #     )
-    # moving_average_df = concat_dict_to_df(
-    #     dict=moving_average_dict
-    #     )
-    # fundamentals_df = concat_dict_to_df(
-    #     dict=fundamentals_dict
-    # )
-    # app = AnalysisDashboard(
-    #     ma_data=moving_average_df,
-    #     returns=returns,
-    #     fundamentals=fundamentals_df,
-    #     )
-    # app.run()
-    # print("Finished")
+    fundamentals_df = concat_dict_to_df(dict=fundamentals_dict)
+    moving_averages, optimal_values = get_moving_averages(
+        quote_data=closing_quotes, 
+        train=False
+    )
+    moving_averages_df = concat_dict_to_df(dict=moving_averages)
+    app = AnalysisDashboard(
+        ma_data=moving_averages_df,
+        ma_values = optimal_values,
+        returns=returns,    
+        fundamentals=fundamentals_df,
+        )
+    app.run()
+    print("Finished")
 
