@@ -19,9 +19,16 @@
         ]
     },
     "columns": {
-        "ticker": "Ticker",
-        "quote": "Quote",
+        "ticker": "TICKER",
+        "quote": "QUOTE",
         "sma1": "SMA1",
-        "sma2": "SMA2"
+        "sma2": "SMA2",
+        "returns": "RETURNS",
+        "strategy": "STRATEGY",
+        "cumreturns": "CUM_RETURNS",
+        "cumstrategy": "CUM_STRATEGY",
+        "position": "POSITION",
+        "market": "MARKET",
+        "performance": "PERFORMANCE"
     }
 }

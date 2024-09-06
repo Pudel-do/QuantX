@@ -27,9 +27,9 @@ class AnalysisDashboard:
         :param fundamentals: Fundamental data for each stock
         :type fundamentals: Dataframe
         """
-        self.tickers = read_json("inputs.json")["ticker"]
+        self.tickers = read_json("parameter.json")["ticker"]
+        self.const_cols = read_json("constant.json")["columns"]
         self.fundamental_list = read_json("constant.json")["fundamentals"]["measures"]
-        self.constant_cols = read_json("constant.json")["columns"]
         self.ma_data = ma_data
         self.ma_values = ma_values
         self.returns = returns
@@ -51,8 +51,7 @@ class AnalysisDashboard:
         :return: Filtered object
         :rtype: Dataframe
         """
-        constant_cols = read_json("constant.json")["columns"]
-        tick_col = constant_cols["ticker"]
+        tick_col = self.const_cols["ticker"]
         try:
             filter_mask = df[tick_col] == tick
             df_filtered = df[filter_mask]
@@ -138,27 +137,36 @@ class AnalysisDashboard:
                 df=self.ma_data,
                 tick=tick_filter
             )
-            quote_cols = [self.constant_cols["quote"], "SMA1", "SMA2"]
-            performance_cols = ["Position", "CumReturns", "CumStrategy"]
+            quote_cols = [
+                self.const_cols["quote"], 
+                self.const_cols["sma1"], 
+                self.const_cols["sma2"]
+                ]
+            performance_cols = [
+                self.const_cols["position"], 
+                self.const_cols["cumreturns"], 
+                self.const_cols["cumstrategy"]
+                ]
             ma_data_quote = ma_data_filtered[quote_cols]
             ma_data_performance = ma_data_filtered[performance_cols]
             ma_values_filtered = self.ma_values[tick_filter]
-            performance = np.round(ma_values_filtered.loc["Performance"], 2)
+            performance = ma_values_filtered.loc[self.const_cols["performance"]]
+            performance = np.round(performance, 2)
             returns_filtered = self.returns[tick_filter]
             quote_line_fig = {
                 "data": [
                     {
                         "x": ma_data_quote.index, 
-                        "y": ma_data_quote.loc[:, self.constant_cols["quote"]], 
+                        "y": ma_data_quote.loc[:, self.const_cols["quote"]], 
                         "type": "line", 
                         "name": "Quote",
                         "line": {"color": "blue"}
                     },
                     {
                         "x": ma_data_quote.index, 
-                        "y": ma_data_quote.loc[:, "SMA1"], 
+                        "y": ma_data_quote.loc[:, self.const_cols["sma1"]], 
                         "type": "line", 
-                        "name": f"SMA {int(ma_values_filtered.loc["SMA1"])} Days",
+                        "name": f"SMA {int(ma_values_filtered.loc[self.const_cols["sma1"]])} Days",
                         "opacity": 0.75,
                         "line": {
                             "color": "green",
@@ -167,9 +175,9 @@ class AnalysisDashboard:
                     },
                     {
                         "x": ma_data_quote.index, 
-                        "y": ma_data_quote.loc[:, "SMA2"], 
+                        "y": ma_data_quote.loc[:, self.const_cols["sma2"]], 
                         "type": "line", 
-                        "name": f"SMA {int(ma_values_filtered.loc["SMA2"])} Days",
+                        "name": f"SMA {int(ma_values_filtered.loc[self.const_cols["sma2"]])} Days",
                         "opacity": 0.75,
                         "line": {
                             "color": "red",
@@ -193,7 +201,7 @@ class AnalysisDashboard:
                 "data": [
                     {
                         'x': ma_data_performance.index, 
-                        'y': ma_data_performance["CumReturns"], 
+                        'y': ma_data_performance[self.const_cols["cumreturns"]], 
                         'mode': 'lines', 
                         'name': "Market Returns", 
                         'type': 'scatter',
@@ -201,14 +209,14 @@ class AnalysisDashboard:
                     },
                     {
                         'x': ma_data_performance.index, 
-                        'y': ma_data_performance["CumStrategy"], 
+                        'y': ma_data_performance[self.const_cols["cumstrategy"]], 
                         'mode': 'lines', 
                         'name': "Strategy Returns", 
                         'type': 'scatter'
                     },
                     {
                         'x': ma_data_performance.index, 
-                        'y': ma_data_performance["Position"], 
+                        'y': ma_data_performance[self.const_cols["position"]], 
                         'mode': 'lines', 
                         'name': 'Trading Strategy', 
                         'line': {'dash': 'dash'}, 
