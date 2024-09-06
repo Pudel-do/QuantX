@@ -21,6 +21,7 @@
     "columns": {
         "ticker": "TICKER",
         "quote": "QUOTE",
+        "volume": "VOLUME",
         "sma1": "SMA1",
         "sma2": "SMA2",
         "returns": "RETURNS",
