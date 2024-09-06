@@ -1,5 +1,12 @@
 {
-    "analysis": {
-        "ma_days": [42, 252]
-    }
+    "ticker":[
+        "MSFT", "AAPL"
+    ],
+
+    "base_start": "2019-01-01",
+    "model_start": "2020-01-01",
+    "portfolio_start": "2021-01-01",
+
+    "use_ma_training": false,
+    "use_model_training": true
 }
