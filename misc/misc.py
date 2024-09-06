@@ -52,7 +52,7 @@ def get_last_business_day():
 
 def harmonize_tickers(object):
     """Functions harmonizes ticker symbols in input object
-    with base tickers in inputs.json for dataframes and
+    with base tickers in parameter.json for dataframes and
     dictionary. If input object is different type, the 
     function returns the raw input object
 
@@ -61,7 +61,7 @@ def harmonize_tickers(object):
     :return: Input object adjusted for base tickers
     :rtype: Dataframe, Dictionary
     """
-    base_tickers = read_json("inputs.json")["ticker"]
+    base_tickers = read_json("parameter.json")["ticker"]
     object_clean = object.copy()
     if isinstance(object, pd.DataFrame):
         for col in object.columns:
