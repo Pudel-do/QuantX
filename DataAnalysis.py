@@ -101,13 +101,16 @@ def vectorized_backtesting(quotes, SMA1, SMA2):
     data[CONST_COLS["sma2"]] = sma2
     data = data.dropna()
     position_mask = np.where(
-        data[CONST_COLS["sma1"]] > data[CONST_COLS["sma2"]], 1, -1
+        data[CONST_COLS["sma1"]] > data[CONST_COLS["sma2"]], 
+        1, -1
     )
     data[CONST_COLS["position"]] = position_mask
     data[CONST_COLS["returns"]] = np.log(
-        data[CONST_COLS["quote"]] / data[CONST_COLS["quote"]].shift(1)
+        data[CONST_COLS["quote"]] / \
+            data[CONST_COLS["quote"]].shift(1)
     )
-    strategy = data[CONST_COLS["position"]].shift(1) * data[CONST_COLS["returns"]]
+    strategy = data[CONST_COLS["position"]].shift(1) * \
+                	data[CONST_COLS["returns"]]
     data[CONST_COLS["strategy"]] = strategy
     data = data.dropna()
     return data
