@@ -109,6 +109,11 @@ class FileAdapter:
         return returns
     
     def load_fundamentals(self):
+        """Function loads fundamental stock data from data directory
+
+        :return: Fundamental data
+        :rtype: Dictionary
+        """
         dir = os.path.join(os.getcwd(), self.config["data_dir"])
         file_name = self.config["fundamentals_file"]
         fundamentals = self._load_pickel(
@@ -116,6 +121,20 @@ class FileAdapter:
             file_name=file_name
         )
         return fundamentals
+    
+    def load_trading_data(self):
+        """Function loads daily trading stock data from feature directory
+
+        :return: Daily trading data
+        :rtype: Dictionary
+        """
+        dir = os.path.join(os.getcwd(), self.config["feature_dir"])
+        file_name = self.config["daily_trading_data_file"]
+        trading_data = self._load_pickel(
+            dir=dir, 
+            file_name=file_name
+        )
+        return trading_data
 
     def _write_csv(self, data, dir, file_name):
         """Function writes data to given directory 
