@@ -33,7 +33,13 @@ class FinanceAdapter:
             interval="1d",
             ignore_tz=True
         )
-        currency = yf.Ticker(self.tick).info["currency"]
+        if quotes.empty:
+            logging.error(f"Ticker {self.tick}")
+        try:
+            currency = yf.Ticker(self.tick).info["currency"]
+        except KeyError:
+            logging.error(f"Currency information error for ticker {self.tick}")
+            return quotes
         base_currency = self.fx_config["base_currency"]
         if not currency == base_currency:
             quotes = self._quote_converter(quotes, currency)

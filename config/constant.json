@@ -15,7 +15,13 @@
         "measures": [
             "revenue", "ebitda", "operatingIncome",
             "totalAssets", "retainedEarnings", "totalLiabilities",
-            "accountsPayables", "netIncome", "operatingCashFlow"
+            "accountsPayables", "operatingCashFlow", "netIncome"
         ]
+    },
+    "columns": {
+        "ticker": "Ticker",
+        "quote": "Quote",
+        "sma1": "SMA1",
+        "sma2": "SMA2"
     }
 }

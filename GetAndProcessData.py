@@ -8,6 +8,24 @@ from core.file_adapter import FileAdapter
 from itertools import chain
 from misc.misc import *
 
+def drop_duplicate_fundamental_cols(fundamentals):
+    """Function drops duplicate fundamental KPIs
+
+    :param fundamentals: Dictionary for fundamental data
+    with ticker symbols as keys
+    :type fundamentals: Dictionary
+    :return: Fundamental dictionary adjusted by duplicate
+    fundamental KPIs
+    :rtype: Dictionary
+    """
+    fundamentals_clean = {}
+    for tick, funds in fundamentals.items():
+        dup_mask = funds.columns.duplicated()
+        funds = funds.loc[:, ~dup_mask]
+        fundamentals_clean[tick] = funds
+
+    return fundamentals_clean
+
 def get_merged_quotes(ticker_list, start, quote_id):
     """Function concats quotes for given quote id and ticker symbols. The ticker quotes are
     joined to a base time series with business days only ranging up to actual time.
@@ -34,8 +52,9 @@ def get_merged_quotes(ticker_list, start, quote_id):
     for tick in ticker_list:
         ticker_quotes = FinanceAdapter(tick).get_trade_data(start=start)
         ticker_quote = ticker_quotes[quote_id]
-        ticker_quote.name = tick
-        quotes = quotes.join(ticker_quote)
+        if not ticker_quote.empty:
+            ticker_quote.name = tick
+            quotes = quotes.join(ticker_quote)
     return quotes
 
 def get_daily_stock_data(ticker_list, start):
@@ -84,18 +103,17 @@ def get_fundamentals(ticker_list, start):
     :return: Fundamental data
     :rtype: Dictionary
     """
-    fd_constant = read_json("constant.json")["fundamentals"]
     fundamental_dict = {}
     for tick in ticker_list:
         fd_adapter = FinanceAdapter(tick)
         income_statement = fd_adapter.get_fundamental(
-            fd_kpi=fd_constant["income"]
+            fd_kpi=CONST_FUNDS["income"]
             )
         balance_sheet = fd_adapter.get_fundamental(
-            fd_kpi=fd_constant["balance_sheet"]
+            fd_kpi=CONST_FUNDS["balance_sheet"]
             )
         cashflow = fd_adapter.get_fundamental(
-            fd_kpi=fd_constant["cashflow"]
+            fd_kpi=CONST_FUNDS["cashflow"]
             )
         fundamentals = pd.concat(
             objs=[
@@ -106,7 +124,7 @@ def get_fundamentals(ticker_list, start):
             axis=1
         )
         if not fundamentals.empty:
-            fundamentals = fundamentals[fd_constant["measures"]]
+            fundamentals = fundamentals[CONST_FUNDS["measures"]]
             fundamental_dict[tick] = fundamentals
         else:
             pass
@@ -116,12 +134,12 @@ def get_fundamentals(ticker_list, start):
 if __name__ == "__main__":
     ticker_list = read_json("inputs.json")["ticker"]
     base_start = read_json("inputs.json")["base_start"]
-    closing_quotes = get_merged_quotes(ticker_list=ticker_list, 
-                                       start=base_start, 
-                                       quote_id="Adj Close")
+    CONST_FUNDS = read_json("constant.json")["fundamentals"]
+    closing_quotes = get_merged_quotes(ticker_list=ticker_list, start=base_start, quote_id="Adj Close")
     returns = get_returns(closing_quotes)
     daily_trading_data = get_daily_stock_data(ticker_list, base_start)
     fundamentals = get_fundamentals(ticker_list, base_start)
+    fundamentals = drop_duplicate_fundamental_cols(fundamentals)
     FileAdapter().save_closing_quotes(closing_quotes)
     FileAdapter().save_stock_returns(returns)
     FileAdapter().save_trading_data(daily_trading_data)
