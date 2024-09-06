@@ -28,7 +28,7 @@ def get_moving_averages(quote_data, use_train):
         if use_train:
             train_set, test_set = ts_train_test_split(
                 ts=quotes,
-                train_ratio=0.75
+                train_ratio=PARAMETER["ma_train_size"]
             )
             opt_values = ma_optimization(quotes=train_set)
             sma1 = int(opt_values.loc[CONST_COLS["sma1"]])
@@ -184,7 +184,8 @@ def concat_dict_to_df(dict):
 if __name__ == "__main__":
     constant_cols = read_json("constant.json")["columns"]
     CONST_COLS = read_json("constant.json")["columns"]
-    use_ma_training = read_json("parameter.json")["use_ma_training"]
+    PARAMETER = read_json("parameter.json")
+    use_ma_training = PARAMETER["use_ma_training"]
     returns = FileAdapter().load_returns()
     closing_quotes = FileAdapter().load_closing_quotes()
     fundamentals_dict = FileAdapter().load_fundamentals()
@@ -193,7 +194,7 @@ if __name__ == "__main__":
     fundamentals_df = concat_dict_to_df(dict=fundamentals_dict)
     moving_averages, optimal_values = get_moving_averages(
         quote_data=closing_quotes, 
-        use_train=False
+        use_train=use_ma_training
     )
     moving_averages_df = concat_dict_to_df(dict=moving_averages)
     app = AnalysisDashboard(
