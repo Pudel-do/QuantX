@@ -132,8 +132,8 @@ def get_fundamentals(ticker_list, start):
     return fundamental_dict
 
 if __name__ == "__main__":
-    ticker_list = read_json("inputs.json")["ticker"]
-    base_start = read_json("inputs.json")["base_start"]
+    ticker_list = read_json("parameter.json")["ticker"]
+    base_start = read_json("parameter.json")["base_start"]
     CONST_FUNDS = read_json("constant.json")["fundamentals"]
     closing_quotes = get_merged_quotes(ticker_list=ticker_list, start=base_start, quote_id="Adj Close")
     returns = get_returns(closing_quotes)
