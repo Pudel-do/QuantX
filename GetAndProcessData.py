@@ -72,6 +72,10 @@ def get_daily_stock_data(ticker_list, start):
     ticker_dict = {}
     for tick in ticker_list:
         data = FinanceAdapter(tick).get_trade_data(start=start)
+        col_rename = {
+            "Volume": CONST_COLS["volume"]
+        }
+        data = data.rename(columns=col_rename)
         ticker_dict[tick] = data
 
     return ticker_dict
@@ -135,6 +139,7 @@ if __name__ == "__main__":
     ticker_list = read_json("parameter.json")["ticker"]
     base_start = read_json("parameter.json")["base_start"]
     CONST_FUNDS = read_json("constant.json")["fundamentals"]
+    CONST_COLS = read_json("constant.json")["columns"]
     closing_quotes = get_merged_quotes(ticker_list=ticker_list, start=base_start, quote_id="Adj Close")
     returns = get_returns(closing_quotes)
     daily_trading_data = get_daily_stock_data(ticker_list, base_start)
