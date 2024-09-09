@@ -28,7 +28,7 @@ def get_moving_averages(quote_data, use_train):
         if use_train:
             train_set, test_set = ts_train_test_split(
                 ts=quotes,
-                train_ratio=PARAMETER["ma_train_size"]
+                train_ratio=PARAMETER["ma_train_ratio"]
             )
             opt_values = ma_optimization(quotes=train_set)
             sma1 = int(opt_values.loc[CONST_COLS["sma1"]])
