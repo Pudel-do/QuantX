@@ -87,14 +87,14 @@ def ts_train_test_split(ts, train_ratio):
     """Function splits time series into
     train and test set
 
-    :param ts: Time series to split
-    :type ts: Pandas series
+    :param ts: Time series or array to split
+    :type ts: Pandas series or array
     :param train_ratio: Ratio for training sample
     :type train_ratio: float
     :return: Train and test set
     :rtype: Pandas series
     """
     split_index = int(len(ts) * train_ratio)
-    train = ts.iloc[:split_index]
-    test = ts.iloc[split_index:]
+    train = ts[:split_index]
+    test = ts[split_index:]
     return train, test
