@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from core.file_adapter import FileAdapter
 from misc.misc import *
+from core.models import lstm
 
 
 
@@ -60,6 +61,14 @@ def feature_engineering():
     """
     pass
 
+def model_building(model_data):
+    for tick, data in model_data.items():
+        model = lstm()
+        model.load_data(data=data)
+        model.preprocess_data(seq_length=PARAMETER["sequence_lenght"])
+        print("break")
+
+
 if __name__ == "__main__":
     CONST_COLS = read_json("constant.json")["columns"]
     PARAMETER = read_json("parameter.json")
@@ -68,4 +77,4 @@ if __name__ == "__main__":
     raw_data_dict = merge_features(quotes=closing_quotes, features=daily_trading_data)
     processed_data_dict = data_cleaning(data_dict=raw_data_dict)
     processed_data_dict = harmonize_tickers(processed_data_dict)
-    print("break")
+    models = model_building(model_data=processed_data_dict)
