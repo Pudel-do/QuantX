@@ -65,7 +65,9 @@ def model_building(model_data):
     for tick, data in model_data.items():
         model = lstm()
         model.load_data(data=data)
-        model.preprocess_data(seq_length=PARAMETER["sequence_lenght"])
+        model.preprocess_data()
+        model.build_model()
+        model.train_model()
         print("break")
 
 
@@ -77,4 +79,5 @@ if __name__ == "__main__":
     raw_data_dict = merge_features(quotes=closing_quotes, features=daily_trading_data)
     processed_data_dict = data_cleaning(data_dict=raw_data_dict)
     processed_data_dict = harmonize_tickers(processed_data_dict)
+    #ToDO: Save processed data with all features to data dir
     models = model_building(model_data=processed_data_dict)
