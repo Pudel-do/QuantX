@@ -63,11 +63,17 @@ def feature_engineering():
 
 def model_building(model_data):
     for tick, data in model_data.items():
-        model = lstm()
-        model.load_data(data=data)
-        model.preprocess_data()
-        model.build_model()
-        model.train_model()
+        # model = lstm(ticker=tick)
+        # model.load_data(data=data)
+        # model.preprocess_data()
+        # model.build_model()
+        # model.train()
+        # model.evaluate()
+        # FileAdapter().save_model(model=model)
+        model = FileAdapter().load_model(
+            ticker=tick,
+            model_id="20240912_205408_LSTM"
+        )
         print("break")
 
 
