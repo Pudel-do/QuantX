@@ -1,26 +1,16 @@
 import numpy as np
+from datetime import datetime
 from abc import ABC, abstractmethod
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from misc.misc import *
 
 class BaseModel(ABC):
-    def __init__(self, model_name):
+    def __init__(self, model_name, ticker):
         self.model_name = model_name
+        self.ticker = ticker
         self.model = None
         self.data = None
         self.params = read_json("parameter.json")
-
-    @abstractmethod
-    def preprocess_data(self):
-        pass
-
-    @abstractmethod
-    def build_model(self):
-        pass
-
-    @abstractmethod
-    def train_model(self):
-        pass
 
     def load_data(self, data):
         self.data = data
@@ -60,4 +50,32 @@ class BaseModel(ABC):
         scaled_data_tuple = tuple(scaled_data_list)
         scaled_data = np.hstack(scaled_data_tuple)
         return scaled_data
+    
+    def _create_model_id(self):
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        model_name = self.model_name
+        model_id = f"{timestamp}_{model_name}"
+        self.model_id = model_id
+        return None
+    
+    @abstractmethod
+    def preprocess_data(self):
+        pass
+
+    @abstractmethod
+    def build_model(self):
+        pass
+
+    @abstractmethod
+    def train(self):
+        pass
+
+    @abstractmethod
+    def evaluate(self):
+        pass
+
+    @abstractmethod
+    def predict(self):
+        pass
+
 
