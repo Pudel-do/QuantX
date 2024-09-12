@@ -7,7 +7,9 @@
         "returns_file": "returns.csv",
         "fundamentals_file": "fundamentals.pkl",
         "daily_trading_data_file": "daily_trading_data.pkl",
-        "model_logs": "model_logs"
+        "training_logs": "training_logs",
+        "evaluation_logs": "evaluation_logs",
+        "model": "model"
     },
     "fundamentals": {
         "income": "income-statement",
