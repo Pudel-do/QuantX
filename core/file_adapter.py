@@ -1,8 +1,10 @@
 import pandas as pd
 import pickle
 import logging
+import keras
 import os
 from misc.misc import read_json
+
 
 class FileAdapter:
     def __init__(self) -> None:
@@ -17,7 +19,10 @@ class FileAdapter:
         :return: None
         :rtype: None
         """
-        dir = os.path.join(os.getcwd(), self.config["data_dir"])
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["data_dir"]
+        )
         file_name = self.config["returns_file"]
         self._write_csv(
             data=rets,
@@ -35,7 +40,10 @@ class FileAdapter:
         :return: None
         :rtype: None
         """
-        dir = os.path.join(os.getcwd(), self.config["data_dir"])
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["data_dir"]
+        )
         file_name = self.config["quotes_file"]
         self._write_csv(
             data=quotes,
@@ -53,7 +61,10 @@ class FileAdapter:
         :return: None
         :rtype: None
         """
-        dir = os.path.join(os.getcwd(), self.config["data_dir"])
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["data_dir"]
+        )
         file_name = self.config["fundamentals_file"]
         self._write_pickel(
             data=fundamentals,
@@ -71,7 +82,10 @@ class FileAdapter:
         :return: None
         :rtype: None
         """
-        dir = os.path.join(os.getcwd(), self.config["feature_dir"])
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["feature_dir"]
+        )
         file_name = self.config["daily_trading_data_file"]
         self._write_pickel(
             data=trading_data,
@@ -80,13 +94,37 @@ class FileAdapter:
         )
         return None
     
+    def save_model_data(self, model_data):
+        pass
+
+    def save_model(self, model):
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["models_dir"],
+            model.ticker,
+            self.config["model"]
+        )
+        file_name = f"{model.model_id}.pkl"
+        self._write_pickel(
+            data=model,
+            dir=dir,
+            file_name=file_name
+        )
+        return None
+
+    def save_model(self, model):
+        pass
+    
     def load_closing_quotes(self):
         """Function loads closing quotes from data directory
 
         :return: Closing quotes
         :rtype: Dataframe
         """
-        dir = os.path.join(os.getcwd(), self.config["data_dir"])
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["data_dir"]
+        )
         file_name = self.config["quotes_file"]
         closing_quotes = self._load_csv(
             dir=dir, 
@@ -100,7 +138,10 @@ class FileAdapter:
         :return: Stock returns
         :rtype: Dataframe
         """
-        dir = os.path.join(os.getcwd(), self.config["data_dir"])
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["data_dir"]
+        )
         file_name = self.config["returns_file"]
         returns = self._load_csv(
             dir=dir,
@@ -114,7 +155,10 @@ class FileAdapter:
         :return: Fundamental data
         :rtype: Dictionary
         """
-        dir = os.path.join(os.getcwd(), self.config["data_dir"])
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["data_dir"]
+        )
         file_name = self.config["fundamentals_file"]
         fundamentals = self._load_pickel(
             dir=dir,
@@ -128,13 +172,30 @@ class FileAdapter:
         :return: Daily trading data
         :rtype: Dictionary
         """
-        dir = os.path.join(os.getcwd(), self.config["feature_dir"])
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["feature_dir"]
+        )
         file_name = self.config["daily_trading_data_file"]
         trading_data = self._load_pickel(
             dir=dir, 
             file_name=file_name
         )
         return trading_data
+    
+    def load_model(self, ticker, model_id):
+        dir = os.path.join(
+            os.getcwd(),
+            self.config["models_dir"],
+            ticker,
+            self.config["model"]
+        )
+        file_name = f"{model_id}.pkl"
+        model = self._load_pickel(
+            dir=dir,
+            file_name=file_name
+        )
+        return model
 
     def _write_csv(self, data, dir, file_name):
         """Function writes data to given directory 
