@@ -101,6 +101,17 @@ def ts_train_test_split(ts, train_ratio):
     return train, test
 
 def get_latest_modelid(tick, model_type):
+    """Function filters in model directory for the most actual 
+    forecas model separated by the respective ticker symbol and
+    forecast model type. 
+
+    :param tick: Ticker to search model for
+    :type tick: String
+    :param model_type: Type of forecast model (e.g. ARIMA, LSTM)
+    :type model_type: String
+    :return: Most actual model ID for respective ticker and model tyoe
+    :rtype: List
+    """
     datamodel = read_json("constant.json")["datamodel"]
     models_dir = datamodel["models_dir"]
     model_dir = datamodel["model"]
