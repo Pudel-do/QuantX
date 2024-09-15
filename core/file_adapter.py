@@ -197,10 +197,9 @@ class FileAdapter:
             ticker,
             self.config["model"]
         )
-        file_name = f"{model_id}.pkl"
         model = self._load_pickel(
             dir=dir,
-            file_name=file_name
+            file_name=model_id
         )
         return model
 

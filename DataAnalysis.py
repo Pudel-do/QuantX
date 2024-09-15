@@ -189,8 +189,8 @@ if __name__ == "__main__":
     returns = FileAdapter().load_returns()
     closing_quotes = FileAdapter().load_closing_quotes()
     fundamentals_dict = FileAdapter().load_fundamentals()
-    closing_quotes = harmonize_tickers(object=closing_quotes)
-    fundamentals_dict = harmonize_tickers(object=fundamentals_dict)
+    closing_quotes, _ = harmonize_tickers(object=closing_quotes)
+    fundamentals_dict, _ = harmonize_tickers(object=fundamentals_dict)
     fundamentals_df = concat_dict_to_df(dict=fundamentals_dict)
     moving_averages, optimal_values = get_moving_averages(
         quote_data=closing_quotes, 
