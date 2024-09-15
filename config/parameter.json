@@ -11,12 +11,11 @@
     "model_start": "2020-01-01",
     "train_ratio": 0.75,
     "target_col": "QUOTE",
-    "feature_cols": [
-        "VOLUME"
-    ],
+    "feature_cols": ["VOLUME"],
 
+    "prediction_days": 90,
     "sequence_length": 60,
-    "epochs": 30,
+    "epochs": 10,
 
     "portfolio_start": "2021-01-01"
 }
