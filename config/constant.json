@@ -7,6 +7,7 @@
         "returns_file": "returns.csv",
         "fundamentals_file": "fundamentals.pkl",
         "daily_trading_data_file": "daily_trading_data.pkl",
+        "model_data": "model_data.pkl",
         "training_logs": "training_logs",
         "evaluation_logs": "evaluation_logs",
         "model": "model"
