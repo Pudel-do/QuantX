@@ -95,7 +95,17 @@ class FileAdapter:
         return None
     
     def save_model_data(self, model_data):
-        pass
+        dir = os.path.join(
+            os.getcwd(),
+            self.config["data_dir"],
+        )
+        file_name = self.config["model_data"]
+        self._write_pickel(
+            data=model_data,
+            dir=dir,
+            file_name=file_name
+        )
+        return None
 
     def save_model(self, model):
         dir = os.path.join(
@@ -111,9 +121,6 @@ class FileAdapter:
             file_name=file_name
         )
         return None
-
-    def save_model(self, model):
-        pass
     
     def load_closing_quotes(self):
         """Function loads closing quotes from data directory
