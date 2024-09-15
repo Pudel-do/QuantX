@@ -4,3 +4,4 @@ data/
 features/
 models/
 notebooks/
+parameter.json
