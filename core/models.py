@@ -31,12 +31,11 @@ class lstm(BaseModel):
         :rtype: None
         """
         scaled_data = self._data_scaling(data=self.data)
-        self.scaled_data = scaled_data
         seq_length = self.params["sequence_length"]
         exog, endog = [], []
         for i in range(seq_length, len(scaled_data)):
             exog.append(scaled_data[i-seq_length:i, :])
-            endog.append(scaled_data[i, 0])
+            endog.append(scaled_data[i, :])
 
         exog = np.array(exog)
         endog = np.array(endog)
@@ -45,6 +44,8 @@ class lstm(BaseModel):
         self.x_test = x_test
         self.y_train = y_train
         self.y_test = y_test
+        self.scaled_data = scaled_data
+        self.seq_length = seq_length
         return None
 
     def build_model(self):
@@ -64,7 +65,7 @@ class lstm(BaseModel):
         model.add(layers.Dropout(0.2))
         model.add(layers.LSTM(units=50, return_sequences=False))
         model.add(layers.Dropout(0.2))
-        model.add(layers.Dense(units=1))
+        model.add(layers.Dense(units=n_features))
         model.compile(
             optimizer="adam", 
             loss='mean_squared_error',
@@ -74,6 +75,7 @@ class lstm(BaseModel):
             ]
         )
         self.model = model
+        self.n_features = n_features
         return None
     
     def train(self):
@@ -98,8 +100,8 @@ class lstm(BaseModel):
     
     def evaluate(self):
         y_pred = self.model.predict(x=self.x_test)
-        y_pred = y_pred.reshape(-1,1)
-        target = self.y_test.reshape(-1,1)
+        y_pred = y_pred[:, 0].reshape(-1, 1)
+        target = self.y_test[:, 0].reshape(-1, 1)
         y_pred = self.target_scaler.inverse_transform(y_pred)
         target = self.target_scaler.inverse_transform(target)
         mse = mean_squared_error(y_true=target, y_pred=y_pred)
@@ -120,11 +122,38 @@ class lstm(BaseModel):
             )
         return None
     
-    def predict(self):
-        pass
+    def predict(self, pred_days):
+        last_seq = self.scaled_data[-self.seq_length:]
+        last_seq = last_seq.reshape(1, self.seq_length, self.n_features)
+        prediction_list = []
+        for _ in range(pred_days):
+            prediction = self.model.predict(last_seq, verbose=0)
+            prediction_list.append(prediction[0, 0])
+            prediction = prediction.reshape(1, 1, self.n_features)
+            cur_seq = last_seq[:, 1:, :]
+            new_seq = np.append(cur_seq, prediction, axis=1)
+            last_seq = new_seq
+        
+        prediction = np.array(prediction_list).reshape(-1, 1)
+        prediction = self.target_scaler.inverse_transform(prediction)
+        prediction = prediction.flatten()
+        last_timestamp = self.data.index[-1]
+        pred_start = last_timestamp + pd.DateOffset(days=1)
+        pred_start = get_business_day(pred_start)
+        prediction_index = pd.date_range(
+            start=pred_start,
+            periods=pred_days,
+            freq="B",
+            normalize=True
+        )
+        prediction = pd.Series(
+            data=prediction,
+            index=prediction_index
+        )
+        return prediction
     
     def _create_plot(self, target, y_pred, rmse):
-        fig, ax = plt.subplots(figsize=(20, 10))
+        fig, ax = plt.subplots(figsize=(10, 6))
         ax.plot(target, label="Real Values", color='blue')
         ax.plot(y_pred, label="Predicted Values", color='red')
         ax.legend()
@@ -139,7 +168,7 @@ class lstm(BaseModel):
         plt.close(figure)
         buf.seek(0)
         image = tf.image.decode_png(buf.getvalue(), channels=4)
-        image = tf.expand_dims(image, 0)  # Add batch dimension
+        image = tf.expand_dims(image, 0)
         return image
 
 
