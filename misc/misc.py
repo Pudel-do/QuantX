@@ -63,6 +63,7 @@ def harmonize_tickers(object):
     """
     base_tickers = read_json("parameter.json")["ticker"]
     object_clean = object.copy()
+    overlap_tickers = []
     if isinstance(object, pd.DataFrame):
         for col in object.columns:
             if col not in base_tickers:
@@ -71,17 +72,17 @@ def harmonize_tickers(object):
                     inplace=True
                     )
             else:
-                pass
-        return object_clean
+                overlap_tickers.append(col)
+        return object_clean, overlap_tickers
     elif isinstance(object, dict):
         for key in object:
             if key not in base_tickers:
                 object_clean.pop(key)
             else:
-                pass
-        return object_clean 
+                overlap_tickers.append(key)
+        return object_clean, overlap_tickers
     else:
-        return object
+        return object, base_tickers
     
 def ts_train_test_split(ts, train_ratio):
     """Function splits time series into
@@ -98,3 +99,38 @@ def ts_train_test_split(ts, train_ratio):
     train = ts[:split_index]
     test = ts[split_index:]
     return train, test
+
+def get_latest_modelid(tick, model_type):
+    datamodel = read_json("constant.json")["datamodel"]
+    models_dir = datamodel["models_dir"]
+    model_dir = datamodel["model"]
+    models_path = os.path.join(models_dir, tick, model_dir)
+    models = os.listdir(models_path)
+    model_types = []
+    model_dates = []
+    model_dict = {}
+    for model in models:
+        model_split = model.split("_")
+        date = model_split[0]
+        model_name = model_split[1]
+        if not model_name in model_types:
+            model_dict[model_name] = [date]
+            model_types.append(model_name)
+        else:
+            model_dict.get(model_name).append(date)
+    model_ids = []
+    for key, value in model_dict.items():
+        if model_type is None:
+            latest_date = max(value)
+            model_id = f"{latest_date}_{key}"
+            model_ids.append(model_id)
+        else:
+            if model_type in key:
+                latest_date = max(value)
+                model_id = f"{latest_date}_{key}"
+                model_ids.append(model_id)
+    return model_ids
+
+    
+
+    
