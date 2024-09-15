@@ -140,7 +140,11 @@ if __name__ == "__main__":
     base_start = read_json("parameter.json")["base_start"]
     CONST_FUNDS = read_json("constant.json")["fundamentals"]
     CONST_COLS = read_json("constant.json")["columns"]
-    closing_quotes = get_merged_quotes(ticker_list=ticker_list, start=base_start, quote_id="Adj Close")
+    closing_quotes = get_merged_quotes(
+        ticker_list=ticker_list, 
+        start=base_start, 
+        quote_id=CONST_COLS["quote_id"]
+    )
     returns = get_returns(closing_quotes)
     daily_trading_data = get_daily_stock_data(ticker_list, base_start)
     fundamentals = get_fundamentals(ticker_list, base_start)

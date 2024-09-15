@@ -23,6 +23,7 @@
         ]
     },
     "columns": {
+        "quote_id": "Adj Close",
         "ticker": "TICKER",
         "quote": "QUOTE",
         "volume": "VOLUME",
@@ -34,6 +35,7 @@
         "cumstrategy": "CUM_STRATEGY",
         "position": "POSITION",
         "market": "MARKET",
-        "performance": "PERFORMANCE"
+        "performance": "PERFORMANCE",
+        "prediction": "PREDICTION"
     }
 }
