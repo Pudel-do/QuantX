@@ -13,12 +13,7 @@ import logging
 import os
 
 class AnalysisDashboard:
-    def __init__(self, 
-                 ma_data,
-                 ma_values,
-                 returns, 
-                 fundamentals
-                 ):
+    def __init__(self, ma_data, ma_values, returns, fundamentals):
         """
         :param ma_data: Dataframe with moving average values for each stock
         :type ma_data: Dataframe
@@ -327,3 +322,29 @@ class AnalysisDashboard:
         dash_thread = threading.Thread(target=run_dash)
         dash_thread.start()
         webbrowser.open_new("http://127.0.0.1:8050/")
+
+class ModelBackTesting():
+    def __init__(self, pred_dict, measures):
+        self.pred_dict = pred_dict
+        self.measures = measures
+        
+    def _tick_filter(self, dict, tick):
+        """Function filters dataframe for given ticker symbol.
+        If symbol is not in ticker column or ticker column
+        does not exist, the functin returns an empty dataframe
+
+        :param dict: Prediction values to filter 
+        for given ticker symbol
+        :type dict: Dictionary
+        :param tick: Ticker symbol for filtering
+        :type tick: String
+        :return: Filtered object
+        :rtype: Dictionary
+        """
+        tick_col = self.const_cols["ticker"]
+        try:
+            dict_filtered = dict[tick]
+            return dict_filtered
+        except KeyError:
+            logging.error(f"Ticker {tick_col} not in model dictionary")
+            return pd.DataFrame()
