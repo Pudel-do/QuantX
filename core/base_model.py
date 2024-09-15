@@ -52,7 +52,7 @@ class BaseModel(ABC):
         return scaled_data
     
     def _create_model_id(self):
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         model_name = self.model_name
         model_id = f"{timestamp}_{model_name}"
         self.model_id = model_id
