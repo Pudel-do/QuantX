@@ -47,6 +47,7 @@ def get_last_business_day():
     """
     now = datetime.now()
     last_bday = now - pd.offsets.BDay(1)
+    last_bday = last_bday.normalize()
     last_bday = last_bday.strftime(format="%Y-%m-%d")
     return last_bday
 
@@ -103,11 +104,14 @@ def ts_train_test_split(ts, train_ratio):
 def get_latest_modelid(tick, model_type):
     """Function filters in model directory for the most actual 
     forecas model separated by the respective ticker symbol and
-    forecast model type. 
+    forecast model type. If model_type is not None, the model
+    of model_type is directly selected and the most actual model ID
+    is returned
 
     :param tick: Ticker to search model for
     :type tick: String
     :param model_type: Type of forecast model (e.g. ARIMA, LSTM)
+    for direct selection
     :type model_type: String
     :return: Most actual model ID for respective ticker and model tyoe
     :rtype: List
