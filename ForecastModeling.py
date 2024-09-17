@@ -4,6 +4,7 @@ from core.file_adapter import FileAdapter
 from misc.misc import *
 from core.models import lstm
 from core.finance_adapter import FinanceAdapter
+from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 
 def merge_features(quotes, features):
     """Function merges daily quote data with
@@ -60,6 +61,15 @@ def feature_engineering():
     pass
 
 def model_building(model_data):
+    """Function builds, train and evaluates given
+    forecast model. Finally the model is saved to 
+    model and ticker directory
+
+    :param model_data: Preprocessed data for model building
+    :type modnel_data:  Dictionary
+    :return: None
+    :rtype: None
+    """
     for tick, data in model_data.items():
         model = lstm(ticker=tick)
         model.load_data(data=data)
@@ -68,20 +78,33 @@ def model_building(model_data):
         model.train()
         model.evaluate()
         FileAdapter().save_model(model=model)
-        # model = FileAdapter().load_model(
-        #     ticker=tick,
-        #     model_id="20240914_195928_LSTM"
-        # )
-        pred_days = PARAMETER["prediction_days"]
-        prediction = model.predict(pred_days=pred_days)
+    return None
 
 def model_backtesting(tickers):
+    """Function merges closing quotes up to the current last
+    business day for given tickers with the prediction values 
+    of the last current prediction models separated by model types.
+    Furthermore, ifferent performance measures rom the out-of-sample 
+    prediction are calculated for all available model types for each ticker.
+    The performance measures are directly defined in the function and
+    must be defined or adjusted in this place.
+
+    :param tickers: Stock tickers for backtesting
+    :type tickers: List
+    :return: Daily prediction and backtested prediction values as well as
+    prediction performance measure for backtesting period and list with
+    included models
+    :rtype: Dictionary, Dictionary, List
+    """
     backtest_dict = {}
+    measures_dict = {}
+    model_list = []
     for tick in tickers:
         closing_quotes = FinanceAdapter(tick=tick).get_trade_data(
             start=PARAMETER["model_start"]
         )
         closing_quotes = closing_quotes[CONST_COLS["quote_id"]]
+        closing_quotes.name = CONST_COLS["quote"]
         closing_quotes = pd.DataFrame(closing_quotes)
         model_ids = get_latest_modelid(
             tick=tick, 
@@ -94,6 +117,8 @@ def model_backtesting(tickers):
             )
             model_type = model_id.split("_")[-1]
             model_type = model_type.split(".")[0]
+            if model_type not in model_list:
+                model_list.append(model_type)
             pred_days = PARAMETER["prediction_days"]
             prediction = model.predict(pred_days=pred_days)
             prediction.name = model_type
@@ -101,8 +126,28 @@ def model_backtesting(tickers):
                 prediction,
                 how="outer",
             )
+            validation_data = backtest_df.dropna()
+            actual = validation_data[CONST_COLS["quote"]]
+            pred = validation_data[model_type]
+            rmse = np.sqrt(mean_squared_error(actual, pred))
+            mape = mean_absolute_percentage_error(actual, pred)
+            mae = mean_absolute_error(actual, pred)
+            df_index = [
+                CONST_COLS["rmse"],
+                CONST_COLS["mae"],
+                CONST_COLS["mape"], 
+            ]
+            measures_df = pd.DataFrame(
+                columns=[model_type], 
+                index=df_index
+            )
+            measures_df.loc[df_index[0], :] = rmse
+            measures_df.loc[df_index[1], :] = mae
+            measures_df.loc[df_index[2], :] = mape
+
         backtest_dict[tick] = backtest_df
-    return backtest_dict
+        measures_dict[tick] = measures_df
+    return backtest_dict, measures_dict, model_list
 
 
 if __name__ == "__main__":
@@ -116,5 +161,4 @@ if __name__ == "__main__":
     FileAdapter().save_model_data(model_data=processed_data_dict)
     if PARAMETER["use_model_training"]:
         model_building(model_data=processed_data_dict)
-    backtesting = model_backtesting(tickers=tickers)
-    print("break")
+    backtesting, measures, models = model_backtesting(tickers=tickers)

@@ -36,6 +36,9 @@
         "position": "POSITION",
         "market": "MARKET",
         "performance": "PERFORMANCE",
-        "prediction": "PREDICTION"
+        "prediction": "PREDICTION",
+        "rmse": "RMSE",
+        "mape": "MAPE",
+        "mae": "MAE"
     }
 }
