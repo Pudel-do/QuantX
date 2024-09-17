@@ -110,6 +110,8 @@ def model_backtesting(tickers):
             tick=tick, 
             model_type=None
         )
+        measures_df = pd.DataFrame()
+        backtest_df = pd.DataFrame(closing_quotes)
         for model_id in model_ids:
             model = FileAdapter().load_model(
                 ticker=tick,
@@ -122,7 +124,7 @@ def model_backtesting(tickers):
             pred_days = PARAMETER["prediction_days"]
             prediction = model.predict(pred_days=pred_days)
             prediction.name = model_type
-            backtest_df = closing_quotes.join(
+            backtest_df = backtest_df.join(
                 prediction,
                 how="outer",
             )
@@ -137,13 +139,9 @@ def model_backtesting(tickers):
                 CONST_COLS["mae"],
                 CONST_COLS["mape"], 
             ]
-            measures_df = pd.DataFrame(
-                columns=[model_type], 
-                index=df_index
-            )
-            measures_df.loc[df_index[0], :] = rmse
-            measures_df.loc[df_index[1], :] = mae
-            measures_df.loc[df_index[2], :] = mape
+            measures_df.loc[df_index[0], model_type] = rmse
+            measures_df.loc[df_index[1], model_type] = mae
+            measures_df.loc[df_index[2], model_type] = mape
 
         backtest_dict[tick] = backtest_df
         measures_dict[tick] = measures_df
@@ -162,3 +160,4 @@ if __name__ == "__main__":
     if PARAMETER["use_model_training"]:
         model_building(model_data=processed_data_dict)
     backtesting, measures, models = model_backtesting(tickers=tickers)
+    print("break")
