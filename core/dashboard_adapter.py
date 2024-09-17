@@ -22,13 +22,13 @@ class AnalysisDashboard:
         :param fundamentals: Fundamental data for each stock
         :type fundamentals: Dataframe
         """
-        self.tickers = read_json("parameter.json")["ticker"]
-        self.const_cols = read_json("constant.json")["columns"]
-        self.fundamental_list = read_json("constant.json")["fundamentals"]["measures"]
         self.ma_data = ma_data
         self.ma_values = ma_values
         self.returns = returns
         self.fundamentals = fundamentals
+        self.tickers = read_json("parameter.json")["ticker"]
+        self.const_cols = read_json("constant.json")["columns"]
+        self.fundamental_list = read_json("constant.json")["fundamentals"]["measures"]
         self.app = Dash(__name__)
         self._setup_layout()
         self._register_callbacks()
@@ -324,12 +324,18 @@ class AnalysisDashboard:
         webbrowser.open_new("http://127.0.0.1:8050/")
 
 class ModelBackTesting():
-    def __init__(self, pred_dict, measures):
+    def __init__(self, pred_dict, measures, model_list):
         self.pred_dict = pred_dict
         self.measures = measures
+        self.model_list = model_list
+        self.tickers = read_json("parameter.json")["ticker"]
+        self.const_cols = read_json("constant.json")["columns"]
+        self.app = Dash(__name__)
+        self._setup_layout()
+        self._register_callbacks()
         
     def _tick_filter(self, dict, tick):
-        """Function filters dataframe for given ticker symbol.
+        """Function filters dictionary for given ticker symbol.
         If symbol is not in ticker column or ticker column
         does not exist, the functin returns an empty dataframe
 
@@ -348,3 +354,29 @@ class ModelBackTesting():
         except KeyError:
             logging.error(f"Ticker {tick_col} not in model dictionary")
             return pd.DataFrame()
+        
+    def _setup_layout(self):
+        """Function sets the layout for the dashboard app.
+        All dashboard items like dropdowns, sliders and graphs 
+        must be defined in this method
+        """
+        self.app.layout = html.Div(
+            [   
+                html.H1("Backtesting of forecast models"),
+                dcc.Dropdown(
+                    id="tick_dropdown",
+                    options=[{'label': ticker, 'value': ticker} \
+                             for ticker in self.tickers],
+                    value=self.tickers[0]
+                ),
+                dcc.Checklist(
+                    id='checklist_models',
+                    options=[{'label': col, 'value': col} \
+                             for col in self.model_list],
+                    value=[self.model_list[0]],
+                    labelStyle={'display': 'inline-block'}
+                ),
+                dcc.Graph(id="quote_backtest_line"),
+                dcc.Graph(id='fundamentals_bar'),
+            ]
+        )
