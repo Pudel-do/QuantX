@@ -29,7 +29,7 @@ class FinanceAdapter:
         quotes = yf.download(
             tickers=self.tick,
             start=start,
-            end=end, #end must be adjusted --> Settings adjustment for download function
+            end=end,
             progress=False,
             interval="1d",
             ignore_tz=True
