@@ -29,6 +29,7 @@ def get_business_day(date):
     :rtype: string
     """
     if not isinstance(date, datetime):
+    
         date = pd.to_datetime(date)
     is_bday = pd.bdate_range(start=date, end=date).shape[0] > 0
     if not is_bday:

@@ -24,11 +24,12 @@ class FinanceAdapter:
         :return: Dataframe with all price and volume data information. 
         :rtype: Dataframe
         """
-        end = get_last_business_day()
+        last_bday = get_last_business_day()
+        end = pd.to_datetime(last_bday) + pd.offsets.BDay(1)
         quotes = yf.download(
             tickers=self.tick,
             start=start,
-            end=end,
+            end=end, #end must be adjusted --> Settings adjustment for download function
             progress=False,
             interval="1d",
             ignore_tz=True
