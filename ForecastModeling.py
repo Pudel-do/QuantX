@@ -4,6 +4,7 @@ from core.file_adapter import FileAdapter
 from misc.misc import *
 from core.models import lstm
 from core.finance_adapter import FinanceAdapter
+from core.dashboard_adapter import ModelBackTesting
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 
 def merge_features(quotes, features):
@@ -97,7 +98,7 @@ def model_backtesting(tickers):
     :rtype: Dictionary, Dictionary, List
     """
     backtest_dict = {}
-    measures_dict = {}
+    validation_dict = {}
     model_list = []
     for tick in tickers:
         closing_quotes = FinanceAdapter(tick=tick).get_trade_data(
@@ -110,8 +111,8 @@ def model_backtesting(tickers):
             tick=tick, 
             model_type=None
         )
-        measures_df = pd.DataFrame()
-        backtest_df = pd.DataFrame(closing_quotes)
+        backtest = pd.DataFrame(closing_quotes)
+        backtest_validation = pd.DataFrame()
         for model_id in model_ids:
             model = FileAdapter().load_model(
                 ticker=tick,
@@ -124,28 +125,26 @@ def model_backtesting(tickers):
             pred_days = PARAMETER["prediction_days"]
             prediction = model.predict(pred_days=pred_days)
             prediction.name = model_type
-            backtest_df = backtest_df.join(
+            backtest = backtest.join(
                 prediction,
-                how="outer",
+                how="right",
             )
-            validation_data = backtest_df.dropna()
-            actual = validation_data[CONST_COLS["quote"]]
-            pred = validation_data[model_type]
+            validation = closing_quotes.join(
+                prediction,
+                how="inner"
+            )
+            actual = validation[CONST_COLS["quote"]]
+            pred = validation[model_type]
             rmse = np.sqrt(mean_squared_error(actual, pred))
             mape = mean_absolute_percentage_error(actual, pred)
             mae = mean_absolute_error(actual, pred)
-            df_index = [
-                CONST_COLS["rmse"],
-                CONST_COLS["mae"],
-                CONST_COLS["mape"], 
-            ]
-            measures_df.loc[df_index[0], model_type] = rmse
-            measures_df.loc[df_index[1], model_type] = mae
-            measures_df.loc[df_index[2], model_type] = mape
+            backtest_validation.loc[CONST_COLS["rmse"], model_type] = rmse
+            backtest_validation.loc[CONST_COLS["mae"], model_type] = mae
+            backtest_validation.loc[CONST_COLS["mape"], model_type] = mape
 
-        backtest_dict[tick] = backtest_df
-        measures_dict[tick] = measures_df
-    return backtest_dict, measures_dict, model_list
+        backtest_dict[tick] = backtest
+        validation_dict[tick] = backtest_validation
+    return backtest_dict, validation_dict, model_list
 
 
 if __name__ == "__main__":
@@ -159,5 +158,10 @@ if __name__ == "__main__":
     FileAdapter().save_model_data(model_data=processed_data_dict)
     if PARAMETER["use_model_training"]:
         model_building(model_data=processed_data_dict)
-    backtesting, measures, models = model_backtesting(tickers=tickers)
-    print("break")
+    backtest_dict, validation_dict, models = model_backtesting(tickers=tickers)
+    app = ModelBackTesting(
+        backtest_dict=backtest_dict,
+        validation_dict=validation_dict,
+        model_list=models
+    )
+    app.run()
