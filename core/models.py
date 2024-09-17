@@ -6,7 +6,6 @@ import io
 import matplotlib.pyplot as plt
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 from keras import layers
 from core.base_model import BaseModel
 from misc.misc import *
