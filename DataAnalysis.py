@@ -203,5 +203,4 @@ if __name__ == "__main__":
         returns=returns,    
         fundamentals=fundamentals_df,
         )
-    app.run()
-
+    app.run(debug=True)
