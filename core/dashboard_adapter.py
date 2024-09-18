@@ -1,11 +1,11 @@
-from dash import Dash, dcc, html
+from dash import Dash, dcc, html, dash_table
 from dash.dependencies import Input, Output
+import plotly.express as px
+import plotly.graph_objects as go
 from core import logging_config
 from misc.misc import read_json
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
 import time
 import threading
 import webbrowser
@@ -324,9 +324,9 @@ class AnalysisDashboard:
         webbrowser.open_new("http://127.0.0.1:8050/")
 
 class ModelBackTesting():
-    def __init__(self, pred_dict, measures, model_list):
-        self.pred_dict = pred_dict
-        self.measures = measures
+    def __init__(self, backtest_dict, validation_dict, model_list):
+        self.backtest_dict = backtest_dict
+        self.validation_dict = validation_dict
         self.model_list = model_list
         self.tickers = read_json("parameter.json")["ticker"]
         self.const_cols = read_json("constant.json")["columns"]
@@ -345,14 +345,13 @@ class ModelBackTesting():
         :param tick: Ticker symbol for filtering
         :type tick: String
         :return: Filtered object
-        :rtype: Dictionary
+        :rtype: Dataframe
         """
-        tick_col = self.const_cols["ticker"]
         try:
             dict_filtered = dict[tick]
             return dict_filtered
         except KeyError:
-            logging.error(f"Ticker {tick_col} not in model dictionary")
+            logging.error(f"Ticker {tick} not in model dictionary")
             return pd.DataFrame()
         
     def _setup_layout(self):
@@ -377,6 +376,86 @@ class ModelBackTesting():
                     labelStyle={'display': 'inline-block'}
                 ),
                 dcc.Graph(id="quote_backtest_line"),
-                dcc.Graph(id='fundamentals_bar'),
+                dash_table.DataTable(
+                    id="validation_table",
+                    columns=[{"name": i, "id": i} \
+                             for i in self.validation_dict[self.tickers[0]].columns],
+                    data=self.validation_dict[self.tickers[0]].to_dict('records')
+                )
             ]
         )
+
+    def _register_callbacks(self):
+        """Functions defines the app callbacks to adjust
+        the graphs basend on the given selections and filters.
+        Here each callback and sub function is grouped by
+        the defined callback options
+
+        :return: None
+        :rtype: None
+        """
+        @self.app.callback(
+            Output("quote_backtest_line", "figure"),
+            [Input("tick_dropdown", "value"), 
+             Input("checklist_models", "value")]
+        )
+        def _dropdwon_checklist_charts(tick_filter, selected_models):
+            backtest_data = self._tick_filter(
+                dict=self.backtest_dict,
+                tick=tick_filter
+            )
+            traces = []
+            traces.append(
+                go.Scatter(
+                    x=backtest_data.index,
+                    y=backtest_data[self.const_cols["quote"]],
+                    mode="lines",
+                    name=self.const_cols["quote"]
+                )
+            )
+            for model in selected_models:
+                traces.append(
+                    go.Scatter(
+                        x=backtest_data.index,
+                        y=backtest_data[model],
+                        mode="lines",
+                        name=model
+                    )
+                )
+            layout = go.Layout(
+                title=f"Out-of-Sample Prediction for {tick_filter}",
+                xaxis={"title": "Date"},
+                yaxis={"title": "Value"},
+                hovermode="closest"
+            )
+            backtest_fig = {
+                "data": traces,
+                "layout": layout
+            }
+            return backtest_fig
+        
+        @self.app.callback(
+            [Output("validation_table", "columns"),
+             Output("validation_table", "data")],
+             Input("tick_dropdown", "value")
+        )
+        def _dropdown_table(tick_filter):
+            validation_data = self._tick_filter(
+                dict=self.validation_dict,
+                tick=tick_filter
+            )
+            validation_data = validation_data.round(3)
+            columns = [{"name": i, "id": i} \
+                       for i in validation_data.columns]
+            data = validation_data.to_dict('records')
+
+            return columns, data
+
+    def run(self, debug=True):
+
+        def run_dash():
+            self.app.run_server(debug=debug, use_reloader=False)
+
+        dash_thread = threading.Thread(target=run_dash)
+        dash_thread.start()
+        webbrowser.open_new("http://127.0.0.1:8050/")
