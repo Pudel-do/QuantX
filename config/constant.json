@@ -37,6 +37,7 @@
         "market": "MARKET",
         "performance": "PERFORMANCE",
         "prediction": "PREDICTION",
+        "measures": "MEASURES",
         "rmse": "RMSE",
         "mape": "MAPE",
         "mae": "MAE"
