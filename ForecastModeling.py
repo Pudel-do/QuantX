@@ -122,8 +122,7 @@ def model_backtesting(tickers):
             model_type = model_type.split(".")[0]
             if model_type not in model_list:
                 model_list.append(model_type)
-            pred_days = PARAMETER["prediction_days"]
-            prediction = model.predict(pred_days=pred_days)
+            prediction = model.predict()
             prediction.name = model_type
             backtest = backtest.join(
                 prediction,
