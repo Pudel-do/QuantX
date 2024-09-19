@@ -11,10 +11,11 @@ from keras import layers
 from core.base_model import BaseModel
 from misc.misc import *
 
-class lstm(BaseModel):
+class lstm_os(BaseModel):
     def __init__(self, ticker):
-        super().__init__(model_name="LSTM", ticker=ticker)
+        super().__init__(model_name="OneStepLSTM", ticker=ticker)
         self._create_model_id()
+        self.seq_length = self.params["sequence_length"]
 
     def preprocess_data(self):
         """Function preprocesses raw model data for
@@ -31,21 +32,17 @@ class lstm(BaseModel):
         :rtype: None
         """
         scaled_data = self._data_scaling(data=self.data)
-        seq_length = self.params["sequence_length"]
-        exog, endog = [], []
-        for i in range(seq_length, len(scaled_data)):
-            exog.append(scaled_data[i-seq_length:i, :])
-            endog.append(scaled_data[i, :])
-
-        exog = np.array(exog)
-        endog = np.array(endog)
-        x_train, x_test, y_train, y_test = self._train_test_split(endog=endog, exog=exog)
+        train_set, val_set, test_set = self._data_split(data=scaled_data)
+        x_train, y_train = self._create_sequences(train_set)
+        x_val, y_val = self._create_sequences(val_set)
+        x_test, y_test = self._create_sequences(test_set)
+        self.scaled_data = scaled_data
         self.x_train = x_train
+        self.x_val = x_val
         self.x_test = x_test
         self.y_train = y_train
+        self.y_val = y_val
         self.y_test = y_test
-        self.scaled_data = scaled_data
-        self.seq_length = seq_length
         return None
 
     def build_model(self):
@@ -122,11 +119,11 @@ class lstm(BaseModel):
             )
         return None
     
-    def predict(self, pred_days):
+    def predict(self):
         last_seq = self.scaled_data[-self.seq_length:]
         last_seq = last_seq.reshape(1, self.seq_length, self.n_features)
         prediction_list = []
-        for _ in range(pred_days):
+        for _ in range(self.pred_days):
             prediction = self.model.predict(last_seq, verbose=0)
             prediction_list.append(prediction[0, 0])
             prediction = prediction.reshape(1, 1, self.n_features)
@@ -142,7 +139,7 @@ class lstm(BaseModel):
         pred_start = get_business_day(pred_start)
         prediction_index = pd.date_range(
             start=pred_start,
-            periods=pred_days,
+            periods=self.pred_days,
             freq="B",
             normalize=True
         )
@@ -152,8 +149,16 @@ class lstm(BaseModel):
         )
         return prediction
     
+    def _create_sequences(self, data):
+        exog, endog = [], []
+        for i in range(self.seq_length, len(data)):
+            exog.append(data[i-self.seq_length:i, :])
+            endog.append(data[i, :])
+
+        return np.array(exog), np.array(endog)
+    
     def _create_plot(self, target, y_pred, rmse):
-        fig, ax = plt.subplots(figsize=(10, 6))
+        fig, ax = plt.subplots()
         ax.plot(target, label="Real Values", color='blue')
         ax.plot(y_pred, label="Predicted Values", color='red')
         ax.legend()
