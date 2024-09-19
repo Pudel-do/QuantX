@@ -2,6 +2,9 @@ import pandas as pd
 import json
 import os
 import logging
+import io
+import tensorflow as tf
+import matplotlib.pyplot as plt
 from core import logging_config
 from datetime import datetime
 
@@ -147,6 +150,44 @@ def get_latest_modelid(tick, model_type):
                 model_ids.append(model_id)
     return model_ids
 
+def get_log_path(ticker, model_id, log_key):
+    """Function builds path for saving model logs.
+    Underlying directory elements are defined in 
+    constant.json
+
+    :return: Path for saving model logs
+    :rtype: String
+    """
+    data_model = read_json("constant.json")["datamodel"]
+    models_dir = data_model["models_dir"]
+    log_dir = data_model[log_key]
+    path = os.path.join(
+        os.getcwd(), 
+        models_dir,
+        ticker,
+        log_dir, 
+        model_id
+    )
+    return path
+
+def create_in_pred_fig(ticker, target, y_pred, rmse):
+    fig, ax = plt.subplots(figsize=(18,6))
+    ax.plot(target, label="Real Values", color='blue')
+    ax.plot(y_pred, label="Predicted Values", color='red')
+    ax.legend()
+    ax.set_title(f"In-Sample prediction for {ticker} with RMSE of {rmse}")
+    ax.set_xlabel("Sample Index")
+    ax.set_ylabel("Value")
+    return fig
+
+def plot_to_image(figure):
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    plt.close(figure)
+    buf.seek(0)
+    image = tf.image.decode_png(buf.getvalue(), channels=4)
+    image = tf.expand_dims(image, 0)
+    return image
     
 
     
