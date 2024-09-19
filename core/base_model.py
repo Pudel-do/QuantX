@@ -11,9 +11,19 @@ class BaseModel(ABC):
         self.model = None
         self.data = None
         self.params = read_json("parameter.json")
+        self.pred_days = self.params["prediction_days"]
 
     def load_data(self, data):
         self.data = data
+
+    def _data_split(self, data):
+        test_size = self.params["prediction_days"] + self.params["sequence_length"]
+        train_val_data = data[:-test_size]
+        train_size = int(len(train_val_data) * self.params["train_ratio"])
+        train_set = train_val_data[:train_size]
+        val_set = train_val_data[train_size:]
+        test_set = data[-test_size:]
+        return train_set, val_set, test_set
 
     def _train_test_split(self, endog, exog):
         train_ratio = self.params["train_ratio"]
