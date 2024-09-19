@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from core.file_adapter import FileAdapter
 from misc.misc import *
-from core.models import lstm
+from core.models import OneStepLSTM, MultiStepLSTM
 from core.finance_adapter import FinanceAdapter
 from core.dashboard_adapter import ModelBackTesting
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
@@ -72,7 +72,7 @@ def model_building(model_data):
     :rtype: None
     """
     for tick, data in model_data.items():
-        model = lstm(ticker=tick)
+        model = OneStepLSTM(ticker=tick)
         model.load_data(data=data)
         model.preprocess_data()
         model.build_model()
