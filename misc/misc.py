@@ -171,7 +171,7 @@ def get_log_path(ticker, model_id, log_key):
     return path
 
 def create_in_pred_fig(ticker, target, y_pred, rmse):
-    fig, ax = plt.subplots(figsize=(18,6))
+    fig, ax = plt.subplots(figsize=(10,2))
     ax.plot(target, label="Real Values", color='blue')
     ax.plot(y_pred, label="Predicted Values", color='red')
     ax.legend()
