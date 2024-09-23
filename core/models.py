@@ -11,8 +11,8 @@ from core.base_model import BaseModel
 from misc.misc import *
 
 class OneStepLSTM(BaseModel):
-    def __init__(self, ticker):
-        super().__init__(model_name="OneStepLSTM", ticker=ticker)
+    def __init__(self):
+        super().__init__(model_name="OneStepLSTM")
         self._create_model_id()
         self.seq_length = self.params["sequence_length"]
 
@@ -166,8 +166,8 @@ class OneStepLSTM(BaseModel):
         return np.array(exog), np.array(endog)
 
 class MultiStepLSTM(BaseModel):
-    def __init__(self, ticker):
-        super().__init__(model_name="MutliStepLSTM", ticker=ticker)
+    def __init__(self):
+        super().__init__(model_name="MutliStepLSTM")
         self._create_model_id()
         self.seq_length = self.params["sequence_length"]
 

@@ -5,16 +5,16 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from misc.misc import *
 
 class BaseModel(ABC):
-    def __init__(self, model_name, ticker):
+    def __init__(self, model_name):
         self.model_name = model_name
-        self.ticker = ticker
         self.model = None
         self.data = None
         self.params = read_json("parameter.json")
         self.pred_days = self.params["prediction_days"]
 
-    def load_data(self, data):
+    def init_data(self, data, ticker):
         self.data = data
+        self.ticker = ticker
 
     def _data_split(self, data):
         test_size = self.params["prediction_days"] + self.params["sequence_length"]
