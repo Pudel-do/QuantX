@@ -23,7 +23,6 @@ def merge_features(quotes, features):
     data_dict = {}
     for tick, ser in quotes.items():
         tick_features = features[tick]
-        tick_features = tick_features[PARAMETER["feature_cols"]]
         df_quotes = pd.DataFrame(data=ser)
         df_quotes = df_quotes.rename(
             columns={tick: CONST_COLS["quote"]}
@@ -49,36 +48,61 @@ def data_cleaning(data_dict):
     processed_data_dict = {}
     for tick, data in data_dict.items():
         period_mask = data.index >= PARAMETER["model_start"]
-        data = data[period_mask]
+        data = data[period_mask] 
         data = data.dropna()
         processed_data_dict[tick] = data
 
     return processed_data_dict
 
-def feature_engineering():
+def feature_engineering(data_dict):
     """Function calculates features for model building
     Output should display processed data for model building
     """
+    model_features = {}
+    for tick, values in data_dict.items():
+        #RSI
+        rsi_window = PARAMETER["rsi_window"]
+        delta = values[CONST_COLS["quote"]].diff(1)
+        gain = np.where(delta > 0, delta, 0)
+        loss = np.where(delta < 0, -delta, 0)
+        gain = pd.Series(gain, index=values.index)
+        loss = pd.Series(loss, index=values.index)
+        avg_gain = gain.rolling(window=rsi_window).mean()
+        avg_loss = loss.rolling(window=rsi_window).mean()
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        rsi.name = CONST_COLS["rsi"]
+        values = values.join(rsi, how="left")
+
+        #ATR
+        print("break")
+
     pass
 
-def model_building(model_data):
+def model_building(model_data, models):
     """Function builds, train and evaluates given
     forecast model. Finally the model is saved to 
     model and ticker directory
 
     :param model_data: Preprocessed data for model building
     :type modnel_data:  Dictionary
+    :param models: Prediction models to build
+    :type models: List
     :return: None
     :rtype: None
     """
     for tick, data in model_data.items():
-        model = OneStepLSTM(ticker=tick)
-        model.load_data(data=data)
-        model.preprocess_data()
-        model.build_model()
-        model.train()
-        model.evaluate()
-        FileAdapter().save_model(model=model)
+        for model in models:
+            model.init_data(
+                data=data, 
+                ticker=tick
+            )
+            model.preprocess_data()
+            model.build_model()
+            model.train()
+            model.evaluate()
+            FileAdapter().save_model(model=model)
+            del model
     return None
 
 def model_backtesting(tickers):
@@ -152,12 +176,22 @@ if __name__ == "__main__":
     PARAMETER = read_json("parameter.json")
     closing_quotes = FileAdapter().load_closing_quotes()
     daily_trading_data = FileAdapter().load_trading_data()
-    raw_data_dict = merge_features(quotes=closing_quotes, features=daily_trading_data)
+    raw_data_dict = merge_features(
+        quotes=closing_quotes, 
+        features=daily_trading_data
+    )
     processed_data_dict = data_cleaning(data_dict=raw_data_dict)
+    model_data_dict = feature_engineering(processed_data_dict)
     processed_data_dict, tickers = harmonize_tickers(processed_data_dict)
     FileAdapter().save_model_data(model_data=processed_data_dict)
+    models = [
+        OneStepLSTM()
+    ]
     if PARAMETER["use_model_training"]:
-        model_building(model_data=processed_data_dict)
+        model_building(
+            model_data=processed_data_dict, 
+            models=models
+        )
     backtest_dict, validation_dict, models = model_backtesting(tickers=tickers)
     app = ModelBackTesting(
         backtest_dict=backtest_dict,
