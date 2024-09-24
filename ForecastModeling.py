@@ -59,26 +59,74 @@ def feature_engineering(data_dict):
     Output should display processed data for model building
     """
     model_features = {}
-    for tick, values in data_dict.items():
+    for tick, data in data_dict.items():
+        quotes = data[CONST_COLS["quote"]]
         #RSI
         rsi_window = PARAMETER["rsi_window"]
-        delta = values[CONST_COLS["quote"]].diff(1)
+        delta = quotes.diff(1)
         gain = np.where(delta > 0, delta, 0)
         loss = np.where(delta < 0, -delta, 0)
-        gain = pd.Series(gain, index=values.index)
-        loss = pd.Series(loss, index=values.index)
+        gain = pd.Series(gain, index=data.index)
+        loss = pd.Series(loss, index=data.index)
         avg_gain = gain.rolling(window=rsi_window).mean()
         avg_loss = loss.rolling(window=rsi_window).mean()
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
         rsi.name = CONST_COLS["rsi"]
-        values = values.join(rsi, how="left")
+
+        #MACD
+        ema_fast = quotes.ewm(span=PARAMETER["macd_fast"])
+        ema_slow = quotes.ewm(span=PARAMETER["macd_slow"])
+        ema_fast = ema_fast.mean()
+        ema_slow = ema_slow.mean()
+        macd = ema_fast - ema_slow
+        macd.name = CONST_COLS["macd"]
 
         #ATR
-        print("break")
+        high = data[CONST_COLS["high"]]
+        low = data[CONST_COLS["low"]]
+        high_low = high - low
+        high_close = np.abs(high - quotes.shift(1))
+        low_close = np.abs(low - quotes.shift(1))
+        true_range = pd.concat(
+            [high_low, high_close, low_close], 
+            axis=1
+        )
+        true_range = true_range.max(axis=1)
+        atr = true_range.rolling(window=PARAMETER["atr_window"])
+        atr = atr.mean()
+        atr.name = CONST_COLS["atr"]
+        
+        #OBV
+        obv = np.where(
+            quotes > quotes.shift(1), 
+            data[CONST_COLS["volume"]], 
+            np.where(
+                quotes < quotes.shift(1), 
+                -data[CONST_COLS["volume"]],
+            0
+            )
+        )
+        obv = pd.Series(obv, index=data.index)
+        obv = obv.cumsum()
+        obv.name = CONST_COLS["obv"]
 
-    pass
+        #ROLLING_VOLATILITY
+        rets = np.log(quotes / quotes.shift(1))
+        vola = rets.rolling(window=PARAMETER["vol_window"])
+        vola = vola.std()
+        vola.name = CONST_COLS["ret_vola"]
 
+        quotes = pd.DataFrame(quotes)
+        features = quotes.join(
+            [rsi, macd, atr, obv, vola],
+            how="inner"
+        )
+        features = features[PARAMETER["feature_cols"]]
+        features = features.dropna()
+        model_features[tick] = features
+    return model_features
+        
 def model_building(model_data, models):
     """Function builds, train and evaluates given
     forecast model. Finally the model is saved to 
@@ -125,10 +173,11 @@ def model_backtesting(tickers):
     validation_dict = {}
     model_list = []
     for tick in tickers:
-        closing_quotes = FinanceAdapter(tick=tick).get_trade_data(
+        trade_data = FinanceAdapter(tick=tick).get_trade_data(
             start=PARAMETER["model_start"]
         )
-        closing_quotes = closing_quotes[CONST_COLS["quote_id"]]
+        trade_data = rename_yfcolumns(data=trade_data)
+        closing_quotes = trade_data[CONST_COLS["quote_id"]]
         closing_quotes.name = CONST_COLS["quote"]
         closing_quotes = pd.DataFrame(closing_quotes)
         model_ids = get_latest_modelid(
@@ -182,14 +231,14 @@ if __name__ == "__main__":
     )
     processed_data_dict = data_cleaning(data_dict=raw_data_dict)
     model_data_dict = feature_engineering(processed_data_dict)
-    processed_data_dict, tickers = harmonize_tickers(processed_data_dict)
-    FileAdapter().save_model_data(model_data=processed_data_dict)
+    model_data_dict, tickers = harmonize_tickers(model_data_dict)
+    FileAdapter().save_model_data(model_data=model_data_dict)
     models = [
         OneStepLSTM()
     ]
     if PARAMETER["use_model_training"]:
         model_building(
-            model_data=processed_data_dict, 
+            model_data=model_data_dict, 
             models=models
         )
     backtest_dict, validation_dict, models = model_backtesting(tickers=tickers)
