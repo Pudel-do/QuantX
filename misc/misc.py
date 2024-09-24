@@ -22,6 +22,19 @@ def read_json(file_name):
     except FileNotFoundError:
         logging.error(f"File {file_name} not found")
         return None
+    
+def rename_yfcolumns(data):
+    CONST_COLS = read_json("constant.json")["columns"]
+    rename_dict = {
+        "Adj Close": CONST_COLS["adj_close"],
+        "Close": CONST_COLS["close"],
+        "Open": CONST_COLS["open"],
+        "High": CONST_COLS["high"],
+        "Low": CONST_COLS["low"],
+        "Volume": CONST_COLS["volume"],
+    }
+    data_adj = data.rename(columns=rename_dict)
+    return data_adj
 
 def get_business_day(date):
     """

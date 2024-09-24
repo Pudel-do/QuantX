@@ -26,18 +26,6 @@ def drop_duplicate_fundamental_cols(fundamentals):
 
     return fundamentals_clean
 
-def rename_columns(data):
-    rename_dict = {
-        "Adj Close": CONST_COLS["adj_close"],
-        "Close": CONST_COLS["close"],
-        "Open": CONST_COLS["open"],
-        "High": CONST_COLS["high"],
-        "Low": CONST_COLS["low"],
-        "Volume": CONST_COLS["volume"],
-    }
-    data_adj = data.rename(columns=rename_dict)
-    return data_adj
-
 def get_merged_quotes(ticker_list, start, quote_id):
     """Function concats quotes for given quote id and ticker symbols. The ticker quotes are
     joined to a base time series with business days only ranging up to actual time.
@@ -63,7 +51,7 @@ def get_merged_quotes(ticker_list, start, quote_id):
 
     for tick in ticker_list:
         ticker_quotes = FinanceAdapter(tick).get_trade_data(start=start)
-        ticker_quotes = rename_columns(data=ticker_quotes)
+        ticker_quotes = rename_yfcolumns(data=ticker_quotes)
         ticker_quote = ticker_quotes[quote_id]
         if not ticker_quote.empty:
             ticker_quote.name = tick
@@ -86,7 +74,7 @@ def get_daily_stock_data(ticker_list, start):
     ticker_dict = {}
     for tick in ticker_list:
         data = FinanceAdapter(tick).get_trade_data(start=start)
-        data = rename_columns(data=data)
+        data = rename_yfcolumns(data=data)
         ticker_dict[tick] = data
 
     return ticker_dict
