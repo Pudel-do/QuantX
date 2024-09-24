@@ -87,14 +87,18 @@ class OneStepLSTM(BaseModel):
             model_id=self.model_id,
             log_key="training_logs"
         )
-        tb_callbacks = keras.callbacks.TensorBoard(log_dir)
+        tensorboard_cb = keras.callbacks.TensorBoard(log_dir)
+        earlystop_cb = keras.callbacks.EarlyStopping(
+            patience=self.params["patience"],
+            restore_best_weights=True
+        )
         self.model.fit(
             self.x_train,
             self.y_train,
             epochs=self.params["epochs"],
             batch_size=32,
             validation_data=(self.x_val, self.y_val),
-            callbacks=[tb_callbacks],
+            callbacks=[tensorboard_cb, earlystop_cb],
         )
         return None
     
@@ -242,14 +246,18 @@ class MultiStepLSTM(BaseModel):
             model_id=self.model_id,
             log_key="training_logs"
         )
-        tb_callbacks = keras.callbacks.TensorBoard(log_dir)
+        tensorboard_cb = keras.callbacks.TensorBoard(log_dir)
+        earlystop_cb = keras.callbacks.EarlyStopping(
+            patience=self.params["patience"],
+            restore_best_weights=True
+        )
         self.model.fit(
             self.x_train,
             self.y_train,
             epochs=self.params["epochs"],
             batch_size=32,
             validation_data=(self.x_val, self.y_val),
-            callbacks=[tb_callbacks],
+            callbacks=[tensorboard_cb, earlystop_cb],
         )
         return None
     
