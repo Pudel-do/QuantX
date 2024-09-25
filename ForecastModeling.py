@@ -54,12 +54,19 @@ def data_cleaning(data_dict):
 
     return processed_data_dict
 
-def feature_engineering(data_dict):
-    """Function calculates features for model building
-    Output should display processed data for model building
+def feature_engineering(stock_dict):
+    """Function calculates technical indicators as features
+    for prediciton models. All indicator must be defined in 
+    constant.json. 
+
+    :param data_dict: Daily trading data
+    :type data_dict: Dictionary
+    :return: Set of technical indicators
+    for each ticker
+    :rtype: Dictionary
     """
     model_features = {}
-    for tick, data in data_dict.items():
+    for tick, data in stock_dict.items():
         quotes = data[CONST_COLS["quote"]]
         #RSI
         rsi_window = PARAMETER["rsi_window"]
@@ -104,7 +111,7 @@ def feature_engineering(data_dict):
             np.where(
                 quotes < quotes.shift(1), 
                 -data[CONST_COLS["volume"]],
-            0
+                0
             )
         )
         obv = pd.Series(obv, index=data.index)
@@ -225,12 +232,12 @@ if __name__ == "__main__":
     PARAMETER = read_json("parameter.json")
     closing_quotes = FileAdapter().load_closing_quotes()
     daily_trading_data = FileAdapter().load_trading_data()
-    raw_data_dict = merge_features(
+    raw_tick_dict = merge_features(
         quotes=closing_quotes, 
         features=daily_trading_data
     )
-    processed_data_dict = data_cleaning(data_dict=raw_data_dict)
-    model_data_dict = feature_engineering(processed_data_dict)
+    processed_tick_dict = data_cleaning(data_dict=raw_tick_dict)
+    model_data_dict = feature_engineering(processed_tick_dict)
     model_data_dict, tickers = harmonize_tickers(model_data_dict)
     FileAdapter().save_model_data(model_data=model_data_dict)
     models = [

@@ -13,10 +13,29 @@ class BaseModel(ABC):
         self.pred_days = self.params["prediction_days"]
 
     def init_data(self, data, ticker):
+        """Function initializes model data and respective ticker
+
+        :param data: Full time series of endogenous and
+        exogenous variabels for model building
+        :type data: Series
+        :param ticker: Stock ticker
+        :type ticker: String
+        """
         self.data = data
         self.ticker = ticker
 
     def _data_split(self, data):
+        """Function splits data set into train, test
+        and validation set. Test set consits of the last
+        n observations with n equals the out-of-sample
+        prediction period.
+
+        :param data: Data set of endogenous and 
+        exogenous variables for model building
+        :type data: Array
+        :return: Train, validation and test set
+        :rtype: Array
+        """
         test_size = self.params["prediction_days"] + self.params["sequence_length"]
         train_val_data = data[:-test_size]
         train_size = int(len(train_val_data) * self.params["train_ratio"])
@@ -24,13 +43,6 @@ class BaseModel(ABC):
         val_set = train_val_data[train_size:]
         test_set = data[-test_size:]
         return train_set, val_set, test_set
-
-    def _train_test_split(self, endog, exog):
-        train_ratio = self.params["train_ratio"]
-        train_size = int(len(endog) * train_ratio)
-        x_train, x_test = exog[:train_size], exog[train_size:]
-        y_train, y_test = endog[:train_size], endog[train_size:]
-        return x_train, x_test, y_train, y_test
     
     def _data_scaling(self, data):
         """Function scales model data for target and 
@@ -62,6 +74,13 @@ class BaseModel(ABC):
         return scaled_data
     
     def _create_model_id(self):
+        """Function defines model id for later reference.
+        Model id consists of actual timestamp and
+        model class name and is inherited to model class
+
+        :return: None
+        :rtype: None
+        """
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         model_name = self.model_name
         model_id = f"{timestamp}_{model_name}"
