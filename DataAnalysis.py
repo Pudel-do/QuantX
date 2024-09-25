@@ -5,7 +5,7 @@ from core.file_adapter import FileAdapter
 from core.dashboard_adapter import AnalysisDashboard
 from misc.misc import *
 
-def get_moving_averages(quote_data, train):
+def get_moving_averages(quote_data, use_train):
     """Function calculates moving averages as well as
     historical trading strategy returns and determines
     the strategy outperformance by comparing strategy
@@ -13,10 +13,10 @@ def get_moving_averages(quote_data, train):
 
     :param quote_data: Historical stock quote data
     :type quote_data: Series
-    :param train: Parameter to control for training and testing 
+    :param use_train: Parameter to control for training and testing 
     samples when calculating the trading strategy performance and
     the underlying moving average parameters
-    :type train: Boolean
+    :type use_train: Boolean
     :return: Stock quotes extended by moving average quotes and market
     and strategy returns as well as optimal moving average parameters
     :rtype: Dictionary, Series
@@ -24,15 +24,15 @@ def get_moving_averages(quote_data, train):
     moving_average_dict = {}
     optimal_ma_value_list = []
     for ticker, quotes in quote_data.items():
-        quotes.name = QUOTE_COL
-        if train:
+        quotes.name = CONST_COLS["quote"]
+        if use_train:
             train_set, test_set = ts_train_test_split(
                 ts=quotes,
-                train_ratio=0.75
+                train_ratio=PARAMETER["ma_train_ratio"]
             )
             opt_values = ma_optimization(quotes=train_set)
-            sma1 = int(opt_values.loc["SMA1"])
-            sma2 = int(opt_values.loc["SMA2"])
+            sma1 = int(opt_values.loc[CONST_COLS["sma1"]])
+            sma2 = int(opt_values.loc[CONST_COLS["sma2"]])
             backtest = vectorized_backtesting(
                 quotes=test_set, 
                 SMA1=sma1, 
@@ -40,25 +40,30 @@ def get_moving_averages(quote_data, train):
             )
         else:
             opt_values = ma_optimization(quotes=quotes)
-            sma1 = int(opt_values.loc["SMA1"])
-            sma2 = int(opt_values.loc["SMA2"])
+            sma1 = int(opt_values.loc[CONST_COLS["sma1"]])
+            sma2 = int(opt_values.loc[CONST_COLS["sma2"]])
             backtest = vectorized_backtesting(
                 quotes=quotes, 
                 SMA1=sma1, 
                 SMA2=sma2
             )
         opt_values.name = ticker
-        cum_rets = backtest["Returns"].cumsum()
+        cum_rets = backtest[CONST_COLS["returns"]].cumsum()
         cum_rets = cum_rets.apply(np.exp)
-        cum_strat = backtest["Strategy"].cumsum()
+        cum_strat = backtest[CONST_COLS["strategy"]].cumsum()
         cum_strat = cum_strat.apply(np.exp)
-        cum_rets.name = "CumReturns"
-        cum_strat.name = "CumStrategy"
+        cum_rets.name = CONST_COLS["cumreturns"]
+        cum_strat.name = CONST_COLS["cumstrategy"]
         ma_results = pd.DataFrame(quotes)
         ma_results = ma_results.dropna()
         ma_results = ma_results.join(
-            [backtest[["SMA1", "SMA2", "Position"]], 
-            cum_rets, cum_strat],
+            [backtest[
+                [CONST_COLS["sma1"], 
+                 CONST_COLS["sma2"], 
+                 CONST_COLS["position"]
+                 ]], 
+            cum_rets, cum_strat
+            ],
             how="outer"
         )
         moving_average_dict[ticker] = ma_results
@@ -91,18 +96,22 @@ def vectorized_backtesting(quotes, SMA1, SMA2):
     sma2 = quotes.rolling(SMA2).mean()
 
     data = pd.DataFrame(quotes)
-    data.columns = [QUOTE_COL]
-    data["SMA1"] = sma1
-    data["SMA2"] = sma2
+    data.columns = [CONST_COLS["quote"]]
+    data[CONST_COLS["sma1"]] = sma1
+    data[CONST_COLS["sma2"]] = sma2
     data = data.dropna()
     position_mask = np.where(
-        data[SMA1_COL] > data[SMA2_COL], 1, -1
+        data[CONST_COLS["sma1"]] > data[CONST_COLS["sma2"]], 
+        1, -1
     )
-    data["Position"] = position_mask
-    data["Returns"] = np.log(
-        data[QUOTE_COL] / data[QUOTE_COL].shift(1)
+    data[CONST_COLS["position"]] = position_mask
+    data[CONST_COLS["returns"]] = np.log(
+        data[CONST_COLS["quote"]] / \
+            data[CONST_COLS["quote"]].shift(1)
     )
-    data["Strategy"] = data["Position"].shift(1) * data["Returns"]
+    strategy = data[CONST_COLS["position"]].shift(1) * \
+                	data[CONST_COLS["returns"]]
+    data[CONST_COLS["strategy"]] = strategy
     data = data.dropna()
     return data
 
@@ -130,21 +139,22 @@ def ma_optimization(quotes):
             SMA2=SMA2
         )
         performance = np.exp(
-            ma_data[["Returns", "Strategy"]].sum()
+            ma_data[[CONST_COLS["returns"], 
+                     CONST_COLS["strategy"]]].sum()
         )
-        market = performance["Returns"]
-        strategy = performance["Strategy"]
+        market = performance[CONST_COLS["returns"]]
+        strategy = performance[CONST_COLS["strategy"]]
         results = {
-            "SMA1": int(SMA1),
-            "SMA2": SMA2,
-            "Market": market,
-            "Strategy": strategy,
-            "Performance": strategy - market
+            CONST_COLS["sma1"]: int(SMA1),
+            CONST_COLS["sma2"]: int(SMA2),
+            CONST_COLS["market"]: market,
+            CONST_COLS["strategy"]: strategy,
+            CONST_COLS["performance"]: strategy - market
         }
         total_results_list.append(results)
     total_results = pd.DataFrame(total_results_list)
     total_results = total_results.sort_values(
-        by="Performance",
+        by=CONST_COLS["performance"],
         ascending=False
     )
     optimal_result = total_results.iloc[0, :]
@@ -172,21 +182,19 @@ def concat_dict_to_df(dict):
     return df
 
 if __name__ == "__main__":
-    parameter = read_json("parameter.json")["analysis"]
-    ticker_list = read_json("inputs.json")["ticker"]
     constant_cols = read_json("constant.json")["columns"]
-    SMA1_COL = constant_cols["sma1"]
-    SMA2_COL = constant_cols["sma2"]
-    QUOTE_COL = constant_cols["quote"]
+    CONST_COLS = read_json("constant.json")["columns"]
+    PARAMETER = read_json("parameter.json")
+    use_ma_training = PARAMETER["use_ma_training"]
     returns = FileAdapter().load_returns()
     closing_quotes = FileAdapter().load_closing_quotes()
     fundamentals_dict = FileAdapter().load_fundamentals()
-    closing_quotes = harmonize_tickers(object=closing_quotes)
-    fundamentals_dict = harmonize_tickers(object=fundamentals_dict)
+    closing_quotes, _ = harmonize_tickers(object=closing_quotes)
+    fundamentals_dict, _ = harmonize_tickers(object=fundamentals_dict)
     fundamentals_df = concat_dict_to_df(dict=fundamentals_dict)
     moving_averages, optimal_values = get_moving_averages(
         quote_data=closing_quotes, 
-        train=False
+        use_train=use_ma_training
     )
     moving_averages_df = concat_dict_to_df(dict=moving_averages)
     app = AnalysisDashboard(
@@ -195,6 +203,4 @@ if __name__ == "__main__":
         returns=returns,    
         fundamentals=fundamentals_df,
         )
-    app.run()
-    print("Finished")
-
+    app.run(debug=True)

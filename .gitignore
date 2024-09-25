@@ -3,3 +3,5 @@ __pycache__
 data/
 features/
 models/
+notebooks/
+parameter.json

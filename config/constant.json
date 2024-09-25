@@ -6,7 +6,11 @@
         "quotes_file": "closing_quotes.csv",
         "returns_file": "returns.csv",
         "fundamentals_file": "fundamentals.pkl",
-        "daily_trading_data_file": "daily_trading_data.pkl"
+        "daily_trading_data_file": "daily_trading_data.pkl",
+        "model_data": "model_data.pkl",
+        "training_logs": "training_logs",
+        "evaluation_logs": "evaluation_logs",
+        "model": "model"
     },
     "fundamentals": {
         "income": "income-statement",
@@ -19,9 +23,33 @@
         ]
     },
     "columns": {
-        "ticker": "Ticker",
-        "quote": "Quote",
+        "quote_id": "ADJUSTED_CLOSE",
+        "ticker": "TICKER",
+        "adj_close": "ADJUSTED_CLOSE",
+        "close": "CLOSE",
+        "open": "OPEN",
+        "low": "LOW",
+        "high": "HIGH",
+        "volume": "VOLUME",
+        "quote": "QUOTE",
         "sma1": "SMA1",
-        "sma2": "SMA2"
+        "sma2": "SMA2",
+        "returns": "RETURNS",
+        "strategy": "STRATEGY",
+        "cumreturns": "CUM_RETURNS",
+        "cumstrategy": "CUM_STRATEGY",
+        "position": "POSITION",
+        "market": "MARKET",
+        "performance": "PERFORMANCE",
+        "rsi": "RSI",
+        "atr": "ATR",
+        "macd": "MACD",
+        "obv": "OBV",
+        "ret_vola": "RETURN_VOLATILITY",
+        "prediction": "PREDICTION",
+        "measures": "MEASURES",
+        "rmse": "RMSE",
+        "mape": "MAPE",
+        "mae": "MAE"
     }
 }
