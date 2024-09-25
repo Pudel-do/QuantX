@@ -76,8 +76,8 @@ class OneStepLSTM(BaseModel):
     
     def train(self):
         """Function trains LSTM model and saves callbacks
-        in model logs. Trained model is inherited to 
-        model class
+        in model logs for evaluation in tensorboard. 
+        Trained model is inherited to model class
 
         :return: None
         :rtype: None
@@ -103,6 +103,13 @@ class OneStepLSTM(BaseModel):
         return None
     
     def evaluate(self):
+        """Function evaluates trained model on test set
+        and writes performance results to evaluation logs.
+        Test set performance can be analyzed in tensorboard.
+
+        :return: None
+        :rtype: None
+        """
         y_pred = self.model.predict(x=self.x_test, verbose=0)
         y_pred = y_pred[:, 0].reshape(self.pred_days, 1)
         target = self.y_test[:, 0].reshape(self.pred_days, 1)
@@ -132,6 +139,15 @@ class OneStepLSTM(BaseModel):
         return None
     
     def predict(self):
+        """Function performs one step ahead out-of-sample prediction 
+        for defined prediction period in parameter.json based on the
+        last sequence. Prediction values are inverse transformed
+        to original scale and start by the first business day 
+        following the last day from the test set.
+
+        :return: Out-of-sample prediction
+        :rtype: Series
+        """
         last_seq = self.scaled_data[-self.seq_length:]
         last_seq = last_seq.reshape(1, self.seq_length, self.n_features)
         prediction_list = []
@@ -162,6 +178,16 @@ class OneStepLSTM(BaseModel):
         return prediction
     
     def _create_sequences(self, data):
+        """Function creates sequences for defined
+        period in parameter.json for LSTM model building
+        separated by endogenous and exogenous variables
+        for given model data
+
+        :param data: Model data to create sequences for
+        :type data: Array
+        :return: Sequences for endogenous and exogenous variables
+        :rtype: Array
+        """
         exog, endog = [], []
         for i in range(self.seq_length, len(data)):
             exog.append(data[i-self.seq_length:i, :])

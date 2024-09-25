@@ -24,15 +24,28 @@ def read_json(file_name):
         return None
     
 def rename_yfcolumns(data):
+    """Function renames dataframe columns
+    by constant column names in constant.json
+
+    :param data: Data for column name adjusting
+    :type data: Dataframe
+    :return: Dataframe adjusted by column names
+    :rtype: 
+    """
     CONST_COLS = read_json("constant.json")["columns"]
-    rename_dict = {
-        "Adj Close": CONST_COLS["adj_close"],
-        "Close": CONST_COLS["close"],
-        "Open": CONST_COLS["open"],
-        "High": CONST_COLS["high"],
-        "Low": CONST_COLS["low"],
-        "Volume": CONST_COLS["volume"],
-    }
+    try:
+        rename_dict = {
+            "Adj Close": CONST_COLS["adj_close"],
+            "Close": CONST_COLS["close"],
+            "Open": CONST_COLS["open"],
+            "High": CONST_COLS["high"],
+            "Low": CONST_COLS["low"],
+            "Volume": CONST_COLS["volume"],
+        }
+    except ValueError:
+        logging.warning("Constant columns not defined in json file")
+        rename_dict = {}
+
     data_adj = data.rename(columns=rename_dict)
     return data_adj
 
@@ -184,6 +197,23 @@ def get_log_path(ticker, model_id, log_key):
     return path
 
 def create_in_pred_fig(ticker, target, y_pred, rmse):
+    """Function builds matplot figure to visualize
+    prediction performance on the test set against
+    target values from the same set. In addition, 
+    the RMSE is calculated viszualized as performance
+    measure
+
+    :param ticker: Ticker for predicted stock
+    :type ticker: String
+    :param target: Real target values from test set
+    :type target: Array
+    :param y_pred: Prediciton values from test set
+    :type y_pred: Array
+    :param rmse: Root mean squared error from test set performance
+    :type rmse: Float
+    :return: Line chart figure
+    :rtype: Matplotlib figure
+    """
     fig, ax = plt.subplots(figsize=(10,2))
     ax.plot(target, label="Real Values", color='blue')
     ax.plot(y_pred, label="Predicted Values", color='red')
@@ -194,6 +224,13 @@ def create_in_pred_fig(ticker, target, y_pred, rmse):
     return fig
 
 def plot_to_image(figure):
+    """Function saves figure as tensorflow image
+
+    :param figure: Figure to save
+    :type figure: Matplotlib figure
+    :return: Tensorflow image
+    :rtype: Tensorflow image
+    """
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     plt.close(figure)
