@@ -3,6 +3,10 @@ import numpy as np
 import scipy.optimize as sco
 
 class PortfolioGenerator:
+    def __init__(self):
+        pass
+
+class PortfolioGenerator_OLD:
     def __init__(self, rets):
         self.rets = rets
         self.noa = len(self.rets.columns)
