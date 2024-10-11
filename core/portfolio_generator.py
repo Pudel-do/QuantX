@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import scipy.optimize as sco
+import logging
+from core import logging_config
 
 class PortfolioGenerator:
     def __init__(self, returns):
