@@ -3,9 +3,9 @@ import numpy as np
 import scipy.optimize as sco
 
 class PortfolioGenerator:
-    def __init__(self, rets):
-        self.rets = rets
-        self.ticks = rets.columns
+    def __init__(self, returns):
+        self.rets = returns
+        self.ticks = returns.columns
 
     def _init_params(self):
         """Function inits constant parameters
