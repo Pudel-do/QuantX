@@ -49,8 +49,11 @@ class PortfolioGenerator:
                            constraints=self.constraints,
                            method='SLSQP')
         opt_weights = opt['x'].round(3)
-        print("break")
-        return opt_weights
+        weight_dict = self._create_weight_dict(
+            ticks=self.ticks,
+            weights=opt_weights
+        )
+        return weight_dict
     
     def get_min_var_weights(self):
         """Function calculates optimized weights
@@ -66,8 +69,11 @@ class PortfolioGenerator:
                            constraints=self.constraints,
                            method='SLSQP')
         opt_weights = opt['x'].round(3)
-        return opt_weights
-
+        weight_dict = self._create_weight_dict(
+            ticks=self.ticks,
+            weights=opt_weights
+        )
+        return weight_dict
 
     def _annualized_volatility(self, weights):
         """Function calculates the annualized
@@ -120,6 +126,25 @@ class PortfolioGenerator:
         ann_vola = self._annualized_volatility(weights=weights)
         sharpe_ratio = ann_ret / ann_vola
         return -sharpe_ratio
+    
+    def _create_weight_dict(self, ticks, weights):
+        """Function generates dictionary for weight
+         to ticker mapping for given ticker symbols
+
+        :param ticks: Ticker symbols
+        :type ticks: Index
+        :param weights: Optimized weights
+        :type weights: Array
+        :return: Optimized weight for respective ticker
+        :rtype: Dictionary
+        """
+        weight_dict = {}
+        keys = list(ticks)
+        values = list(weights)
+        for key, value in zip(keys, values):
+            weight_dict[key] = value
+        return weight_dict
+
 
 class PortfolioGenerator_OLD:
     def __init__(self, rets):
