@@ -3,8 +3,123 @@ import numpy as np
 import scipy.optimize as sco
 
 class PortfolioGenerator:
-    def __init__(self):
-        pass
+    def __init__(self, rets):
+        self.rets = rets
+        self.ticks = rets.columns
+
+    def _init_params(self):
+        """Function inits constant parameters
+        for optimization problem
+        """
+        noa = len(self.rets.columns)
+        bounds = tuple((0,1) for x in range(noa))
+        eweights = np.array(noa * [1. / noa])
+        constraints = (
+            {'type': 'eq', 
+             'fun': lambda x: np.sum(x) - 1}
+        )
+        self.noa = noa
+        self.bounds = bounds
+        self.eweights = eweights
+        self.constraints = constraints
+
+    def get_returns(self, weights):
+        """Function calculates the daily portfolio 
+        return by inherited returns and given weights
+
+        :param weights: Weights for return calculation
+        :type weights: Dictionary
+        :return: Daily portfolio returns
+        :rtype: Series
+        """
+        port_rets = (self.rets * weights).sum()
+        return port_rets
+    
+    def get_max_sharpe_weights(self):
+        """Function calculates optimized weights
+        for maximum sharpe ratio portfolio
+
+        :return: Portfolio weights
+        :rtype: Dictionary
+        """
+        self._init_params()
+        opt = sco.minimize(self._neg_sharpe_ratio,
+                           self.eweights,
+                           bounds=self.bounds,
+                           constraints=self.constraints,
+                           method='SLSQP')
+        opt_weights = opt['x'].round(3)
+        print("break")
+        return opt_weights
+    
+    def get_min_var_weights(self):
+        """Function calculates optimized weights
+        for minimum variance portfolio
+
+        :return: Portfolio weights
+        :rtype: Dictionary
+        """
+        self._init_params()
+        opt = sco.minimize(self._annualized_volatility,
+                           self.eweights,
+                           bounds=self.bounds,
+                           constraints=self.constraints,
+                           method='SLSQP')
+        opt_weights = opt['x'].round(3)
+        return opt_weights
+
+
+    def _annualized_volatility(self, weights):
+        """Function calculates the annualized
+        portfolio volatility by inherited returns
+        and given weights. Function is only used
+        for maximization problem
+
+        :param weights: Weights for volatility calculation
+        :type weights: Array
+        :return: Annualized portfolio volatility
+        :rtype: Float
+        """
+        ann_std = np.dot(
+            weights.T,
+            np.dot(
+                self.rets.cov() * 252,
+                weights
+            )
+        )
+        ann_vola = np.sqrt(ann_std)
+        return ann_vola
+
+
+    def _annualized_return(self, weights):
+        """Function calculates the annualized mean 
+        portfolio return by inherited returns and 
+        given weights. Function is only used
+        for maximization problem
+
+        :param weights: Weights for mean return calculation
+        :type weights: Array
+        :return: Annualized mean portfolio return
+        :rtype: Float
+        """
+        ann_rets = (self.rets * weights).sum()
+        ann_ret = ann_rets.mean() * 252
+        return ann_ret
+
+    def _neg_sharpe_ratio(self, weights):
+        """Function calculates the negative
+        portfolio sharpe ratio. Function is only
+        used for maximization problem
+
+        :param weights: Weights for sharpe ratio calculation
+        :type weights: Array
+        :return: Negative sharpe ratio
+        :rtype: Float
+        """
+        ann_ret = self._annualized_return(weights=weights)
+        ann_vola = self._annualized_volatility(weights=weights)
+        sharpe_ratio = ann_ret / ann_vola
+        return -sharpe_ratio
 
 class PortfolioGenerator_OLD:
     def __init__(self, rets):
