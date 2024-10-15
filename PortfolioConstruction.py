@@ -20,7 +20,7 @@ def data_cleaning(returns):
     """
     period_mask = returns.index >= PARAMETER["portfolio_start"]
     returns_clean = returns[period_mask]
-    returns_clean = returns_clean.iloc[1:, :]
+    returns_clean = returns_clean.iloc[1:]
     returns_clean = returns_clean.fillna(0)
     return returns_clean
 
@@ -42,11 +42,15 @@ def validate_custom_weights(weights, tickers):
 
 if __name__ == "__main__":
     PARAMETER = read_json("parameter.json")
-    raw_returns = FileAdapter().load_returns()
-    raw_returns, tickers = harmonize_tickers(raw_returns)
-    hist_returns = data_cleaning(raw_returns)
-    max_sharpe_weights = PortfolioGenerator(returns=hist_returns).get_max_sharpe_weights()
-    min_var_weights = PortfolioGenerator(returns=hist_returns).get_min_var_weights()
+    raw_stock_returns = FileAdapter().load_stock_returns()
+    raw_benchmark_returns = FileAdapter().load_benchmark_returns()
+    raw_stock_returns, tickers = harmonize_tickers(raw_stock_returns)
+    stock_returns = data_cleaning(raw_stock_returns)
+    max_sharpe_weights = PortfolioGenerator(returns=stock_returns).get_max_sharpe_weights()
+    min_var_weights = PortfolioGenerator(returns=stock_returns).get_min_var_weights()
     custom_weights = PARAMETER["custom_weights"]
-    custom_weights = validate_custom_weights(weights=custom_weights, tickers=tickers)
+    custom_weights = validate_custom_weights(
+        weights=custom_weights, 
+        tickers=tickers
+    )
     

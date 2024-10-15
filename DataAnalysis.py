@@ -186,7 +186,7 @@ if __name__ == "__main__":
     CONST_COLS = read_json("constant.json")["columns"]
     PARAMETER = read_json("parameter.json")
     use_ma_training = PARAMETER["use_ma_training"]
-    returns = FileAdapter().load_returns()
+    returns = FileAdapter().load_stock_returns()
     closing_quotes = FileAdapter().load_closing_quotes()
     fundamentals_dict = FileAdapter().load_fundamentals()
     closing_quotes, _ = harmonize_tickers(object=closing_quotes)

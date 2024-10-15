@@ -26,20 +26,20 @@ def drop_duplicate_fundamental_cols(fundamentals):
 
     return fundamentals_clean
 
-def get_merged_quotes(ticker_list, start, quote_id):
+def get_merged_quotes(ticker_list, quote_id):
     """Function concats quotes for given quote id and ticker symbols. The ticker quotes are
     joined to a base time series with business days only ranging up to actual time.
 
     :param ticker_list: Tickers for merging stock quotes
     :type ticker_list: List
-    :param start: Start date for downloading quote data
-    :type start: String
     :param quote_id: Quote measure which can be "Low", "High", "Open", "Close" or "Adj Close"
     :type quote_id: String
     :return: Dataframe containig merged quotes for all ticker in ticker_list
     :rtype: Dataframe
     """
-    end = get_last_business_day()
+    # end = get_last_business_day()
+    end = "2024-09-05"
+    start = PARAMETER["base_start"]
     quotes = pd.DataFrame(
         index=pd.date_range(
             start=start,
@@ -55,10 +55,10 @@ def get_merged_quotes(ticker_list, start, quote_id):
         ticker_quote = ticker_quotes[quote_id]
         if not ticker_quote.empty:
             ticker_quote.name = tick
-            quotes = quotes.join(ticker_quote)
+            quotes = quotes.join(ticker_quote, how="left")
     return quotes
 
-def get_daily_stock_data(ticker_list, start):
+def get_daily_stock_data(ticker_list):
     """Function extracts daily tading data for opening, 
     closed, high, low, adjusted closed quotes and 
     trading volume for given ticker list and start date
@@ -66,12 +66,11 @@ def get_daily_stock_data(ticker_list, start):
 
     :param ticker_list: Ticker symbols for data extraction
     :type ticker_list: List
-    :param start: Start date for data extraction
-    :type start: String
     :return: Daily trading data
     :rtype: Dictionary
     """
     ticker_dict = {}
+    start = PARAMETER["base_start"]
     for tick in ticker_list:
         data = FinanceAdapter(tick).get_trade_data(start=start)
         data = rename_yfcolumns(data=data)
@@ -92,7 +91,7 @@ def get_returns(quotes):
     rets = rets.iloc[1:]
     return rets
     
-def get_fundamentals(ticker_list, start):
+def get_fundamentals(ticker_list):
     """Function extracts quarterly currency converted fundamental data 
     from FMP for given ticker symbols and start date up to current date.
     Fundamental data is filtered for columns defined in config file for 
@@ -136,20 +135,27 @@ def get_fundamentals(ticker_list, start):
 
 if __name__ == "__main__":
     ticker_list = read_json("parameter.json")["ticker"]
-    base_start = read_json("parameter.json")["base_start"]
+    PARAMETER = read_json("parameter.json")
     CONST_FUNDS = read_json("constant.json")["fundamentals"]
     CONST_COLS = read_json("constant.json")["columns"]
-    closing_quotes = get_merged_quotes(
+    stock_ticks = PARAMETER["ticker"]
+    benchmark_tick = [PARAMETER["benchmark_tick"]]
+    stock_quotes = get_merged_quotes(
         ticker_list=ticker_list, 
-        start=base_start, 
-        quote_id=CONST_COLS["quote_id"]
+        quote_id=PARAMETER["quote_id"]
     )
-    returns = get_returns(closing_quotes)
-    daily_trading_data = get_daily_stock_data(ticker_list, base_start)
-    fundamentals = get_fundamentals(ticker_list, base_start)
+    benchmark_quotes = get_merged_quotes(
+        ticker_list=benchmark_tick, 
+        quote_id=PARAMETER["quote_id"]
+    )
+    stock_returns = get_returns(stock_quotes)
+    benchmark_returns = get_returns(benchmark_quotes)
+    daily_trading_data = get_daily_stock_data(ticker_list)
+    fundamentals = get_fundamentals(ticker_list)
     fundamentals = drop_duplicate_fundamental_cols(fundamentals)
-    FileAdapter().save_closing_quotes(closing_quotes)
-    FileAdapter().save_stock_returns(returns)
+    FileAdapter().save_stock_quotes(stock_quotes)
+    FileAdapter().save_stock_returns(stock_returns)
+    FileAdapter().save_benchmark_returns(benchmark_returns)
     FileAdapter().save_trading_data(daily_trading_data)
     FileAdapter().save_fundamentals(fundamentals)
 

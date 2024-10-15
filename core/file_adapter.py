@@ -23,7 +23,7 @@ class FileAdapter:
             os.getcwd(), 
             self.config["data_dir"]
         )
-        file_name = self.config["returns_file"]
+        file_name = self.config["stock_returns_file"]
         self._write_csv(
             data=rets,
             dir=dir,
@@ -31,7 +31,28 @@ class FileAdapter:
         )
         return None
     
-    def save_closing_quotes(self, quotes):
+    def save_benchmark_returns(self, rets):
+        """Function saves benchmark return data for
+        different stocks to data directory as csv file
+
+        :param rets: Stock returns
+        :type data: Dataframe
+        :return: None
+        :rtype: None
+        """
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["data_dir"]
+        )
+        file_name = self.config["benchmark_returns_file"]
+        self._write_csv(
+            data=rets,
+            dir=dir,
+            file_name=file_name
+        )
+        return None
+    
+    def save_stock_quotes(self, quotes):
         """Function saves closing quotes for different
         stocks to data directory as csv file
 
@@ -139,7 +160,7 @@ class FileAdapter:
             )
         return closing_quotes
     
-    def load_returns(self):
+    def load_stock_returns(self):
         """Function loads stock returns from data directory
 
         :return: Stock returns
@@ -149,7 +170,24 @@ class FileAdapter:
             os.getcwd(), 
             self.config["data_dir"]
         )
-        file_name = self.config["returns_file"]
+        file_name = self.config["stock_returns_file"]
+        returns = self._load_csv(
+            dir=dir,
+            file_name=file_name
+        )
+        return returns
+    
+    def load_benchmark_returns(self):
+        """Function loads benchmark returns from data directory
+
+        :return: Stock returns
+        :rtype: Dataframe
+        """
+        dir = os.path.join(
+            os.getcwd(), 
+            self.config["data_dir"]
+        )
+        file_name = self.config["benchmark_returns_file"]
         returns = self._load_csv(
             dir=dir,
             file_name=file_name
