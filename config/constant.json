@@ -51,5 +51,11 @@
         "rmse": "RMSE",
         "mape": "MAPE",
         "mae": "MAE"
+    },
+    "keys": {
+        "MIN_VAR": "MinimumVariance",
+        "MAX_SHARPE": "MaximumSharpeRatio",
+        "CUSTOM": "CustomWeights",
+        "EQUAL": "EqualWeights"
     }
 }

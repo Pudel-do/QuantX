@@ -34,6 +34,8 @@ class PortfolioGenerator:
         :return: Daily portfolio returns
         :rtype: Series
         """
+
+        #ToDo: Error handling if ticker in custom weights is not in returns dataframe
         port_rets = (self.rets * weights).sum()
         return port_rets
     
