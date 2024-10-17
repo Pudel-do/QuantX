@@ -37,8 +37,7 @@ def get_merged_quotes(ticker_list, quote_id):
     :return: Dataframe containig merged quotes for all ticker in ticker_list
     :rtype: Dataframe
     """
-    # end = get_last_business_day()
-    end = "2024-09-05"
+    end = get_last_business_day()
     start = PARAMETER["base_start"]
     quotes = pd.DataFrame(
         index=pd.date_range(
