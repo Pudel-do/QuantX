@@ -35,8 +35,14 @@ class PortfolioGenerator:
         :rtype: Series
         """
 
-        #ToDo: Error handling if ticker in custom weights is not in returns dataframe
-        port_rets = (self.rets * weights).sum()
+        rets = self.rets.copy()
+        for tick, weight in weights.items():
+            try:
+                weighted_rets = self.rets[tick] * weight
+                rets[tick] = weighted_rets
+            except:
+                logging.warning(f"Ticker {tick} not portfolio return constituents")
+        port_rets = rets.sum(axis=1)
         return port_rets
     
     def get_max_sharpe_weights(self):

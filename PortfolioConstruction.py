@@ -69,9 +69,23 @@ def build_weights(max_sharpe, min_var, custom, ticks):
     return weights
 
 def build_historical_portfolios(returns, weights):
+    """Function calculates and concats daily historical
+    portfolio returns for given weights
+
+    :param returns: Historical stock returns
+    :type returns: Dataframe
+    :param weights: Weights for portfolio calculation
+    :type weights: Dictionary
+    :return: Portfolio returns
+    :rtype: Dataframe
+    """
+    hist_ports_list = []
     for key, weight_dict in weights.items():
-        port_rets = PortfolioGenerator(returns).get_returns(weights)
-        print("break")
+        port_rets = PortfolioGenerator(returns).get_returns(weight_dict)
+        port_rets.name = key
+        hist_ports_list.append(port_rets)
+    hist_ports = pd.concat(hist_ports_list, axis=1)
+    return hist_ports
     
 
 if __name__ == "__main__":
@@ -88,5 +102,6 @@ if __name__ == "__main__":
     custom_weights = PARAMETER["custom_weights"]
     weight_dict = build_weights(max_sharpe_weights, min_var_weights, custom_weights, tickers)
     hist_port_rets = build_historical_portfolios(stock_returns, weight_dict)
+    print("break")
     
     
