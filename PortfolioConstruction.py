@@ -87,6 +87,23 @@ def build_historical_portfolios(returns, weights):
     hist_ports = pd.concat(hist_ports_list, axis=1)
     return hist_ports
     
+def build_future_portfolios(tickers, weights):
+    return_list = []
+    for tick in tickers:
+        model_id = get_latest_modelid(
+            tick=tick, 
+            model_type=PARAMETER["model"]
+        )
+        model = FileAdapter().load_model(
+            ticker=tick,
+            model_id=model_id
+        )
+        prediction = model.predict()
+        tick_return = calculate_returns(quotes=prediction)
+        tick_return.name = tick
+        return_list.append(tick_return)
+    returns = pd.concat(return_list, axis=1)
+    print("break")
 
 if __name__ == "__main__":
     CONST_COLS = read_json("constant.json")["columns"]
@@ -102,6 +119,7 @@ if __name__ == "__main__":
     custom_weights = PARAMETER["custom_weights"]
     weight_dict = build_weights(max_sharpe_weights, min_var_weights, custom_weights, tickers)
     hist_port_rets = build_historical_portfolios(stock_returns, weight_dict)
+    future_port_rets = build_future_portfolios(tickers, weight_dict)
     print("break")
     
     
