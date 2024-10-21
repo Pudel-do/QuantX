@@ -41,7 +41,7 @@ class PortfolioGenerator:
                 weighted_rets = self.rets[tick] * weight
                 rets[tick] = weighted_rets
             except:
-                logging.warning(f"Ticker {tick} not portfolio return constituents")
+                logging.warning(f"Ticker {tick} not in return portfolio constituents")
         port_rets = rets.sum(axis=1)
         return port_rets
     
