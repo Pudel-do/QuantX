@@ -76,19 +76,6 @@ def get_daily_stock_data(ticker_list):
         ticker_dict[tick] = data
 
     return ticker_dict
-
-def get_returns(quotes):
-    """Function calculates log returns for
-    given quotes and time range
-
-    :param quotes: Quotes from stocks
-    :type quotes: Dataframe
-    :return: Stock returns
-    :rtype: Dataframe
-    """
-    rets = np.log(quotes / quotes.shift(1))
-    rets = rets.iloc[1:]
-    return rets
     
 def get_fundamentals(ticker_list):
     """Function extracts quarterly currency converted fundamental data 
@@ -147,8 +134,8 @@ if __name__ == "__main__":
         ticker_list=benchmark_tick, 
         quote_id=PARAMETER["quote_id"]
     )
-    stock_returns = get_returns(stock_quotes)
-    benchmark_returns = get_returns(benchmark_quotes)
+    stock_returns = calculate_returns(stock_quotes)
+    benchmark_returns = calculate_returns(benchmark_quotes)
     daily_trading_data = get_daily_stock_data(ticker_list)
     fundamentals = get_fundamentals(ticker_list)
     fundamentals = drop_duplicate_fundamental_cols(fundamentals)

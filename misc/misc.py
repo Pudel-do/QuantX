@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import json
 import os
 import logging
@@ -22,6 +23,19 @@ def read_json(file_name):
     except FileNotFoundError:
         logging.error(f"File {file_name} not found")
         return None
+    
+def calculate_returns(quotes):
+    """Function calculates log returns for
+    given quotes and time range
+
+    :param quotes: Quotes from stocks
+    :type quotes: Dataframe
+    :return: Stock returns
+    :rtype: Dataframe
+    """
+    rets = np.log(quotes / quotes.shift(1))
+    rets = rets.iloc[1:]
+    return rets
     
 def rename_yfcolumns(data):
     """Function renames dataframe columns
@@ -169,12 +183,15 @@ def get_latest_modelid(tick, model_type):
             latest_date = max(value)
             model_id = f"{latest_date}_{key}"
             model_ids.append(model_id)
+            return model_ids
         else:
             if model_type in key:
                 latest_date = max(value)
                 model_id = f"{latest_date}_{key}"
-                model_ids.append(model_id)
-    return model_ids
+                return model_id
+            else:
+                logging.warning(f"Model type {model_type} not in model folder")
+                return None
 
 def get_log_path(ticker, model_id, log_key):
     """Function builds path for saving model logs.
