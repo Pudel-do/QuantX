@@ -24,7 +24,7 @@ def return_cleaning(returns):
     returns_clean = returns_clean.fillna(0)
     return returns_clean
 
-def build_weights(max_sharpe, min_var, custom, ticks):
+def build_optimal_weights(max_sharpe, min_var, custom, ticks):
     """Function builds dictionary containing all relevant
     portfolio weights. This inlcudes weights for maximum
     sharpe ratio, minimum variance, custom defined weights
@@ -68,26 +68,37 @@ def build_weights(max_sharpe, min_var, custom, ticks):
     weights[CONST_KEYS["EQUAL"]] = equal_weights
     return weights
 
-def build_historical_portfolios(returns, weights):
+def build_historical_portfolios(hist_returns, weights):
     """Function calculates and concats daily historical
     portfolio returns for given weights
 
-    :param returns: Historical stock returns
-    :type returns: Dataframe
+    :param hist_returns: Historical stock returns
+    :type hist_returns: Dataframe
     :param weights: Weights for portfolio calculation
     :type weights: Dictionary
-    :return: Portfolio returns
+    :return: Historical portfolio returns
     :rtype: Dataframe
     """
     hist_ports_list = []
     for key, weight_dict in weights.items():
-        port_rets = PortfolioGenerator(returns).get_returns(weight_dict)
+        port_rets = PortfolioGenerator(hist_returns).get_returns(weight_dict)
         port_rets.name = key
         hist_ports_list.append(port_rets)
     hist_ports = pd.concat(hist_ports_list, axis=1)
     return hist_ports
     
 def build_future_portfolios(tickers, weights):
+    """Function loads trained models for given tickers and 
+    defined model type in parameter file and calculates and
+    concats daily future portfolio returns for given weights
+
+    :param tickers: Tickers for future return calculation
+    :type tickers: List
+    :param weights: Weights for portfolio calculation
+    :type weights: Dictionary
+    :return: Future portfolio returns 
+    :rtype: Dataframe
+    """
     return_list = []
     for tick in tickers:
         model_id = get_latest_modelid(
@@ -98,12 +109,19 @@ def build_future_portfolios(tickers, weights):
             ticker=tick,
             model_id=model_id
         )
-        prediction = model.predict()
-        tick_return = calculate_returns(quotes=prediction)
-        tick_return.name = tick
-        return_list.append(tick_return)
-    returns = pd.concat(return_list, axis=1)
-    print("break")
+        quote_prediction = model.predict()
+        returns = calculate_returns(quotes=quote_prediction)
+        returns.name = tick
+        return_list.append(returns)
+
+    future_ports_list = []
+    future_returns = pd.concat(return_list, axis=1)
+    for key, weight_dict in weights.items():
+        port_rets = PortfolioGenerator(future_returns).get_returns(weight_dict)
+        port_rets.name = key
+        future_ports_list.append(port_rets)
+    future_ports = pd.concat(future_ports_list, axis=1)
+    return future_ports
 
 if __name__ == "__main__":
     CONST_COLS = read_json("constant.json")["columns"]
@@ -117,9 +135,10 @@ if __name__ == "__main__":
     max_sharpe_weights = PortfolioGenerator(stock_returns).get_max_sharpe_weights()
     min_var_weights = PortfolioGenerator(stock_returns).get_min_var_weights()
     custom_weights = PARAMETER["custom_weights"]
-    weight_dict = build_weights(max_sharpe_weights, min_var_weights, custom_weights, tickers)
-    hist_port_rets = build_historical_portfolios(stock_returns, weight_dict)
-    future_port_rets = build_future_portfolios(tickers, weight_dict)
+    optimal_weight_dict = build_optimal_weights(max_sharpe_weights, min_var_weights, custom_weights, tickers)
+    actual_weight_dict = build_actual_weights(optimal_weight_dict)
+    hist_port_rets = build_historical_portfolios(stock_returns, optimal_weight_dict)
+    future_port_rets = build_future_portfolios(tickers, optimal_weight_dict)
     print("break")
     
     
