@@ -164,7 +164,11 @@ def get_latest_modelid(tick, model_type):
     models_dir = datamodel["models_dir"]
     model_dir = datamodel["model"]
     models_path = os.path.join(models_dir, tick, model_dir)
-    models = os.listdir(models_path)
+    if not os.path.exists(models_path):
+        logging.warning(f"Model for ticker {tick} does not exist")
+        models = []
+    else:
+        models = os.listdir(models_path)
     model_types = []
     model_dates = []
     model_dict = {}
