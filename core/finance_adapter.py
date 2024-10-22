@@ -35,7 +35,34 @@ class FinanceAdapter:
             ignore_tz=True
         )
         if quotes.empty:
-            logging.error(f"Ticker {self.tick}")
+            logging.error(f"No quote data available for ticker {self.tick}")
+        try:
+            currency = yf.Ticker(self.tick).info["currency"]
+        except KeyError:
+            logging.error(f"Currency information error for ticker {self.tick}")
+            return quotes
+        base_currency = self.fx_config["base_currency"]
+        if not currency == base_currency:
+            quotes = self._quote_converter(quotes, currency)
+        return quotes
+    
+    def get_last_quote(self):
+        start = datetime.now()
+        start = start.strftime(format="%Y-%m-%d")
+        quotes = yf.download(
+            tickers=self.tick,
+            start=start,
+            progress=False,
+            interval="1d",
+            ignore_tz=True
+        )
+        if quotes.empty:
+            logging.error(f"No quote data available for ticker {self.tick}")
+        elif len(quotes) > 1:
+            logging.warning(f"Multiple quote data available for ticker {self.tick}")
+            quotes = quotes.iloc[-1, :]
+        else:
+            pass
         try:
             currency = yf.Ticker(self.tick).info["currency"]
         except KeyError:
@@ -142,17 +169,26 @@ class FinanceAdapter:
         try:    
             fx_ticker = fx_ticker_mapping[currency]
             try:
-                start = data.index[0]
-                end = data.index[-1]
-                fx_rate = yf.download(
-                    tickers=fx_ticker,
-                    start=start,
-                    end=end,
-                    progress=False,
-                    interval="1d",
-                    ignore_tz=True
-                )["Close"]
-                
+                if len(data) > 1:
+                    start = data.index[0]
+                    end = data.index[-1]
+                    fx_rate = yf.download(
+                        tickers=fx_ticker,
+                        start=start,
+                        end=end,
+                        progress=False,
+                        interval="1d",
+                        ignore_tz=True
+                    )["Close"]
+                else:
+                    start = data.index[0]
+                    fx_rate = yf.download(
+                        tickers=fx_ticker,
+                        start=start,
+                        progress=False,
+                        interval="1d",
+                        ignore_tz=True
+                    )["Close"] 
                 converter = pd.DataFrame(index=data.index)
                 converter = converter.join(fx_rate)
                 converter = converter.ffill()
