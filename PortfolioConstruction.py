@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
 import logging
+import math
 from misc.misc import *
 from core.portfolio_generator import PortfolioGenerator
 from core.file_adapter import FileAdapter
+from core.finance_adapter import FinanceAdapter
 from core import logging_config
 
 def return_cleaning(returns):
@@ -24,7 +26,7 @@ def return_cleaning(returns):
     returns_clean = returns_clean.fillna(0)
     return returns_clean
 
-def build_optimal_weights(max_sharpe, min_var, custom, ticks):
+def build_optimal_weights(max_sharpe, min_var, ticks):
     """Function builds dictionary containing all relevant
     portfolio weights. This inlcudes weights for maximum
     sharpe ratio, minimum variance, custom defined weights
@@ -35,13 +37,12 @@ def build_optimal_weights(max_sharpe, min_var, custom, ticks):
     :type max_sharpe: Dictionary
     :param min_var: Minimum variance weights
     :type min_var: Dictionary
-    :param custom: Custom defined weights
-    :type custom: Dictionary
     :param ticks: Harmonized ticker symbols
     :type ticks: List
     :return: All relevant portfolio weights for each ticker
     :rtype: Dictionary
     """
+    custom = PARAMETER["custom_weights"]
     custom_weights = custom.copy()
     custom_weight_sum = 0
     for tick, custom_weight in custom.items():
@@ -123,6 +124,30 @@ def build_future_portfolios(tickers, weights):
     future_ports = pd.concat(future_ports_list, axis=1)
     return future_ports
 
+def build_actual_weights(opt_weights):
+    invest = PARAMETER["investment"]
+    actual_weights = {}
+    long_position = {}
+    for port_type, weights in opt_weights.items():
+        weight_dict = {}
+        long_pos_dict = {}
+        for tick, weight in weights.items():
+            actual_quotes = FinanceAdapter(tick).get_last_quote()
+            actual_quotes = rename_yfcolumns(data=actual_quotes)
+            actual_quote = actual_quotes[PARAMETER["quote_id"]]
+            actual_quote = actual_quote.iloc[0]
+            raw_amount = invest * weight
+            n_shares = raw_amount / actual_quote
+            n_shares_adj = int(math.floor(n_shares))
+            weight_adj = actual_quote * n_shares_adj
+            weight_adj = weight_adj / invest
+            weight_adj = np.round(weight_adj, 3)
+            weight_dict[tick] = weight_adj
+            long_pos_dict[tick] = n_shares_adj
+        actual_weights[port_type]  = weight_dict
+        long_position[port_type] = long_pos_dict
+    return actual_weights, long_position
+
 if __name__ == "__main__":
     CONST_COLS = read_json("constant.json")["columns"]
     CONST_KEYS = read_json("constant.json")["keys"]
@@ -134,11 +159,10 @@ if __name__ == "__main__":
     benchmark_returns = return_cleaning(raw_benchmark_returns)
     max_sharpe_weights = PortfolioGenerator(stock_returns).get_max_sharpe_weights()
     min_var_weights = PortfolioGenerator(stock_returns).get_min_var_weights()
-    custom_weights = PARAMETER["custom_weights"]
-    optimal_weight_dict = build_optimal_weights(max_sharpe_weights, min_var_weights, custom_weights, tickers)
-    actual_weight_dict = build_actual_weights(optimal_weight_dict)
-    hist_port_rets = build_historical_portfolios(stock_returns, optimal_weight_dict)
-    future_port_rets = build_future_portfolios(tickers, optimal_weight_dict)
+    optimal_weights = build_optimal_weights(max_sharpe_weights, min_var_weights, tickers)
+    actual_weights, long_position = build_actual_weights(optimal_weights)
+    hist_port_rets = build_historical_portfolios(stock_returns, optimal_weights)
+    future_port_rets = build_future_portfolios(tickers, optimal_weights)
     print("break")
     
     
