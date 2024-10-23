@@ -124,14 +124,15 @@ def build_future_portfolios(tickers, weights):
     future_ports = pd.concat(future_ports_list, axis=1)
     return future_ports
 
-def build_actual_weights(opt_weights):
+def build_actual_values(opt_weights):
     invest = PARAMETER["investment"]
     actual_weights = {}
-    long_position = {}
+    actual_long_pos = {}
     for port_type, weights in opt_weights.items():
         weight_dict = {}
         long_pos_dict = {}
         for tick, weight in weights.items():
+            long_pos_list = []
             actual_quotes = FinanceAdapter(tick).get_last_quote()
             actual_quotes = rename_yfcolumns(data=actual_quotes)
             actual_quote = actual_quotes[PARAMETER["quote_id"]]
@@ -142,11 +143,15 @@ def build_actual_weights(opt_weights):
             weight_adj = actual_quote * n_shares_adj
             weight_adj = weight_adj / invest
             weight_adj = np.round(weight_adj, 3)
+            tick_invest = n_shares_adj * actual_quote
+            tick_invest = np.round(tick_invest, 3)
+            long_pos_list.append(n_shares_adj)
+            long_pos_list.append(tick_invest)
             weight_dict[tick] = weight_adj
-            long_pos_dict[tick] = n_shares_adj
+            long_pos_dict[tick] = long_pos_list
         actual_weights[port_type]  = weight_dict
-        long_position[port_type] = long_pos_dict
-    return actual_weights, long_position
+        actual_long_pos[port_type] = long_pos_dict
+    return actual_weights, actual_long_pos
 
 if __name__ == "__main__":
     CONST_COLS = read_json("constant.json")["columns"]
@@ -160,7 +165,7 @@ if __name__ == "__main__":
     max_sharpe_weights = PortfolioGenerator(stock_returns).get_max_sharpe_weights()
     min_var_weights = PortfolioGenerator(stock_returns).get_min_var_weights()
     optimal_weights = build_optimal_weights(max_sharpe_weights, min_var_weights, tickers)
-    actual_weights, long_position = build_actual_weights(optimal_weights)
+    actual_weights, actual_long_position = build_actual_values(optimal_weights)
     hist_port_rets = build_historical_portfolios(stock_returns, optimal_weights)
     future_port_rets = build_future_portfolios(tickers, optimal_weights)
     print("break")
