@@ -180,8 +180,13 @@ class FinanceAdapter:
                         interval="1d",
                         ignore_tz=True
                     )["Close"]
+                    converter = pd.DataFrame(index=data.index)
+                    converter = converter.join(fx_rate)
+                    converter = converter.ffill()
+                    converter = np.array(converter).flatten()
                 else:
-                    start = data.index[0]
+                    start = datetime.now()
+                    start = start.strftime(format="%Y-%m-%d")
                     fx_rate = yf.download(
                         tickers=fx_ticker,
                         start=start,
@@ -189,10 +194,7 @@ class FinanceAdapter:
                         interval="1d",
                         ignore_tz=True
                     )["Close"] 
-                converter = pd.DataFrame(index=data.index)
-                converter = converter.join(fx_rate)
-                converter = converter.ffill()
-                converter = np.array(converter).flatten()
+                    converter = fx_rate.iloc[0]
             except KeyError:
                 logging.error(f"Exchange rate download failed for {fx_ticker}")
         except KeyError:
