@@ -50,7 +50,11 @@
         "measures": "MEASURES",
         "rmse": "RMSE",
         "mape": "MAPE",
-        "mae": "MAE"
+        "mae": "MAE",
+        "sharpe_ratio": "SHARPE_RATIO",
+        "ann_mean_ret": "ANNUALIZED_MEAN_RETURN",
+        "ann_vola": "ANNUALIZED_VOLA",
+        "bench_corr": "BENCHMARK_CORRELATION"
     },
     "keys": {
         "MIN_VAR": "MinimumVariance",
