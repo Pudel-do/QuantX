@@ -54,7 +54,11 @@
         "sharpe_ratio": "SHARPE_RATIO",
         "ann_mean_ret": "ANNUALIZED_MEAN_RETURN",
         "ann_vola": "ANNUALIZED_VOLA",
-        "bench_corr": "BENCHMARK_CORRELATION"
+        "bench_corr": "BENCHMARK_CORRELATION",
+        "opt_weight": "OPTIMAL_WEIGHT",
+        "act_weight": "ACTUAL_WEIGHT",
+        "long_pos": "LONG_POSITION",
+        "amount": "AMOUNT"
     },
     "keys": {
         "MIN_VAR": "MinimumVariance",

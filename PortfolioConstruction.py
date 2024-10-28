@@ -149,10 +149,11 @@ def build_actual_values(opt_weights):
         long_pos_dict = {}
         for tick, weight in weights.items():
             long_pos_list = []
-            actual_quotes = FinanceAdapter(tick).get_last_quote()
-            actual_quotes = rename_yfcolumns(data=actual_quotes)
-            actual_quote = actual_quotes[PARAMETER["quote_id"]]
-            actual_quote = actual_quote.iloc[0]
+            # actual_quotes = FinanceAdapter(tick).get_last_quote()
+            # actual_quotes = rename_yfcolumns(data=actual_quotes)
+            # actual_quote = actual_quotes[PARAMETER["quote_id"]]
+            # actual_quote = actual_quote.iloc[0]
+            actual_quote = 100
             raw_amount = invest * weight
             n_shares = raw_amount / actual_quote
             n_shares_adj = int(math.floor(n_shares))
@@ -188,6 +189,16 @@ def get_cumulative_returns(returns):
     return cum_returns
 
 def calculate_performance(port_rets, bench_rets):
+    """Function calculates annualized performance measures
+    for given daily portfolio returns and benchmark returns
+
+    :param port_rets: Daily portfolio returns
+    :type port_rets: Series
+    :param bench_rets: Daily benchmark returns
+    :type bench_rets: Series
+    :return: Annualized performance measures
+    :rtype: Dictionary
+    """
     ann_mean_ret = port_rets.mean() * 252
     ann_vola = np.sqrt(port_rets.std() * 252)
     sharpe_ratio = ann_mean_ret / ann_vola
@@ -200,6 +211,17 @@ def calculate_performance(port_rets, bench_rets):
     return performance_dict
 
 def build_portfolio_performance(port_rets, bench_rets):
+    """Function constructs performance measures for
+    all given portfolio types and the respective portfolio
+    returns and benchmark returns
+
+    :param port_rets: Daily portfolio type returns
+    :type port_rets: Dataframe
+    :param bench_rets: Daily benchmark returns
+    :type bench_rets: Dataframe
+    :return: Performance measures
+    :rtype: Dataframe
+    """
     results = pd.DataFrame()
     bench_rets = bench_rets.squeeze()
     total_rets = pd.concat(
@@ -214,8 +236,47 @@ def build_portfolio_performance(port_rets, bench_rets):
         for measure, value in perf_dict.items():
             results.loc[port_type, measure] = value
     results = results.round(3)
-    return results      
+    return results
 
+def build_long_position(opt_weights, act_weights, long_pos, ticks):
+    """Function constructs long position values for given
+    portfolio types and stock tickers
+
+    :param opt_weights: Optimal portfolio weights for respective portfolio types
+    :type opt_weights: Dictionary
+    :param act_weights: Actual portfolio weights for respective portfolio types
+    :type act_weights: Dictionary
+    :param long_pos: Actual long position values for respective portfolio types
+    :type long_pos: Dictionary
+    :param ticks: Stock tickers
+    :type ticks: List
+    :return: Long position values
+    :rtype: Dictionary
+    """
+    opt_dict_keys = list(opt_weights.keys())
+    act_dict_keys = list(act_weights.keys())
+    long_pos_keys = list(long_pos.keys())
+    common_keys = get_list_intersection(
+        opt_dict_keys,
+        act_dict_keys,
+        long_pos_keys
+    )
+    result_dict = {}
+    for type in common_keys:
+        long_pos_results = pd.DataFrame(
+            index=ticks
+        )
+        for tick in ticks:
+            opt_weight = opt_weights[type].get(tick)
+            act_weight = act_weights[type].get(tick)
+            n_shares = long_pos[type].get(tick)[0]
+            invest = long_pos[type].get(tick)[1]
+            long_pos_results.loc[tick, CONST_COLS["opt_weight"]] = opt_weight
+            long_pos_results.loc[tick, CONST_COLS["act_weight"]] = act_weight
+            long_pos_results.loc[tick, CONST_COLS["long_pos"]] = n_shares
+            long_pos_results.loc[tick, CONST_COLS["amount"]] = invest
+        result_dict[type] = long_pos_results
+    return result_dict
 
 
 if __name__ == "__main__":
@@ -237,6 +298,6 @@ if __name__ == "__main__":
     cumulative_historical_returns = get_cumulative_returns(historical_portfolio_returns)
     cumulative_future_returns = get_cumulative_returns(future_portfolio_returns)
     portfolio_performance = build_portfolio_performance(historical_portfolio_returns, benchmark_returns)
-    print("break")
+    long_position = build_long_position(optimal_weights, actual_weights, actual_long_position, tickers)
     
     
