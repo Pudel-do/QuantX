@@ -24,6 +24,19 @@ def read_json(file_name):
         logging.error(f"File {file_name} not found")
         return None
     
+def get_list_intersection(*lists):
+    """Function returns intersection values of
+    entries in given lists
+
+    :return: List intersection values
+    :rtype: List
+    """
+    sets = map(set, lists)
+    intersection = set.intersection(*sets)
+    intersection = list(intersection)
+    return intersection
+    
+    
 def calculate_returns(quotes):
     """Function calculates log returns for
     given quotes and time range
