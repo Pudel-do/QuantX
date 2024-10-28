@@ -323,7 +323,7 @@ class AnalysisDashboard:
         dash_thread.start()
         webbrowser.open_new("http://127.0.0.1:8050/")
 
-class ModelBackTesting():
+class ModelBackTesting:
     def __init__(self, backtest_dict, validation_dict, model_list):
         self.backtest_dict = backtest_dict
         self.validation_dict = validation_dict
@@ -459,3 +459,7 @@ class ModelBackTesting():
         dash_thread = threading.Thread(target=run_dash)
         dash_thread.start()
         webbrowser.open_new("http://127.0.0.1:8050/")
+
+class PortfolioConstruction:
+    def __init__(self, ):
+        pass
