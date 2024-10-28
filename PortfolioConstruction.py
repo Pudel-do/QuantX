@@ -170,11 +170,9 @@ def build_actual_values(opt_weights):
         actual_long_pos[port_type] = long_pos_dict
     return actual_weights, actual_long_pos
 
-def get_cumulative_returns(returns):
+def cumulate_returns(returns):
     """Function calculates the cumulative and
-    exponential portfolio returns. The returns 
-    are multiplied by factor 1000 for better
-    visualization.
+    exponential portfolio returns
 
     :param returns: Daily portfolio returns
     :type returns: Dataframe
@@ -182,11 +180,71 @@ def get_cumulative_returns(returns):
     :rtype: Dataframe
     """
     cum_returns = pd.DataFrame()
-    for tick, rets in returns.items():
-        cum_rets = rets.cumsum().apply(np.exp)
-        cum_rets = cum_rets * 1000
-        cum_returns[tick] = cum_rets
+    for name, values in returns.items():
+        try:
+            cum_rets = values.cumsum().apply(np.exp)
+            cum_rets = cum_rets * 1000
+            cum_returns[name] = cum_rets
+        except:
+            cum_returns[name] = values
     return cum_returns
+
+def cumulate_portfolio_returns(hist_rets, future_rets):
+    """Function calculates cumulative historical and
+    future portfolio returns. To control for correct 
+    cumulative summation, the historical and future portfolio
+    returns are first joined together, whereby only future
+    portfolio returns are considered which are not present
+    in the historical portfolio returns. After cumulative
+    summation, the historical and future portfolio returns
+    are then separated and returned
+
+    :param hist_rets: Daily historical portfolio returns
+    :type hist_rets: Dataframe
+    :param future_rets: Daily historical portfolio returns
+    :type future_rets: Dataframe
+    :return: Summed cumulative historical and future portfolio returns
+    :rtype: Dataframe
+    """
+    hist_rets_cols = list(hist_rets.columns)
+    future_rets_cols = list(future_rets.columns)
+    common_cols = get_list_intersection(
+        hist_rets_cols,
+        future_rets_cols
+    )
+    hist_idx = hist_rets.index
+    future_idx = future_rets.index
+    common_idx_mask = future_idx.isin(hist_idx)
+    future_rets_clean = future_rets[~common_idx_mask]
+    cum_hist_port_rets_list = []
+    cum_future_port_rets_list = []
+    for col in common_cols:
+        hist_port_rets = hist_rets[col]
+        future_port_rets = future_rets_clean[col]
+        future_port_rets = pd.DataFrame(future_port_rets)
+        hist_port_rets = pd.DataFrame(hist_port_rets)
+        hist_port_rets[CONST_COLS["ret_id"]] = CONST_COLS["hist_rets"]
+        future_port_rets[CONST_COLS["ret_id"]] = CONST_COLS["future_rets"]
+        port_rets = pd.concat(
+            [hist_port_rets, future_port_rets],
+            axis=0
+        )
+        cum_port_rets = cumulate_returns(port_rets)
+        hist_rets_mask = cum_port_rets[CONST_COLS["ret_id"]]==CONST_COLS["hist_rets"]
+        future_rets_mask = cum_port_rets[CONST_COLS["ret_id"]]==CONST_COLS["future_rets"]
+        cum_hist_rets = cum_port_rets.loc[hist_rets_mask, col]
+        cum_future_rets = cum_port_rets.loc[future_rets_mask, col]
+        cum_hist_port_rets_list.append(cum_hist_rets)
+        cum_future_port_rets_list.append(cum_future_rets)
+    cum_hist_port_rets = pd.concat(
+        cum_hist_port_rets_list,
+        axis=1
+    )
+    cum_future_port_rets = pd.concat(
+        cum_future_port_rets_list,
+        axis=1
+    )
+    return cum_hist_port_rets, cum_future_port_rets
 
 def calculate_performance(port_rets, bench_rets):
     """Function calculates annualized performance measures
@@ -294,10 +352,10 @@ if __name__ == "__main__":
     actual_weights, actual_long_position = build_actual_values(optimal_weights)
     historical_portfolio_returns = build_historical_portfolios(stock_returns, actual_weights)
     future_portfolio_returns = build_future_portfolios(tickers, actual_weights)
-    cumulative_benchmark_returns = get_cumulative_returns(benchmark_returns)
-    cumulative_historical_returns = get_cumulative_returns(historical_portfolio_returns)
-    cumulative_future_returns = get_cumulative_returns(future_portfolio_returns)
+    cumulative_benchmark_returns = cumulate_returns(benchmark_returns)
+    cumulative_historical_returns, cumulative_future_returns  = cumulate_portfolio_returns(historical_portfolio_returns, future_portfolio_returns)
     portfolio_performance = build_portfolio_performance(historical_portfolio_returns, benchmark_returns)
     long_position = build_long_position(optimal_weights, actual_weights, actual_long_position, tickers)
+    print("break")
     
     
