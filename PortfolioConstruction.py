@@ -6,6 +6,7 @@ from misc.misc import *
 from core.portfolio_generator import PortfolioGenerator
 from core.file_adapter import FileAdapter
 from core.finance_adapter import FinanceAdapter
+from core.dashboard_adapter import PortfolioVisualization
 from core import logging_config
 
 def return_cleaning(returns):
@@ -58,7 +59,7 @@ def build_optimal_weights(max_sharpe, min_var, ticks):
 
     equal_weights = {}
     equal_weight = 1 / len(ticks)
-    equal_weight = np.round(equal_weight, 3)
+    # equal_weight = np.round(equal_weight, 3)
     for tick in ticks:
         equal_weights[tick] = equal_weight
 
@@ -159,9 +160,9 @@ def build_actual_values(opt_weights):
             n_shares_adj = int(math.floor(n_shares))
             weight_adj = actual_quote * n_shares_adj
             weight_adj = weight_adj / invest
-            weight_adj = np.round(weight_adj, 3)
+            # weight_adj = np.round(weight_adj, 3)
             tick_invest = n_shares_adj * actual_quote
-            tick_invest = np.round(tick_invest, 3)
+            # tick_invest = np.round(tick_invest, 3)
             long_pos_list.append(n_shares_adj)
             long_pos_list.append(tick_invest)
             weight_dict[tick] = weight_adj
@@ -208,7 +209,7 @@ def cumulate_portfolio_returns(hist_rets, future_rets):
     """
     hist_rets_cols = list(hist_rets.columns)
     future_rets_cols = list(future_rets.columns)
-    common_cols = get_list_intersection(
+    common_port_types = get_list_intersection(
         hist_rets_cols,
         future_rets_cols
     )
@@ -218,9 +219,9 @@ def cumulate_portfolio_returns(hist_rets, future_rets):
     future_rets_clean = future_rets[~common_idx_mask]
     cum_hist_port_rets_list = []
     cum_future_port_rets_list = []
-    for col in common_cols:
-        hist_port_rets = hist_rets[col]
-        future_port_rets = future_rets_clean[col]
+    for port_type in common_port_types:
+        hist_port_rets = hist_rets[port_type]
+        future_port_rets = future_rets_clean[port_type]
         future_port_rets = pd.DataFrame(future_port_rets)
         hist_port_rets = pd.DataFrame(hist_port_rets)
         hist_port_rets[CONST_COLS["ret_id"]] = CONST_COLS["hist_rets"]
@@ -232,8 +233,8 @@ def cumulate_portfolio_returns(hist_rets, future_rets):
         cum_port_rets = cumulate_returns(port_rets)
         hist_rets_mask = cum_port_rets[CONST_COLS["ret_id"]]==CONST_COLS["hist_rets"]
         future_rets_mask = cum_port_rets[CONST_COLS["ret_id"]]==CONST_COLS["future_rets"]
-        cum_hist_rets = cum_port_rets.loc[hist_rets_mask, col]
-        cum_future_rets = cum_port_rets.loc[future_rets_mask, col]
+        cum_hist_rets = cum_port_rets.loc[hist_rets_mask, port_type]
+        cum_future_rets = cum_port_rets.loc[future_rets_mask, port_type]
         cum_hist_port_rets_list.append(cum_hist_rets)
         cum_future_port_rets_list.append(cum_future_rets)
     cum_hist_port_rets = pd.concat(
@@ -244,7 +245,7 @@ def cumulate_portfolio_returns(hist_rets, future_rets):
         cum_future_port_rets_list,
         axis=1
     )
-    return cum_hist_port_rets, cum_future_port_rets
+    return cum_hist_port_rets, cum_future_port_rets, common_port_types
 
 def calculate_performance(port_rets, bench_rets):
     """Function calculates annualized performance measures
@@ -294,6 +295,8 @@ def build_portfolio_performance(port_rets, bench_rets):
         for measure, value in perf_dict.items():
             results.loc[port_type, measure] = value
     results = results.round(3)
+    results.index.name = CONST_COLS["port_types"]
+    results = results.reset_index()
     return results
 
 def build_long_position(opt_weights, act_weights, long_pos, ticks):
@@ -333,6 +336,9 @@ def build_long_position(opt_weights, act_weights, long_pos, ticks):
             long_pos_results.loc[tick, CONST_COLS["act_weight"]] = act_weight
             long_pos_results.loc[tick, CONST_COLS["long_pos"]] = n_shares
             long_pos_results.loc[tick, CONST_COLS["amount"]] = invest
+        long_pos_results = long_pos_results.round(3)
+        long_pos_results.index.name = CONST_COLS["ticker"]
+        long_pos_results = long_pos_results.reset_index()
         result_dict[type] = long_pos_results
     return result_dict
 
@@ -353,9 +359,19 @@ if __name__ == "__main__":
     historical_portfolio_returns = build_historical_portfolios(stock_returns, actual_weights)
     future_portfolio_returns = build_future_portfolios(tickers, actual_weights)
     cumulative_benchmark_returns = cumulate_returns(benchmark_returns)
-    cumulative_historical_returns, cumulative_future_returns  = cumulate_portfolio_returns(historical_portfolio_returns, future_portfolio_returns)
+    cumulative_historical_returns, cumulative_future_returns, portfolio_types  = cumulate_portfolio_returns(historical_portfolio_returns, future_portfolio_returns)
     portfolio_performance = build_portfolio_performance(historical_portfolio_returns, benchmark_returns)
     long_position = build_long_position(optimal_weights, actual_weights, actual_long_position, tickers)
+    app = PortfolioVisualization(
+        bench_rets=cumulative_benchmark_returns,
+        hist_rets=cumulative_historical_returns,
+        future_rets=cumulative_future_returns,
+        port_performance=portfolio_performance,
+        long_position=long_position,
+        tickers=tickers,
+        port_types=portfolio_types
+    )
+    app.run(debug=True)
     print("break")
     
     

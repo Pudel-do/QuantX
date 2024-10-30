@@ -460,6 +460,148 @@ class ModelBackTesting:
         dash_thread.start()
         webbrowser.open_new("http://127.0.0.1:8050/")
 
-class PortfolioConstruction:
-    def __init__(self, ):
-        pass
+class PortfolioVisualization:
+    def __init__(self, bench_rets, hist_rets, future_rets, port_performance, long_position, tickers, port_types):
+        self.bench_rets = bench_rets
+        self.hist_rets = hist_rets
+        self.future_rets = future_rets
+        self.port_performance = port_performance
+        self.long_position = long_position
+        self.tickers = tickers
+        self.port_types = port_types
+        self.app = Dash(__name__)
+        self._setup_layout()
+        self._register_callbacks()
+        
+    def _setup_layout(self):
+        """Function sets the layout for the dashboard app.
+        All dashboard items like dropdowns, sliders and graphs 
+        must be defined in this method
+        """
+        self.app.layout = html.Div(
+            [   
+                html.H1("Portfolio construction and performance"),
+                dcc.Checklist(
+                    id='portfolio_checklist',
+                    options=[{'label': col, 'value': col} for col in self.port_types],
+                    value=[self.port_types[0]],
+                    inline=True
+                ),
+                dcc.Graph(id="portfolio_performances"),
+                dash_table.DataTable(
+                    id="performance_table",
+                    data=self.port_performance.to_dict('records')
+                ),
+                html.Label("Select portfolio for long positions"),
+                dcc.Dropdown(
+                    id="portfolio_dropdown",
+                    options=[{'label': port_type, 'value': port_type} \
+                             for port_type in self.port_types],
+                    value=self.port_types[0]
+                ),
+                dash_table.DataTable(
+                    id="long_positions",
+                    # columns=[{"name": i, "id": i} \
+                    #          for i in self.long_position[self.port_types[0]].columns],
+                    # data=self.long_position[self.port_types[0]].to_dict('records')
+                )
+            ]
+        )
+
+    def _port_dict_filter(self, dict, port_type):
+        """Function filters dictionary for given portfolio type.
+        If portfolio type does not exist, the functin returns an empty dataframe
+
+        :param dict: Dictionary values to filter 
+        for given portfolio type
+        :type dict: Dictionary
+        :param port_type: Portfolio type for filtering
+        :type tick: String
+        :return: Filtered object
+        :rtype: Dataframe
+        """
+        try:
+            dict_filtered = dict[port_type]
+            return dict_filtered
+        except KeyError:
+            logging.error(f"Portfolio type {port_type} not in dictionary")
+            return pd.DataFrame()
+        
+    def _register_callbacks(self):
+        """Functions defines the app callbacks to adjust
+        the graphs basend on the given selections and filters.
+        Here each callback and sub function is grouped by
+        the defined callback options
+
+        :return: None
+        :rtype: None
+        """
+        @self.app.callback(
+            Output('portfolio_performances', 'figure'),
+            Input('portfolio_checklist', 'value')
+        )
+        def _checklist_charts(selected_columns):
+            """Function defines all graphs on
+            which the ticker dropdown should be applied
+
+            :param selected_ticker: Ticker from dropdown item
+            :type selected_ticker: String
+            :return: Line Chart and histogram
+            :rtype: Plotly object
+            """
+            bench_rets = self.bench_rets.squeeze()
+            fig = go.Figure()
+            for col in selected_columns:
+                fig.add_trace(go.Scatter(
+                    x=self.hist_rets.index,
+                    y=self.hist_rets[col],
+                    mode="lines",
+                    name=f"Historical {col} returns",
+                    line=dict(width=2, dash='solid')
+                ))
+                fig.add_trace(go.Scatter(
+                    x=self.future_rets.index,
+                    y=self.future_rets[col],
+                    mode="lines",
+                    name=f"Future {col} returns",
+                    line=dict(width=2, dash='dash')
+                ))
+            fig.add_trace(go.Scatter(
+                x=bench_rets.index,
+                y=bench_rets,
+                mode="lines",
+                name="Historical benchmark returns",
+                line=dict(width=1, dash='solid')
+            ))
+            fig.update_layout(
+                title="Portfolio performance for different portfolio types",
+                xaxis_title="Date",
+                yaxis_title="Cumulative returns",
+                template="plotly"
+            )
+            return fig
+        
+        @self.app.callback(
+            [Output("long_positions", "columns"),
+            Output("long_positions", "data")],
+            Input("portfolio_dropdown", "value")
+        )
+        def _dropdown_table(port_filter):
+            port_long_pos = self._port_dict_filter(
+                dict=self.long_position,
+                port_type=port_filter
+            )
+            columns = [{"name": i, "id": i} \
+                       for i in port_long_pos.columns]
+            data = port_long_pos.to_dict('records')
+            return columns, data
+        
+    def run(self, debug=True):
+
+        def run_dash():
+            self.app.run_server(debug=debug, use_reloader=False)
+
+        dash_thread = threading.Thread(target=run_dash)
+        dash_thread.start()
+        webbrowser.open_new("http://127.0.0.1:8050/")
+
