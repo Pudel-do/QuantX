@@ -393,6 +393,36 @@ if __name__ == "__main__":
         long_pos=actual_long_position, 
         ticks=tickers
     )
+    FileAdapter().save_dataframe(
+        df=cum_bench_rets,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["cum_benchmark_returns_file"]
+    )
+    FileAdapter().save_dataframe(
+        df=cum_hist_rets,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["cum_historical_returns_file"]
+    )
+    FileAdapter().save_dataframe(
+        df=cum_future_rets,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["cum_future_returns_file"]
+    )
+    FileAdapter().save_dataframe(
+        df=portfolio_performance,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["port_performance_file"]
+    )
+    FileAdapter().save_object(
+        obj=long_position,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["long_position_file"]
+    )
+    FileAdapter().save_object(
+        obj=port_types,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["port_types"]
+    )
     app = PortfolioVisualization(
         bench_rets=cum_bench_rets,
         hist_rets=cum_hist_rets,

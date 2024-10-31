@@ -17,8 +17,13 @@
         "daily_trading_data_file": "daily_trading_data",
         "model_data_file": "model_data",
         "backtest_model_file": "model_backtesting",
-        "validation_model_file": "model_validation"
-
+        "validation_model_file": "model_validation",
+        "cum_benchmark_returns_file": "cumulative_benchmark_returns",
+        "cum_historical_returns_file": "cumulative_historical_returns",
+        "cum_future_returns_file": "cumulative_future_returns",
+        "port_performance_file": "portfolio_performance",
+        "long_position_file": "portfolio_long_position",
+        "port_types": "portfolio_types"
     },
     "fundamentals": {
         "income": "income-statement",
