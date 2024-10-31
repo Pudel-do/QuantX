@@ -6,8 +6,6 @@ from misc.misc import *
 from core.portfolio_generator import PortfolioGenerator
 from core.file_adapter import FileAdapter
 from core.finance_adapter import FinanceAdapter
-from core.dashboard_adapter import PortfolioVisualization
-from core import logging_config
 
 def return_cleaning(returns):
     """Function preprocesses return data
@@ -423,15 +421,5 @@ if __name__ == "__main__":
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["port_types"]
     )
-    app = PortfolioVisualization(
-        bench_rets=cum_bench_rets,
-        hist_rets=cum_hist_rets,
-        future_rets=cum_future_rets,
-        port_performance=portfolio_performance,
-        long_position=long_position,
-        tickers=tickers,
-        port_types=port_types
-    )
-    app.run(debug=True)
     
     

@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from itertools import product
 from core.file_adapter import FileAdapter
-from core.dashboard_adapter import AnalysisDashboard
 from misc.misc import *
 
 def get_moving_averages(quote_data, use_train):
@@ -220,10 +219,3 @@ if __name__ == "__main__":
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["fundamentals_file"]
     )
-    app = AnalysisDashboard(
-        ma_data=moving_averages,
-        ma_values = optimal_values,
-        returns=returns,    
-        fundamentals=fundamentals,
-        )
-    app.run(debug=True)

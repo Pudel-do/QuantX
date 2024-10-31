@@ -4,7 +4,6 @@ from core.file_adapter import FileAdapter
 from misc.misc import *
 from core.models import OneStepLSTM, MultiStepLSTM
 from core.finance_adapter import FinanceAdapter
-from core.dashboard_adapter import ModelBackTesting
 from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, root_mean_squared_error
 
 def merge_features(quotes, features):
@@ -265,11 +264,11 @@ if __name__ == "__main__":
             model_data=model_data_dict, 
             models=models
         )
-    backtestesting, validation, models = model_backtesting(
+    backtest, validation, models = model_backtesting(
         tickers=tickers
     )
     FileAdapter().save_object(
-        obj=backtestesting,
+        obj=backtest,
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["backtest_model_file"]
     )
@@ -283,9 +282,3 @@ if __name__ == "__main__":
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["model_list"]
     )
-    app = ModelBackTesting(
-        backtest_dict=backtestesting,
-        validation_dict=validation,
-        model_list=models
-    )
-    app.run(debug=True)
