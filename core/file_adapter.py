@@ -49,19 +49,6 @@ class FileAdapter:
             file_name=file_name
         )
         return None
-    
-    def save_model_data(self, model_data):
-        dir = os.path.join(
-            os.getcwd(),
-            self.config["data_dir"],
-        )
-        file_name = self.config["model_data"]
-        self._write_pickel(
-            data=model_data,
-            dir=dir,
-            file_name=file_name
-        )
-        return None
 
     def save_model(self, model):
         dir = os.path.join(
@@ -94,23 +81,6 @@ class FileAdapter:
             )
         return df
     
-    def load_benchmark_returns(self):
-        """Function loads benchmark returns from data directory
-
-        :return: Stock returns
-        :rtype: Dataframe
-        """
-        dir = os.path.join(
-            os.getcwd(), 
-            self.config["data_dir"]
-        )
-        file_name = self.config["benchmark_returns_file"]
-        returns = self._load_csv(
-            dir=dir,
-            file_name=file_name
-        )
-        return returns
-    
     def load_object(self, path, file_name):
         """Function loads fundamental stock data from data directory
 
@@ -126,23 +96,6 @@ class FileAdapter:
             file_name=file_name
         )
         return obj
-    
-    def load_trading_data(self):
-        """Function loads daily trading stock data from feature directory
-
-        :return: Daily trading data
-        :rtype: Dictionary
-        """
-        dir = os.path.join(
-            os.getcwd(), 
-            self.config["feature_dir"]
-        )
-        file_name = self.config["daily_trading_data_file"]
-        trading_data = self._load_pickel(
-            dir=dir, 
-            file_name=file_name
-        )
-        return trading_data
     
     def load_model(self, ticker, model_id):
         dir = os.path.join(
