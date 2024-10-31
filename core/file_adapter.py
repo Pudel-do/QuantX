@@ -70,7 +70,7 @@ class FileAdapter:
             model.ticker,
             self.config["model"]
         )
-        file_name = f"{model.model_id}.pkl"
+        file_name = model.model_id
         self._write_pickel(
             data=model,
             dir=dir,

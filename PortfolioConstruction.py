@@ -59,7 +59,6 @@ def build_optimal_weights(max_sharpe, min_var, ticks):
 
     equal_weights = {}
     equal_weight = 1 / len(ticks)
-    # equal_weight = np.round(equal_weight, 3)
     for tick in ticks:
         equal_weights[tick] = equal_weight
 
@@ -150,19 +149,16 @@ def build_actual_values(opt_weights):
         long_pos_dict = {}
         for tick, weight in weights.items():
             long_pos_list = []
-            # actual_quotes = FinanceAdapter(tick).get_last_quote()
-            # actual_quotes = rename_yfcolumns(data=actual_quotes)
-            # actual_quote = actual_quotes[PARAMETER["quote_id"]]
-            # actual_quote = actual_quote.iloc[0]
-            actual_quote = 100
+            actual_quotes = FinanceAdapter(tick).get_last_quote()
+            actual_quotes = rename_yfcolumns(data=actual_quotes)
+            actual_quote = actual_quotes[PARAMETER["quote_id"]]
+            actual_quote = actual_quote.iloc[0]
             raw_amount = invest * weight
             n_shares = raw_amount / actual_quote
             n_shares_adj = int(math.floor(n_shares))
             weight_adj = actual_quote * n_shares_adj
             weight_adj = weight_adj / invest
-            # weight_adj = np.round(weight_adj, 3)
             tick_invest = n_shares_adj * actual_quote
-            # tick_invest = np.round(tick_invest, 3)
             long_pos_list.append(n_shares_adj)
             long_pos_list.append(tick_invest)
             weight_dict[tick] = weight_adj
@@ -346,30 +342,65 @@ def build_long_position(opt_weights, act_weights, long_pos, ticks):
 if __name__ == "__main__":
     CONST_COLS = read_json("constant.json")["columns"]
     CONST_KEYS = read_json("constant.json")["keys"]
+    CONST_DATA = read_json("constant.json")["datamodel"]
     PARAMETER = read_json("parameter.json")
-    raw_stock_returns = FileAdapter().load_stock_returns()
-    raw_benchmark_returns = FileAdapter().load_benchmark_returns()
-    raw_stock_returns, tickers = harmonize_tickers(raw_stock_returns)
-    stock_returns = return_cleaning(raw_stock_returns)
-    benchmark_returns = return_cleaning(raw_benchmark_returns)
-    max_sharpe_weights = PortfolioGenerator(stock_returns).get_max_sharpe_weights()
-    min_var_weights = PortfolioGenerator(stock_returns).get_min_var_weights()
-    optimal_weights = build_optimal_weights(max_sharpe_weights, min_var_weights, tickers)
-    actual_weights, actual_long_position = build_actual_values(optimal_weights)
-    historical_portfolio_returns = build_historical_portfolios(stock_returns, actual_weights)
-    future_portfolio_returns = build_future_portfolios(tickers, actual_weights)
-    cumulative_benchmark_returns = cumulate_returns(benchmark_returns)
-    cumulative_historical_returns, cumulative_future_returns, portfolio_types  = cumulate_portfolio_returns(historical_portfolio_returns, future_portfolio_returns)
-    portfolio_performance = build_portfolio_performance(historical_portfolio_returns, benchmark_returns)
-    long_position = build_long_position(optimal_weights, actual_weights, actual_long_position, tickers)
+    raw_stock_returns = FileAdapter().load_dataframe(
+        path=CONST_DATA["raw_data_dir"],
+        file_name=CONST_DATA["stock_returns_file"]
+    )
+    raw_bench_rets = FileAdapter().load_dataframe(
+        path=CONST_DATA["raw_data_dir"],
+        file_name=CONST_DATA["benchmark_returns_file"]
+    )
+    raw_stock_rets, tickers = harmonize_tickers(
+        object=raw_stock_returns
+    )
+    stock_rets = return_cleaning(raw_stock_rets)
+    bench_rets = return_cleaning(raw_bench_rets)
+    port_generator = PortfolioGenerator(stock_rets)
+    max_sharpe_weights = port_generator.get_max_sharpe_weights()
+    min_var_weights = port_generator.get_min_var_weights()
+    optimal_weights = build_optimal_weights(
+        max_sharpe=max_sharpe_weights, 
+        min_var=min_var_weights, 
+        ticks=tickers
+    )
+    actual_weights, actual_long_position = build_actual_values(
+        opt_weights=optimal_weights
+    )
+    hist_port_rets = build_historical_portfolios(
+        hist_returns=stock_rets, 
+        weights=actual_weights
+    )
+    future_port_rets = build_future_portfolios(
+        tickers=tickers, 
+        weights=actual_weights
+    )
+    cum_bench_rets = cumulate_returns(
+        returns=bench_rets
+    )
+    cum_hist_rets, cum_future_rets, port_types  = cumulate_portfolio_returns(
+        hist_rets=hist_port_rets, 
+        future_rets=future_port_rets
+    )
+    portfolio_performance = build_portfolio_performance(
+        port_rets=hist_port_rets, 
+        bench_rets=bench_rets
+    )
+    long_position = build_long_position(
+        opt_weights=optimal_weights, 
+        act_weights=actual_weights, 
+        long_pos=actual_long_position, 
+        ticks=tickers
+    )
     app = PortfolioVisualization(
-        bench_rets=cumulative_benchmark_returns,
-        hist_rets=cumulative_historical_returns,
-        future_rets=cumulative_future_returns,
+        bench_rets=cum_bench_rets,
+        hist_rets=cum_hist_rets,
+        future_rets=cum_future_rets,
         port_performance=portfolio_performance,
         long_position=long_position,
         tickers=tickers,
-        port_types=portfolio_types
+        port_types=port_types
     )
     app.run(debug=True)
     

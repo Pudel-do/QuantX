@@ -2,19 +2,23 @@
     "datamodel": {
         "raw_data_dir": "data\\raw",
         "processed_data_dir": "data\\processed",
+        "model": "model",
         "models_dir": "models",
         "feature_dir": "features",
+        "training_logs": "training_logs",
+        "evaluation_logs": "evaluation_logs",
+        "model_list": "model_list",
         "quotes_file": "closing_quotes",
         "stock_returns_file": "stock_returns",
         "benchmark_returns_file": "benchmark_returns",
         "fundamentals_file": "fundamentals",
         "moving_averages_file": "moving_averages",
         "optimal_moving_averages_file": "optimal_moving_averages",
-        "daily_trading_data_file": "daily_trading_data.pkl",
-        "model_data": "model_data.pkl",
-        "training_logs": "training_logs",
-        "evaluation_logs": "evaluation_logs",
-        "model": "model"
+        "daily_trading_data_file": "daily_trading_data",
+        "model_data_file": "model_data",
+        "backtest_model_file": "model_backtesting",
+        "validation_model_file": "model_validation"
+
     },
     "fundamentals": {
         "income": "income-statement",

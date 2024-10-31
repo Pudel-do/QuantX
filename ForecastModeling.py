@@ -5,7 +5,7 @@ from misc.misc import *
 from core.models import OneStepLSTM, MultiStepLSTM
 from core.finance_adapter import FinanceAdapter
 from core.dashboard_adapter import ModelBackTesting
-from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, root_mean_squared_error
 
 def merge_features(quotes, features):
     """Function merges daily quote data with
@@ -214,7 +214,7 @@ def model_backtesting(tickers):
             )
             actual = validation[CONST_COLS["quote"]]
             pred = validation[model_type]
-            rmse = np.sqrt(mean_squared_error(actual, pred))
+            rmse = root_mean_squared_error(actual, pred)
             mape = mean_absolute_percentage_error(actual, pred)
             mae = mean_absolute_error(actual, pred)
             backtest_validation.loc[CONST_COLS["rmse"], model_type] = rmse
@@ -229,17 +229,34 @@ def model_backtesting(tickers):
 
 if __name__ == "__main__":
     CONST_COLS = read_json("constant.json")["columns"]
+    CONST_DATA = read_json("constant.json")["datamodel"]
     PARAMETER = read_json("parameter.json")
-    closing_quotes = FileAdapter().load_closing_quotes()
-    daily_trading_data = FileAdapter().load_trading_data()
+    closing_quotes = FileAdapter().load_dataframe(
+        path=CONST_DATA["raw_data_dir"],
+        file_name=CONST_DATA["quotes_file"]
+    )
+    daily_trading_data = FileAdapter().load_object(
+        path=CONST_DATA["feature_dir"],
+        file_name=CONST_DATA["daily_trading_data_file"]
+    )
     raw_tick_dict = merge_features(
         quotes=closing_quotes, 
         features=daily_trading_data
     )
-    processed_tick_dict = data_cleaning(data_dict=raw_tick_dict)
-    model_data_dict = feature_engineering(processed_tick_dict)
-    model_data_dict, tickers = harmonize_tickers(model_data_dict)
-    FileAdapter().save_model_data(model_data=model_data_dict)
+    processed_tick_dict = data_cleaning(
+        data_dict=raw_tick_dict
+    )
+    model_data_dict = feature_engineering(
+        stock_dict=processed_tick_dict
+    )
+    model_data_dict, tickers = harmonize_tickers(
+        object=model_data_dict
+    )
+    FileAdapter().save_object(
+        obj=model_data_dict,
+        path=CONST_DATA["raw_data_dir"],
+        file_name=CONST_DATA["model_data_file"]
+    )
     models = [
         OneStepLSTM()
     ]
@@ -248,10 +265,27 @@ if __name__ == "__main__":
             model_data=model_data_dict, 
             models=models
         )
-    backtest_dict, validation_dict, models = model_backtesting(tickers=tickers)
+    backtestesting, validation, models = model_backtesting(
+        tickers=tickers
+    )
+    FileAdapter().save_object(
+        obj=backtestesting,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["backtest_model_file"]
+    )
+    FileAdapter().save_object(
+        obj=validation,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["validation_model_file"]
+    )
+    FileAdapter().save_object(
+        obj=models,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["model_list"]
+    )
     app = ModelBackTesting(
-        backtest_dict=backtest_dict,
-        validation_dict=validation_dict,
+        backtest_dict=backtestesting,
+        validation_dict=validation,
         model_list=models
     )
     app.run(debug=True)
