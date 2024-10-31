@@ -184,7 +184,7 @@ def model_backtesting(tickers):
             start=PARAMETER["model_start"]
         )
         trade_data = rename_yfcolumns(data=trade_data)
-        closing_quotes = trade_data[CONST_COLS["quote_id"]]
+        closing_quotes = trade_data[PARAMETER["quote_id"]]
         closing_quotes.name = CONST_COLS["quote"]
         closing_quotes = pd.DataFrame(closing_quotes)
         model_ids = get_latest_modelid(
