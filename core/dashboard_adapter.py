@@ -6,34 +6,55 @@ from core import logging_config
 from misc.misc import read_json
 import pandas as pd
 import numpy as np
-import time
 import threading
 import webbrowser
 import logging
-import os
 
-class AnalysisDashboard:
-    def __init__(self, ma_data, ma_values, returns, fundamentals):
-        """
-        :param ma_data: Dataframe with moving average values for each stock
-        :type ma_data: Dataframe
-        :param returns: Log returns for each stock
-        :type returns: Dataframe
-        :param fundamentals: Fundamental data for each stock
-        :type fundamentals: Dataframe
-        """
-        self.ma_data = ma_data
-        self.ma_values = ma_values
-        self.returns = returns
+class DashboardAdapter:
+    def __init__(
+            self, 
+            moving_avg, opt_moving_avg, stock_rets, fundamentals, 
+            model_backtest, model_validation, models, 
+            cum_bench_rets, cum_hist_rets, cum_future_rets, 
+            port_performance, long_pos, port_types
+        ):
+        self.moving_avg = moving_avg
+        self.opt_moving_avg = opt_moving_avg
+        self.stock_rets = stock_rets
         self.fundamentals = fundamentals
-        self.tickers = read_json("parameter.json")["ticker"]
+        self.model_backtest = model_backtest
+        self.model_validation = model_validation
+        self.models = models
+        self.cum_bench_rets = cum_bench_rets
+        self.cum_hist_rets = cum_hist_rets
+        self.cum_future_rets = cum_future_rets
+        self.port_performance = port_performance
+        self.long_pos = long_pos
+        self.port_types = port_types
+        self.ticks = read_json("parameter.json")["ticker"]
         self.const_cols = read_json("constant.json")["columns"]
-        self.fundamental_list = read_json("constant.json")["fundamentals"]["measures"]
+        self.fundamental_cols = read_json("constant.json")["fundamentals"]["measures"]
         self.app = Dash(__name__)
+        self._init_values()
         self._setup_layout()
-        self._register_callbacks()
+        self._register_callbacks_analysis()
+        self._register_callbacks_backtesting()
+        self._register_callbacks_portfolio()
+    
+    def _init_values(self):
+        date_range = self.stock_rets.index
+        raw_marks = {i: str(date.year) \
+            for i, date in enumerate(date_range)}
+        seen_years = set()
+        marks = {}
+        for key, value in raw_marks.items():
+            if value not in seen_years:
+                marks[key] = value
+                seen_years.add(value)
+        self.marks = marks
+        self.date_range = date_range
 
-    def _tick_filter(self, df, tick):
+    def _filter_df(self, df, tick):
         """Function filters dataframe for given ticker symbol.
         If symbol is not in ticker column or ticker column
         does not exist, the functin returns an empty dataframe
@@ -55,56 +76,104 @@ class AnalysisDashboard:
         except KeyError:
             logging.error(f"Column {tick_col} or ticker symbol {tick} not in dataframe")
             return pd.DataFrame()
+        
+    def _filter_dict(self, dict, filter):
+        """Function filters dictionary for given ticker symbol.
+        If symbol is not in ticker column or ticker column
+        does not exist, the functin returns an empty dataframe
+
+        :param dict: Prediction values to filter 
+        for given ticker symbol
+        :type dict: Dictionary
+        :param tick: Ticker symbol for filtering
+        :type tick: String
+        :return: Filtered object
+        :rtype: Dataframe
+        """
+        try:
+            dict_filtered = dict[filter]
+            return dict_filtered
+        except KeyError:
+            logging.error(f"Ticker {filter} not in model dictionary")
+            return pd.DataFrame()
 
     def _setup_layout(self):
-        """Function sets the layout for the dashboard app.
-        All dashboard items like dropdowns, sliders and graphs 
-        must be defined in this method
-        """
-        date_range = self.returns.index
-        raw_marks = {i: str(date.year) \
-            for i, date in enumerate(date_range)}
-        seen_years = set()
-        marks = {}
-        for key, value in raw_marks.items():
-            if value not in seen_years:
-                marks[key] = value
-                seen_years.add(value)
         self.app.layout = html.Div(
-            [   
-                html.H1("Technical and fundamental stock analysis"),
-                dcc.Dropdown(
-                    id="tick_dropdown",
-                    options=[{'label': ticker, 'value': ticker} \
-                             for ticker in self.tickers],
-                    value=self.tickers[0]
-                ),
-                dcc.Graph(id="quote_ma_line"),
-                dcc.Graph(id="ma_performance_line"),
-                dcc.Graph(id="return_hist"),
-                dcc.Checklist(
-                    id='checklist_fundamentals',
-                    options=[{'label': col, 'value': col} \
-                             for col in self.fundamental_list],
-                    value=[self.fundamental_list[0]],
-                    labelStyle={'display': 'inline-block'}
-                ),
-                dcc.Graph(id='fundamentals_bar'),
-                html.Label("Adjust Time Period for correlation matrix"),
-                dcc.RangeSlider(
-                    id="time_range_slider",
-                    min=0,
-                    max=len(date_range) - 1,
-                    value=[0, len(date_range) - 1],
-                    marks=marks,
-                    step=1,
-                    allowCross=False,
-                ),
-                dcc.Graph(id="corr_heatmap")
-            ]
-        )
+        [   
+            html.H1("Technical and fundamental stock analysis"),
+            dcc.Dropdown(
+                id="tick_dropdown",
+                options=[{'label': ticker, 'value': ticker} \
+                            for ticker in self.ticks],
+                value=self.ticks[0]
+            ),
+            dcc.Graph(id="quote_ma_line"),
+            dcc.Graph(id="ma_performance_line"),
+            dcc.Graph(id="return_hist"),
+            dcc.Checklist(
+                id='checklist_fundamentals',
+                options=[{'label': col, 'value': col} \
+                            for col in self.fundamental_cols],
+                value=[self.fundamental_cols[0]],
+                labelStyle={'display': 'inline-block'}
+            ),
+            dcc.Graph(id='fundamentals_bar'),
+            html.Label("Adjust Time Period for correlation matrix"),
+            dcc.RangeSlider(
+                id="time_range_slider",
+                min=0,
+                max=len(self.date_range) - 1,
+                value=[0, len(self.date_range) - 1],
+                marks=self.marks,
+                step=1,
+                allowCross=False,
+            ),
+            dcc.Graph(id="corr_heatmap"),
+            html.H1("Backtesting of forecast models"),
+            dcc.Checklist(
+                id='checklist_models',
+                options=[{'label': col, 'value': col} \
+                            for col in self.models],
+                value=[self.models[0]],
+                labelStyle={'display': 'inline-block'}
+            ),
+            dcc.Graph(id="quote_backtest_line"),
+            dash_table.DataTable(
+                id="validation_table",
+                columns=[{"name": i, "id": i} \
+                            for i in self.model_validation[self.ticks[0]].columns],
+                data=self.model_validation[self.ticks[0]].to_dict('records')
+            ),
+            html.H1("Portfolio construction and performance"),
+            dcc.Checklist(
+                id='portfolio_checklist',
+                options=[{'label': col, 'value': col} for col in self.port_types],
+                value=[self.port_types[0]],
+                inline=True
+            ),
+            dcc.Graph(id="portfolio_performances"),
+            dash_table.DataTable(
+                id="performance_table",
+                data=self.port_performance.to_dict('records')
+            ),
+            html.H3("Select portfolio for long positions"),
+            dcc.Dropdown(
+                id="portfolio_dropdown",
+                options=[{'label': port_type, 'value': port_type} \
+                            for port_type in self.port_types],
+                value=self.port_types[0]
+            ),
+            html.P(),
+            dash_table.DataTable(
+                id="long_positions",
+                columns=[{"name": i, "id": i} \
+                            for i in self.long_pos[self.port_types[0]].columns],
+                data=self.long_pos[self.port_types[0]].to_dict('records')
+            )
+        ]
+    )
 
-    def _register_callbacks(self):
+    def _register_callbacks_analysis(self):
         """Functions defines the app callbacks to adjust
         the graphs basend on the given selections and filters.
         Here each callback and sub function is grouped by
@@ -128,8 +197,8 @@ class AnalysisDashboard:
             :return: Line Chart and histogram
             :rtype: Plotly object
             """
-            ma_data_filtered = self._tick_filter(
-                df=self.ma_data,
+            ma_data_filtered = self._filter_df(
+                df=self.moving_avg,
                 tick=tick_filter
             )
             quote_cols = [
@@ -144,10 +213,10 @@ class AnalysisDashboard:
                 ]
             ma_data_quote = ma_data_filtered[quote_cols]
             ma_data_performance = ma_data_filtered[performance_cols]
-            ma_values_filtered = self.ma_values[tick_filter]
+            ma_values_filtered = self.opt_moving_avg[tick_filter]
             performance = ma_values_filtered.loc[self.const_cols["performance"]]
-            performance = np.round(performance, 2)
-            returns_filtered = self.returns[tick_filter]
+            performance = np.round(performance, 3)
+            returns_filtered = self.stock_rets[tick_filter]
             quote_line_fig = {
                 "data": [
                     {
@@ -268,12 +337,12 @@ class AnalysisDashboard:
             :rtype: _type_
             """
             try:
-                data = self._tick_filter(
+                data = self._filter_df(
                     df=self.fundamentals,
                     tick=tick_filter
                 )
             except KeyError:
-                data = pd.DataFrame(columns=self.fundamental_list)
+                data = pd.DataFrame(columns=self.fundamental_cols)
                 logging.warning(f"No fundamental data available for ticker {tick_filter}")
 
             data = data[fundamental_filter]
@@ -296,14 +365,14 @@ class AnalysisDashboard:
             :return: Correlation heatmap
             :rtype: Plotly object
             """
-            date_range = self.returns.index
+            date_range = self.stock_rets.index
             start = date_range[slider_array[0]]
             end = date_range[slider_array[1]]
 
-            start_filter = self.returns.index >= start
-            end_filter = self.returns.index <= end
-            returns_filtered = self.returns[(start_filter) & (end_filter)]
-            returns_filtered = returns_filtered[self.tickers]
+            start_filter = self.stock_rets.index >= start
+            end_filter = self.stock_rets.index <= end
+            returns_filtered = self.stock_rets[(start_filter) & (end_filter)]
+            returns_filtered = returns_filtered[self.ticks]
             corr_matrix = returns_filtered.corr()
             heatmap = px.imshow(corr_matrix, 
                                 text_auto=True, 
@@ -314,78 +383,7 @@ class AnalysisDashboard:
             heatmap.update_layout(title=title)
             return heatmap
         
-    def run(self, debug=True):
-
-        def run_dash():
-            self.app.run_server(debug=debug, use_reloader=False)
-
-        dash_thread = threading.Thread(target=run_dash)
-        dash_thread.start()
-        webbrowser.open_new("http://127.0.0.1:8050/")
-
-class ModelBackTesting:
-    def __init__(self, backtest_dict, validation_dict, model_list):
-        self.backtest_dict = backtest_dict
-        self.validation_dict = validation_dict
-        self.model_list = model_list
-        self.tickers = read_json("parameter.json")["ticker"]
-        self.const_cols = read_json("constant.json")["columns"]
-        self.app = Dash(__name__)
-        self._setup_layout()
-        self._register_callbacks()
-        
-    def _tick_filter(self, dict, tick):
-        """Function filters dictionary for given ticker symbol.
-        If symbol is not in ticker column or ticker column
-        does not exist, the functin returns an empty dataframe
-
-        :param dict: Prediction values to filter 
-        for given ticker symbol
-        :type dict: Dictionary
-        :param tick: Ticker symbol for filtering
-        :type tick: String
-        :return: Filtered object
-        :rtype: Dataframe
-        """
-        try:
-            dict_filtered = dict[tick]
-            return dict_filtered
-        except KeyError:
-            logging.error(f"Ticker {tick} not in model dictionary")
-            return pd.DataFrame()
-        
-    def _setup_layout(self):
-        """Function sets the layout for the dashboard app.
-        All dashboard items like dropdowns, sliders and graphs 
-        must be defined in this method
-        """
-        self.app.layout = html.Div(
-            [   
-                html.H1("Backtesting of forecast models"),
-                dcc.Dropdown(
-                    id="tick_dropdown",
-                    options=[{'label': ticker, 'value': ticker} \
-                             for ticker in self.tickers],
-                    value=self.tickers[0]
-                ),
-                dcc.Checklist(
-                    id='checklist_models',
-                    options=[{'label': col, 'value': col} \
-                             for col in self.model_list],
-                    value=[self.model_list[0]],
-                    labelStyle={'display': 'inline-block'}
-                ),
-                dcc.Graph(id="quote_backtest_line"),
-                dash_table.DataTable(
-                    id="validation_table",
-                    columns=[{"name": i, "id": i} \
-                             for i in self.validation_dict[self.tickers[0]].columns],
-                    data=self.validation_dict[self.tickers[0]].to_dict('records')
-                )
-            ]
-        )
-
-    def _register_callbacks(self):
+    def _register_callbacks_backtesting(self):
         """Functions defines the app callbacks to adjust
         the graphs basend on the given selections and filters.
         Here each callback and sub function is grouped by
@@ -400,9 +398,9 @@ class ModelBackTesting:
              Input("checklist_models", "value")]
         )
         def _dropdwon_checklist_charts(tick_filter, selected_models):
-            backtest_data = self._tick_filter(
-                dict=self.backtest_dict,
-                tick=tick_filter
+            backtest_data = self._filter_dict(
+                dict=self.model_backtest,
+                filter=tick_filter
             )
             traces = []
             traces.append(
@@ -440,9 +438,9 @@ class ModelBackTesting:
              Input("tick_dropdown", "value")
         )
         def _dropdown_table(tick_filter):
-            validation_data = self._tick_filter(
-                dict=self.validation_dict,
-                tick=tick_filter
+            validation_data = self._filter_dict(
+                dict=self.model_validation,
+                filter=tick_filter
             )
             validation_data = validation_data.round(3)
             columns = [{"name": i, "id": i} \
@@ -450,84 +448,8 @@ class ModelBackTesting:
             data = validation_data.to_dict('records')
 
             return columns, data
-
-    def run(self, debug=True):
-
-        def run_dash():
-            self.app.run_server(debug=debug, use_reloader=False)
-
-        dash_thread = threading.Thread(target=run_dash)
-        dash_thread.start()
-        webbrowser.open_new("http://127.0.0.1:8050/")
-
-class PortfolioVisualization:
-    def __init__(self, bench_rets, hist_rets, future_rets, port_performance, long_position, tickers, port_types):
-        self.bench_rets = bench_rets
-        self.hist_rets = hist_rets
-        self.future_rets = future_rets
-        self.port_performance = port_performance
-        self.long_position = long_position
-        self.tickers = tickers
-        self.port_types = port_types
-        self.app = Dash(__name__)
-        self._setup_layout()
-        self._register_callbacks()
         
-    def _setup_layout(self):
-        """Function sets the layout for the dashboard app.
-        All dashboard items like dropdowns, sliders and graphs 
-        must be defined in this method
-        """
-        self.app.layout = html.Div(
-            [   
-                html.H1("Portfolio construction and performance"),
-                dcc.Checklist(
-                    id='portfolio_checklist',
-                    options=[{'label': col, 'value': col} for col in self.port_types],
-                    value=[self.port_types[0]],
-                    inline=True
-                ),
-                dcc.Graph(id="portfolio_performances"),
-                dash_table.DataTable(
-                    id="performance_table",
-                    data=self.port_performance.to_dict('records')
-                ),
-                html.Label("Select portfolio for long positions"),
-                dcc.Dropdown(
-                    id="portfolio_dropdown",
-                    options=[{'label': port_type, 'value': port_type} \
-                             for port_type in self.port_types],
-                    value=self.port_types[0]
-                ),
-                dash_table.DataTable(
-                    id="long_positions",
-                    # columns=[{"name": i, "id": i} \
-                    #          for i in self.long_position[self.port_types[0]].columns],
-                    # data=self.long_position[self.port_types[0]].to_dict('records')
-                )
-            ]
-        )
-
-    def _port_dict_filter(self, dict, port_type):
-        """Function filters dictionary for given portfolio type.
-        If portfolio type does not exist, the functin returns an empty dataframe
-
-        :param dict: Dictionary values to filter 
-        for given portfolio type
-        :type dict: Dictionary
-        :param port_type: Portfolio type for filtering
-        :type tick: String
-        :return: Filtered object
-        :rtype: Dataframe
-        """
-        try:
-            dict_filtered = dict[port_type]
-            return dict_filtered
-        except KeyError:
-            logging.error(f"Portfolio type {port_type} not in dictionary")
-            return pd.DataFrame()
-        
-    def _register_callbacks(self):
+    def _register_callbacks_portfolio(self):
         """Functions defines the app callbacks to adjust
         the graphs basend on the given selections and filters.
         Here each callback and sub function is grouped by
@@ -549,19 +471,19 @@ class PortfolioVisualization:
             :return: Line Chart and histogram
             :rtype: Plotly object
             """
-            bench_rets = self.bench_rets.squeeze()
+            bench_rets = self.cum_bench_rets.squeeze()
             fig = go.Figure()
             for col in selected_columns:
                 fig.add_trace(go.Scatter(
-                    x=self.hist_rets.index,
-                    y=self.hist_rets[col],
+                    x=self.cum_hist_rets.index,
+                    y=self.cum_hist_rets[col],
                     mode="lines",
                     name=f"Historical {col} returns",
                     line=dict(width=2, dash='solid')
                 ))
                 fig.add_trace(go.Scatter(
-                    x=self.future_rets.index,
-                    y=self.future_rets[col],
+                    x=self.cum_future_rets.index,
+                    y=self.cum_future_rets[col],
                     mode="lines",
                     name=f"Future {col} returns",
                     line=dict(width=2, dash='dash')
@@ -587,15 +509,15 @@ class PortfolioVisualization:
             Input("portfolio_dropdown", "value")
         )
         def _dropdown_table(port_filter):
-            port_long_pos = self._port_dict_filter(
-                dict=self.long_position,
-                port_type=port_filter
+            port_long_pos = self._filter_dict(
+                dict=self.long_pos,
+                filter=port_filter
             )
             columns = [{"name": i, "id": i} \
                        for i in port_long_pos.columns]
             data = port_long_pos.to_dict('records')
             return columns, data
-        
+
     def run(self, debug=True):
 
         def run_dash():
@@ -604,4 +526,3 @@ class PortfolioVisualization:
         dash_thread = threading.Thread(target=run_dash)
         dash_thread.start()
         webbrowser.open_new("http://127.0.0.1:8050/")
-
