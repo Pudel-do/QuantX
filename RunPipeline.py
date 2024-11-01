@@ -1,14 +1,23 @@
 import subprocess
 import logging
 from core import logging_config
+from misc.misc import *
+
+GET_DATA = read_json("parameter.json")["get_data"]
 
 task_list = [
-    #"GetAndProcessData.py ",
     "DataAnalysis.py ",
     "ForecastModeling.py ",
     "PortfolioConstruction.py ",
     "Visualization.py "
 ]
+
+if GET_DATA:
+    task_list.insert(
+        0, "GetAndProcessData.py "
+    )
+else:
+    pass
 
 for task in task_list:
     cmd = "python " + task
