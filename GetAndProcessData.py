@@ -37,7 +37,10 @@ def get_merged_quotes(ticker_list, quote_id):
     :return: Dataframe containig merged quotes for all ticker in ticker_list
     :rtype: Dataframe
     """
-    end = get_last_business_day()
+    if PARAMETER["base_end"] is None:
+        end = get_last_business_day()
+    else:
+        end = PARAMETER["base_end"]
     start = PARAMETER["base_start"]
     quotes = pd.DataFrame(
         index=pd.date_range(
@@ -124,6 +127,7 @@ if __name__ == "__main__":
     PARAMETER = read_json("parameter.json")
     CONST_FUNDS = read_json("constant.json")["fundamentals"]
     CONST_COLS = read_json("constant.json")["columns"]
+    CONST_DATA = read_json("constant.json")["datamodel"]
     stock_ticks = PARAMETER["ticker"]
     benchmark_tick = [PARAMETER["benchmark_tick"]]
     stock_quotes = get_merged_quotes(
@@ -139,11 +143,31 @@ if __name__ == "__main__":
     daily_trading_data = get_daily_stock_data(ticker_list)
     fundamentals = get_fundamentals(ticker_list)
     fundamentals = drop_duplicate_fundamental_cols(fundamentals)
-    FileAdapter().save_stock_quotes(stock_quotes)
-    FileAdapter().save_stock_returns(stock_returns)
-    FileAdapter().save_benchmark_returns(benchmark_returns)
-    FileAdapter().save_trading_data(daily_trading_data)
-    FileAdapter().save_fundamentals(fundamentals)
+    FileAdapter().save_dataframe(
+        df=stock_quotes,
+        path=CONST_DATA["raw_data_dir"],
+        file_name=CONST_DATA["quotes_file"]
+    )
+    FileAdapter().save_dataframe(
+    df=stock_returns,
+    path=CONST_DATA["raw_data_dir"],
+    file_name=CONST_DATA["stock_returns_file"]
+    )
+    FileAdapter().save_dataframe(
+    df=benchmark_returns,
+    path=CONST_DATA["raw_data_dir"],
+    file_name=CONST_DATA["benchmark_returns_file"]
+    )
+    FileAdapter().save_object(
+        obj=daily_trading_data,
+        path=CONST_DATA["feature_dir"],
+        file_name=CONST_DATA["daily_trading_data_file"]
+    )
+    FileAdapter().save_object(
+        obj=fundamentals,
+        path=CONST_DATA["raw_data_dir"],
+        file_name=CONST_DATA["fundamentals_file"]
+    )
 
 
 

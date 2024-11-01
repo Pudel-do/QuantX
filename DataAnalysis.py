@@ -2,7 +2,6 @@ import pandas as pd
 import numpy as np
 from itertools import product
 from core.file_adapter import FileAdapter
-from core.dashboard_adapter import AnalysisDashboard
 from misc.misc import *
 
 def get_moving_averages(quote_data, use_train):
@@ -169,8 +168,7 @@ def concat_dict_to_df(dict):
     :return: Dataframe with dictionary values as column
     :rtype: Dataframe
     """
-    constant_cols = read_json("constant.json")["columns"]
-    tick_col = constant_cols["ticker"]
+    tick_col = CONST_COLS["ticker"]
     for key, value in dict.items():
         value[tick_col] = key
 
@@ -182,25 +180,42 @@ def concat_dict_to_df(dict):
     return df
 
 if __name__ == "__main__":
-    constant_cols = read_json("constant.json")["columns"]
     CONST_COLS = read_json("constant.json")["columns"]
+    CONST_DATA = read_json("constant.json")["datamodel"]
     PARAMETER = read_json("parameter.json")
     use_ma_training = PARAMETER["use_ma_training"]
-    returns = FileAdapter().load_stock_returns()
-    closing_quotes = FileAdapter().load_closing_quotes()
-    fundamentals_dict = FileAdapter().load_fundamentals()
+    returns = FileAdapter().load_dataframe(
+        path=CONST_DATA["raw_data_dir"],
+        file_name=CONST_DATA["stock_returns_file"]
+    )
+    closing_quotes = FileAdapter().load_dataframe(
+        path=CONST_DATA["raw_data_dir"],
+        file_name=CONST_DATA["quotes_file"]
+    )
+    fundamentals_dict = FileAdapter().load_object(
+        path=CONST_DATA["raw_data_dir"],
+        file_name=CONST_DATA["fundamentals_file"]
+    )
     closing_quotes, _ = harmonize_tickers(object=closing_quotes)
     fundamentals_dict, _ = harmonize_tickers(object=fundamentals_dict)
-    fundamentals_df = concat_dict_to_df(dict=fundamentals_dict)
+    fundamentals = concat_dict_to_df(dict=fundamentals_dict)
     moving_averages, optimal_values = get_moving_averages(
         quote_data=closing_quotes, 
         use_train=use_ma_training
     )
-    moving_averages_df = concat_dict_to_df(dict=moving_averages)
-    app = AnalysisDashboard(
-        ma_data=moving_averages_df,
-        ma_values = optimal_values,
-        returns=returns,    
-        fundamentals=fundamentals_df,
-        )
-    app.run(debug=True)
+    moving_averages = concat_dict_to_df(dict=moving_averages)
+    FileAdapter().save_dataframe(
+        df=moving_averages,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["moving_averages_file"]
+    )
+    FileAdapter().save_dataframe(
+        df=optimal_values,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["optimal_moving_averages_file"]
+    )
+    FileAdapter().save_dataframe(
+        df=fundamentals,
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["fundamentals_file"]
+    )

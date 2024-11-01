@@ -183,7 +183,6 @@ def get_latest_modelid(tick, model_type):
     else:
         models = os.listdir(models_path)
     model_types = []
-    model_dates = []
     model_dict = {}
     for model in models:
         model_split = model.split("_")
@@ -196,15 +195,17 @@ def get_latest_modelid(tick, model_type):
             model_dict.get(model_name).append(date)
     model_ids = []
     for key, value in model_dict.items():
+        key_split = key.split(".")
+        key_split = key_split[0]
         if model_type is None:
             latest_date = max(value)
-            model_id = f"{latest_date}_{key}"
+            model_id = f"{latest_date}_{key_split}"
             model_ids.append(model_id)
             return model_ids
         else:
-            if model_type in key:
+            if model_type in key_split:
                 latest_date = max(value)
-                model_id = f"{latest_date}_{key}"
+                model_id = f"{latest_date}_{key_split}"
                 return model_id
             else:
                 logging.warning(f"Model type {model_type} not in model folder")

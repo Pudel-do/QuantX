@@ -9,120 +9,42 @@ from misc.misc import read_json
 class FileAdapter:
     def __init__(self) -> None:
         self.config = read_json("constant.json")["datamodel"]
+    
+    def save_dataframe(self, df, path, file_name):
+        """Function saves dataframe to to given
+        directory and file name
 
-    def save_stock_returns(self, rets):
-        """Function saves stock return data for
-        different stocks to data directory as csv file
-
-        :param rets: Stock returns
-        :type data: Dataframe
+        :param df: Dataframe to save
+        :type df: Dataframe
         :return: None
         :rtype: None
         """
         dir = os.path.join(
             os.getcwd(), 
-            self.config["data_dir"]
+            path
         )
-        file_name = self.config["stock_returns_file"]
         self._write_csv(
-            data=rets,
+            data=df,
             dir=dir,
             file_name=file_name
         )
         return None
     
-    def save_benchmark_returns(self, rets):
-        """Function saves benchmark return data for
-        different stocks to data directory as csv file
+    def save_object(self, obj, path, file_name):
+        """Function saves object to given directory 
+        and file name as pickel file
 
-        :param rets: Stock returns
-        :type data: Dataframe
+        :param obj: Object to save
+        :type obj: Dictionary or class
         :return: None
         :rtype: None
         """
         dir = os.path.join(
             os.getcwd(), 
-            self.config["data_dir"]
+            path
         )
-        file_name = self.config["benchmark_returns_file"]
-        self._write_csv(
-            data=rets,
-            dir=dir,
-            file_name=file_name
-        )
-        return None
-    
-    def save_stock_quotes(self, quotes):
-        """Function saves closing quotes for different
-        stocks to data directory as csv file
-
-        :param quotes: Closing quotes
-        :type quotes: Dataframe
-        :return: None
-        :rtype: None
-        """
-        dir = os.path.join(
-            os.getcwd(), 
-            self.config["data_dir"]
-        )
-        file_name = self.config["quotes_file"]
-        self._write_csv(
-            data=quotes,
-            dir=dir,
-            file_name=file_name
-        )
-        return None
-    
-    def save_fundamentals(self, fundamentals):
-        """Function saves fundamental data for
-        single stock to data directory as pickle file
-
-        :param fundamentals: Fundamental data
-        :type funds: Dictionary
-        :return: None
-        :rtype: None
-        """
-        dir = os.path.join(
-            os.getcwd(), 
-            self.config["data_dir"]
-        )
-        file_name = self.config["fundamentals_file"]
         self._write_pickel(
-            data=fundamentals,
-            dir=dir,
-            file_name=file_name
-        )
-        return None
-    
-    def save_trading_data(self, trading_data):
-        """Function saves daily trading data for single
-        stock to feature directory as pickel file
-
-        :param trading_data: Daily trading data
-        :type trading_data: Dictionary
-        :return: None
-        :rtype: None
-        """
-        dir = os.path.join(
-            os.getcwd(), 
-            self.config["feature_dir"]
-        )
-        file_name = self.config["daily_trading_data_file"]
-        self._write_pickel(
-            data=trading_data,
-            dir=dir,
-            file_name=file_name
-        )
-        return None
-    
-    def save_model_data(self, model_data):
-        dir = os.path.join(
-            os.getcwd(),
-            self.config["data_dir"],
-        )
-        file_name = self.config["model_data"]
-        self._write_pickel(
-            data=model_data,
+            data=obj,
             dir=dir,
             file_name=file_name
         )
@@ -135,7 +57,7 @@ class FileAdapter:
             model.ticker,
             self.config["model"]
         )
-        file_name = f"{model.model_id}.pkl"
+        file_name = model.model_id
         self._write_pickel(
             data=model,
             dir=dir,
@@ -143,7 +65,7 @@ class FileAdapter:
         )
         return None
     
-    def load_closing_quotes(self):
+    def load_dataframe(self, path, file_name):
         """Function loads closing quotes from data directory
 
         :return: Closing quotes
@@ -151,50 +73,15 @@ class FileAdapter:
         """
         dir = os.path.join(
             os.getcwd(), 
-            self.config["data_dir"]
+            path
         )
-        file_name = self.config["quotes_file"]
-        closing_quotes = self._load_csv(
+        df = self._load_csv(
             dir=dir, 
             file_name=file_name
             )
-        return closing_quotes
+        return df
     
-    def load_stock_returns(self):
-        """Function loads stock returns from data directory
-
-        :return: Stock returns
-        :rtype: Dataframe
-        """
-        dir = os.path.join(
-            os.getcwd(), 
-            self.config["data_dir"]
-        )
-        file_name = self.config["stock_returns_file"]
-        returns = self._load_csv(
-            dir=dir,
-            file_name=file_name
-        )
-        return returns
-    
-    def load_benchmark_returns(self):
-        """Function loads benchmark returns from data directory
-
-        :return: Stock returns
-        :rtype: Dataframe
-        """
-        dir = os.path.join(
-            os.getcwd(), 
-            self.config["data_dir"]
-        )
-        file_name = self.config["benchmark_returns_file"]
-        returns = self._load_csv(
-            dir=dir,
-            file_name=file_name
-        )
-        return returns
-    
-    def load_fundamentals(self):
+    def load_object(self, path, file_name):
         """Function loads fundamental stock data from data directory
 
         :return: Fundamental data
@@ -202,31 +89,13 @@ class FileAdapter:
         """
         dir = os.path.join(
             os.getcwd(), 
-            self.config["data_dir"]
+            path
         )
-        file_name = self.config["fundamentals_file"]
-        fundamentals = self._load_pickel(
+        obj = self._load_pickel(
             dir=dir,
             file_name=file_name
         )
-        return fundamentals
-    
-    def load_trading_data(self):
-        """Function loads daily trading stock data from feature directory
-
-        :return: Daily trading data
-        :rtype: Dictionary
-        """
-        dir = os.path.join(
-            os.getcwd(), 
-            self.config["feature_dir"]
-        )
-        file_name = self.config["daily_trading_data_file"]
-        trading_data = self._load_pickel(
-            dir=dir, 
-            file_name=file_name
-        )
-        return trading_data
+        return obj
     
     def load_model(self, ticker, model_id):
         dir = os.path.join(
@@ -255,7 +124,7 @@ class FileAdapter:
         :rtype: None
         """
         self._dir_check(dir=dir)
-        path = os.path.join(dir, file_name)
+        path = os.path.join(dir, file_name) + ".csv"
         data.to_csv(path,
                     sep=",",
                     decimal=".",
@@ -278,7 +147,7 @@ class FileAdapter:
         :rtype: None
         """
         self._dir_check(dir=dir)
-        path = os.path.join(dir, file_name)
+        path = os.path.join(dir, file_name) + ".pkl"
         with open(path, "wb") as file:
             pickle.dump(data, file=file)
         return None
@@ -294,7 +163,7 @@ class FileAdapter:
         :return: Data from csv file
         :rtype: Dataframe
         """
-        path = os.path.join(dir, file_name)
+        path = os.path.join(dir, file_name) + ".csv"
         try:
             data = pd.read_csv(
                 path,
@@ -320,7 +189,7 @@ class FileAdapter:
         :return: Data from pickel file
         :rtype: Pickel object
         """
-        path = os.path.join(dir, file_name)
+        path = os.path.join(dir, file_name) + ".pkl"
         try:
             with open(path, "rb") as file:
                 data = pickle.load(file=file)
