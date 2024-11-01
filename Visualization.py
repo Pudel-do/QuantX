@@ -4,6 +4,22 @@ from core.dashboard_adapter import DashboardAdapter
 from core.file_adapter import FileAdapter
 from misc.misc import *
 
+def preprocess_df(df, index_name):
+    df.index.name = index_name
+    df = df.reset_index()
+    df = df.round(3)
+    return df
+
+def preprocess_dict(dict, index_name):
+    dict_adj = {}
+    for key, value in dict.items():
+        value.index.name = index_name
+        value = value.reset_index()
+        value = value.round(3)
+        dict_adj[key] = value
+    return dict_adj
+
+
 if __name__ == "__main__":
     PARAMETER = read_json("parameter.json")
     CONST_COLS = read_json("constant.json")["columns"]
@@ -59,6 +75,18 @@ if __name__ == "__main__":
     port_types = FileAdapter().load_object(
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["port_types"]
+    )
+    port_performance = preprocess_df(
+        df=port_performance,
+        index_name=CONST_COLS["port_types"]
+    )
+    model_validation = preprocess_dict(
+        dict=model_validation,
+        index_name=CONST_COLS["measures"]
+    )
+    long_pos = preprocess_dict(
+        dict=long_pos,
+        index_name=CONST_COLS["ticker"]
     )
     dashboard = DashboardAdapter(
         moving_avg=moving_averages,
