@@ -478,21 +478,21 @@ class DashboardAdapter:
                     x=self.cum_hist_rets.index,
                     y=self.cum_hist_rets[col],
                     mode="lines",
-                    name=f"Historical {col} returns",
+                    name=col,
                     line=dict(width=2, dash='solid')
                 ))
                 fig.add_trace(go.Scatter(
                     x=self.cum_future_rets.index,
                     y=self.cum_future_rets[col],
                     mode="lines",
-                    name=f"Future {col} returns",
+                    name=col,
                     line=dict(width=2, dash='dash')
                 ))
             fig.add_trace(go.Scatter(
                 x=bench_rets.index,
                 y=bench_rets,
                 mode="lines",
-                name="Historical benchmark returns",
+                name="Benchmark",
                 line=dict(width=1, dash='solid')
             ))
             fig.update_layout(
