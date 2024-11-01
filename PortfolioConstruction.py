@@ -288,9 +288,9 @@ def build_portfolio_performance(port_rets, bench_rets):
         )
         for measure, value in perf_dict.items():
             results.loc[port_type, measure] = value
-    results = results.round(3)
-    results.index.name = CONST_COLS["port_types"]
-    results = results.reset_index()
+    # results = results.round(3)
+    # results.index.name = CONST_COLS["port_types"]
+    # results = results.reset_index()
     return results
 
 def build_long_position(opt_weights, act_weights, long_pos, ticks):
@@ -330,9 +330,9 @@ def build_long_position(opt_weights, act_weights, long_pos, ticks):
             long_pos_results.loc[tick, CONST_COLS["act_weight"]] = act_weight
             long_pos_results.loc[tick, CONST_COLS["long_pos"]] = n_shares
             long_pos_results.loc[tick, CONST_COLS["amount"]] = invest
-        long_pos_results = long_pos_results.round(3)
-        long_pos_results.index.name = CONST_COLS["ticker"]
-        long_pos_results = long_pos_results.reset_index()
+        # long_pos_results = long_pos_results.round(3)
+        # long_pos_results.index.name = CONST_COLS["ticker"]
+        # long_pos_results = long_pos_results.reset_index()
         result_dict[type] = long_pos_results
     return result_dict
 
