@@ -211,14 +211,17 @@ def model_backtesting(tickers):
                 prediction,
                 how="inner"
             )
-            actual = validation[CONST_COLS["quote"]]
-            pred = validation[model_type]
-            rmse = root_mean_squared_error(actual, pred)
-            mape = mean_absolute_percentage_error(actual, pred)
-            mae = mean_absolute_error(actual, pred)
-            backtest_validation.loc[CONST_COLS["rmse"], model_type] = rmse
-            backtest_validation.loc[CONST_COLS["mae"], model_type] = mae
-            backtest_validation.loc[CONST_COLS["mape"], model_type] = mape
+            if not validation.empty:
+                actual = validation[CONST_COLS["quote"]]
+                pred = validation[model_type]
+                rmse = root_mean_squared_error(actual, pred)
+                mape = mean_absolute_percentage_error(actual, pred)
+                mae = mean_absolute_error(actual, pred)
+                backtest_validation.loc[CONST_COLS["rmse"], model_type] = rmse
+                backtest_validation.loc[CONST_COLS["mae"], model_type] = mae
+                backtest_validation.loc[CONST_COLS["mape"], model_type] = mape
+            else:
+                break
         backtest_validation.index.rename(name=CONST_COLS["measures"], inplace=True)
         backtest_validation.reset_index(inplace=True)
         backtest_dict[tick] = backtest
