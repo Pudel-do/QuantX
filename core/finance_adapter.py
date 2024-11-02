@@ -90,6 +90,16 @@ class FinanceAdapter:
             fd.set_index("date", inplace=True)
             fd.index = pd.to_datetime(fd.index).normalize()
         return fd
+    
+    def get_company_name(self):
+        """Function returns company name for given tick
+
+        :return: Company name
+        :rtype: String
+        """
+        tick_info = yf.Ticker(self.tick).info
+        name = tick_info["shortName"]
+        return name
 
     def _establish_fmb_connection(self, fd_kpi):
         """Function connects to FMP via API call. If quarterly 
