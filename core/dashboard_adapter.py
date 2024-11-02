@@ -12,12 +12,13 @@ import logging
 
 class DashboardAdapter:
     def __init__(
-            self, 
+            self, ticks,
             moving_avg, opt_moving_avg, stock_rets, fundamentals, 
             model_backtest, model_validation, models, 
             cum_bench_rets, cum_hist_rets, cum_future_rets, 
-            port_performance, long_pos, port_types
+            port_performance, long_pos, port_types, 
         ):
+        self.ticks = ticks
         self.moving_avg = moving_avg
         self.opt_moving_avg = opt_moving_avg
         self.stock_rets = stock_rets
@@ -31,7 +32,6 @@ class DashboardAdapter:
         self.port_performance = port_performance
         self.long_pos = long_pos
         self.port_types = port_types
-        self.ticks = read_json("parameter.json")["ticker"]
         self.const_cols = read_json("constant.json")["columns"]
         self.fundamental_cols = read_json("constant.json")["fundamentals"]["measures"]
         self.app = Dash(__name__)
@@ -250,7 +250,7 @@ class DashboardAdapter:
                     },
                 ],
                 "layout": {
-                    "title": f"Optimal Moving Averages for ticker {tick_filter}",
+                    "title": f"Optimal Moving Averages for {tick_filter}",
                     "xaxis": {"title": "Date"},
                     "yaxis": {"title": "Values"},
                     "legend": {
@@ -492,7 +492,7 @@ class DashboardAdapter:
                 x=bench_rets.index,
                 y=bench_rets,
                 mode="lines",
-                name="Benchmark",
+                name=f"Benchmark {bench_rets.name}",
                 line=dict(width=1, dash='solid')
             ))
             fig.update_layout(
