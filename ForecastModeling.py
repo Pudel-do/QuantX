@@ -222,8 +222,6 @@ def model_backtesting(tickers):
                 backtest_validation.loc[CONST_COLS["mape"], model_type] = mape
             else:
                 break
-        # backtest_validation.index.rename(name=CONST_COLS["measures"], inplace=True)
-        # backtest_validation.reset_index(inplace=True)
         backtest_dict[tick] = backtest
         validation_dict[tick] = backtest_validation
     return backtest_dict, validation_dict, model_list

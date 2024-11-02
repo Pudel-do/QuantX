@@ -11,7 +11,6 @@ task_list = [
     "PortfolioConstruction.py ",
     "Visualization.py "
 ]
-
 if GET_DATA:
     task_list.insert(
         0, "GetAndProcessData.py "
