@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import keras
 import tensorflow as tf
+import kerastuner as kt
 import io
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
@@ -44,7 +45,7 @@ class OneStepLSTM(BaseModel):
         self.y_test = y_test
         return None
 
-    def build_model(self):
+    def build_model(self, hp):
         """Function builds sequential model with LSTM layer
         and with subsequential compiling. Compiled model
         is inherited to model class
@@ -52,11 +53,39 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
-        model = keras.Sequential()
         sequences = self.x_train.shape[1]
         n_features = self.x_train.shape[2]
         input_shape = (sequences, n_features)
+        model = keras.Sequential()
         model.add(layers.Input(shape=input_shape))
+        for i in range(hp.Int("n_layers", 1, 3)):
+            if i == 0:
+                model.add(
+                    layers.LSTM(
+                        units=hp.Int('units_' + str(i), 
+                                    min_value=32, 
+                                    max_value=128, 
+                                    step=32),
+                        return_sequences=True if \
+                        hp.Int('num_layers', 1, 3) > 1 \
+                        else False             
+                    )
+                )
+            else:
+                model.add(
+                    layers.LSTM(
+                        units=hp.Int('units_' + str(i), 
+                                     min_value=32, 
+                                     max_value=128, 
+                                     step=32),
+                        return_sequences=False if \
+                        i == hp.Int("num_layers", 1, 3) - 1 \
+                        else True
+                    )
+                )
+        print("break")
+        
+
         model.add(layers.LSTM(units=100, return_sequences=True))
         model.add(layers.Dropout(0.2))
         model.add(layers.LSTM(units=50, return_sequences=False))
