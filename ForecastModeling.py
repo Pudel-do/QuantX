@@ -153,6 +153,7 @@ def model_building(model_data, models):
             )
             model.preprocess_data()
             model.build_model()
+            model.hyperparameter_tuning()
             model.train()
             model.evaluate()
             FileAdapter().save_model(model=model)

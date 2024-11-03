@@ -96,6 +96,10 @@ class BaseModel(ABC):
         pass
 
     @abstractmethod
+    def hyperparameter_tuning(self):
+        pass
+
+    @abstractmethod
     def train(self):
         pass
 

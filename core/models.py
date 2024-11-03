@@ -6,7 +6,7 @@ import kerastuner as kt
 import io
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_absolute_percentage_error
 from keras import layers
 from core.base_model import BaseModel
 from misc.misc import *
@@ -45,7 +45,7 @@ class OneStepLSTM(BaseModel):
         self.y_test = y_test
         return None
 
-    def build_model(self, hp):
+    def build_model(self):
         """Function builds sequential model with LSTM layer
         and with subsequential compiling. Compiled model
         is inherited to model class
@@ -53,39 +53,11 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
+        model = keras.Sequential()
         sequences = self.x_train.shape[1]
         n_features = self.x_train.shape[2]
         input_shape = (sequences, n_features)
-        model = keras.Sequential()
         model.add(layers.Input(shape=input_shape))
-        for i in range(hp.Int("n_layers", 1, 3)):
-            if i == 0:
-                model.add(
-                    layers.LSTM(
-                        units=hp.Int('units_' + str(i), 
-                                    min_value=32, 
-                                    max_value=128, 
-                                    step=32),
-                        return_sequences=True if \
-                        hp.Int('num_layers', 1, 3) > 1 \
-                        else False             
-                    )
-                )
-            else:
-                model.add(
-                    layers.LSTM(
-                        units=hp.Int('units_' + str(i), 
-                                     min_value=32, 
-                                     max_value=128, 
-                                     step=32),
-                        return_sequences=False if \
-                        i == hp.Int("num_layers", 1, 3) - 1 \
-                        else True
-                    )
-                )
-        print("break")
-        
-
         model.add(layers.LSTM(units=100, return_sequences=True))
         model.add(layers.Dropout(0.2))
         model.add(layers.LSTM(units=50, return_sequences=False))
@@ -102,6 +74,9 @@ class OneStepLSTM(BaseModel):
         self.model = model
         self.n_features = n_features
         return None
+    
+    def hyperparameter_tuning(self):
+        pass
     
     def train(self):
         """Function trains LSTM model and saves callbacks
@@ -144,8 +119,7 @@ class OneStepLSTM(BaseModel):
         target = self.y_test[:, 0].reshape(self.pred_days, 1)
         y_pred = self.target_scaler.inverse_transform(y_pred)
         target = self.target_scaler.inverse_transform(target)
-        mse = mean_squared_error(y_true=target, y_pred=y_pred)
-        rmse = np.sqrt(mse)
+        rmse = root_mean_squared_error(y_true=target, y_pred=y_pred)
         rmse = np.round(rmse, 3)
         log_dir = get_log_path(
             ticker=self.ticker,
@@ -205,6 +179,46 @@ class OneStepLSTM(BaseModel):
             index=prediction_index
         )
         return prediction
+    
+    def _build_model_hp(self, hp):
+        """Function builds sequential model with LSTM layer
+        and with subsequential compiling. Compiled model
+        is inherited to model class
+
+        :return: None
+        :rtype: None
+        """
+        sequences = self.x_train.shape[1]
+        n_features = self.x_train.shape[2]
+        input_shape = (sequences, n_features)
+        model = keras.Sequential()
+        model.add(layers.Input(shape=input_shape))
+        for i in range(hp.Int("n_layers", 1, 3)):
+            model.add(
+                layers.LSTM(
+                    units=hp.Int('units_' + str(i), 
+                                    min_value=32, 
+                                    max_value=128, 
+                                    step=32),
+                    return_sequences=False if \
+                    i == hp.Int("num_layers", 1, 3) - 1 \
+                    else True
+                )
+            )
+        print("break")
+        model.add(layers.Dropout(0.2))
+        model.add(layers.Dense(units=n_features))
+        model.compile(
+            optimizer="adam", 
+            loss='mean_squared_error',
+            metrics=[
+                "root_mean_squared_error",
+                "mean_absolute_error"
+            ]
+        )
+        self.model = model
+        self.n_features = n_features
+        return None
     
     def _create_sequences(self, data):
         """Function creates sequences for defined
@@ -322,8 +336,7 @@ class MultiStepLSTM(BaseModel):
         target = self.y_test.reshape(self.pred_days, 1)
         y_pred = self.target_scaler.inverse_transform(y_pred)
         target = self.target_scaler.inverse_transform(target)
-        mse = mean_squared_error(y_true=target, y_pred=y_pred)
-        rmse = np.sqrt(mse)
+        rmse = root_mean_squared_error(y_true=target, y_pred=y_pred)
         rmse = np.round(rmse, 3)
         log_dir = get_log_path(
             ticker=self.ticker,
