@@ -43,16 +43,20 @@ class OneStepLSTM(BaseModel):
         :rtype: None
         """
         seq_length = self.params["sequence_length"]
+        train_set, val_set, test_set = self._data_split(
+            data=self.scaled_data,
+            seq_length=seq_length
+        )
         self.x_train, self.y_train = self._create_sequences(
-            data=self.train_set,
+            data=train_set,
             seq_length=seq_length
         )
         self.x_val, self.y_val = self._create_sequences(
-            data=self.val_set,
+            data=val_set,
             seq_length=seq_length
         )
         self.x_test, self.y_test = self._create_sequences(
-            data=self.test_set,
+            data=test_set,
             seq_length=seq_length
         )
         model = keras.Sequential()
@@ -81,8 +85,8 @@ class OneStepLSTM(BaseModel):
         tuner = kt.RandomSearch(
             self._build_model_hp,
             objective='val_loss',
-            max_trials=10,
-            executions_per_trial=2,
+            max_trials=5,
+            executions_per_trial=1,
             overwrite=True            
         )
         tuner.search(
@@ -133,8 +137,6 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
-        #ToDO: Check transformation and lenght of x_test on main branch. Length must be equal to 90
-        #ToDO: Problem probably while data scaling
         y_pred = self.model.predict(x=self.x_test, verbose=0)
         y_pred = y_pred[:, 0].reshape(self.pred_days, 1)
         target = self.y_test[:, 0].reshape(self.pred_days, 1)
@@ -232,18 +234,15 @@ class OneStepLSTM(BaseModel):
         )
         n_features = self.x_train.shape[2]
         input_shape = (seq_length, n_features)
+        num_layers = hp.Int('num_layers', min_value=1, max_value=4, step=1)
         model = keras.Sequential()
-        # model.add(layers.Input(shape=input_shape))
-        for i in range(hp.Int('num_layers', 1, 3)):  # Tune between 1 and 3 layers
-            if i == 0:
-                # First layer with input shape based on the tuned sequence length
-                model.add(layers.LSTM(units=hp.Int('units_' + str(i), min_value=32, max_value=128, step=32), 
-                            return_sequences=True if hp.Int('num_layers', 1, 3) > 1 else False, 
-                            input_shape=(input_shape)))
-            else:
-                # Additional layers
-                model.add(layers.LSTM(units=hp.Int('units_' + str(i), min_value=32, max_value=128, step=32), 
-                            return_sequences=False if i == hp.Int('num_layers', 1, 3) - 1 else True))
+        model.add(layers.Input(shape=input_shape))
+        for i in range(num_layers):
+            # Add an LSTM layer with a tunable number of units
+            units = hp.Int(f'units_{i+1}', min_value=32, max_value=256, step=32)
+            # If it's the last LSTM layer, set return_sequences to False; otherwise, True
+            return_sequences = i < (num_layers - 1)
+            model.add(layers.LSTM(units=units, return_sequences=return_sequences))
         model.add(layers.Dense(units=n_features))
         model.compile(
             optimizer="adam", 
