@@ -15,7 +15,6 @@ class OneStepLSTM(BaseModel):
     def __init__(self):
         super().__init__(model_name="OneStepLSTM")
         self._create_model_id()
-        self.seq_length = self.params["sequence_length"]
 
     def preprocess_data(self):
         """Function preprocesses raw model data for
@@ -33,16 +32,10 @@ class OneStepLSTM(BaseModel):
         """
         scaled_data = self._data_scaling(data=self.data)
         train_set, val_set, test_set = self._data_split(data=scaled_data)
-        x_train, y_train = self._create_sequences(train_set)
-        x_val, y_val = self._create_sequences(val_set)
-        x_test, y_test = self._create_sequences(test_set)
         self.scaled_data = scaled_data
-        self.x_train = x_train
-        self.x_val = x_val
-        self.x_test = x_test
-        self.y_train = y_train
-        self.y_val = y_val
-        self.y_test = y_test
+        self.train_set = train_set
+        self.val_set = val_set
+        self.test_set = test_set
         return None
 
     def build_model(self):
@@ -53,10 +46,22 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
+        seq_length = self.params["sequence_length"]
+        self.x_train, self.y_train = self._create_sequences(
+            data=self.train_set,
+            seq_length=seq_length
+        )
+        self.x_val, self.y_val = self._create_sequences(
+            data=self.val_set,
+            seq_length=seq_length
+        )
+        self.x_test, self.y_test = self._create_sequences(
+            data=self.test_set,
+            seq_length=seq_length
+        )
         model = keras.Sequential()
-        sequences = self.x_train.shape[1]
         n_features = self.x_train.shape[2]
-        input_shape = (sequences, n_features)
+        input_shape = (seq_length, n_features)
         model.add(layers.Input(shape=input_shape))
         model.add(layers.LSTM(units=100, return_sequences=True))
         model.add(layers.Dropout(0.2))
@@ -72,12 +77,30 @@ class OneStepLSTM(BaseModel):
             ]
         )
         self.model = model
+        self.seq_length = seq_length
         self.n_features = n_features
         return None
     
     def hyperparameter_tuning(self):
-        pass
-    
+        tuner = kt.RandomSearch(
+            self._build_model_hp,
+            objective='val_loss',
+            max_trials=10,
+            executions_per_trial=2,
+            overwrite=True            
+        )
+        tuner.search(
+            self.x_train, 
+            self.y_train, 
+            epochs=20, 
+            validation_data=(self.x_val, self.y_val), 
+            batch_size=32
+        )
+        best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+        best_model = tuner.hypermodel.build(best_hps)
+        self.model = best_model
+        self.seq_length = best_hps.get('seq_length')
+
     def train(self):
         """Function trains LSTM model and saves callbacks
         in model logs for evaluation in tensorboard. 
@@ -114,6 +137,8 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
+        #ToDO: Check transformation and lenght of x_test on main branch. Length must be equal to 90
+        #ToDO: Problem probably while data scaling
         y_pred = self.model.predict(x=self.x_test, verbose=0)
         y_pred = y_pred[:, 0].reshape(self.pred_days, 1)
         target = self.y_test[:, 0].reshape(self.pred_days, 1)
@@ -188,25 +213,37 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
-        sequences = self.x_train.shape[1]
+        seq_length = hp.Int(
+            'seq_length', 
+            min_value=30, 
+            max_value=120, 
+            step=10)
+        self.x_train, self.y_train = self._create_sequences(
+            data=self.train_set,
+            seq_length=seq_length
+        )
+        self.x_val, self.y_val = self._create_sequences(
+            data=self.val_set,
+            seq_length=seq_length
+        )
+        self.x_test, self.y_test = self._create_sequences(
+            data=self.test_set,
+            seq_length=seq_length
+        )
         n_features = self.x_train.shape[2]
-        input_shape = (sequences, n_features)
+        input_shape = (seq_length, n_features)
         model = keras.Sequential()
-        model.add(layers.Input(shape=input_shape))
-        for i in range(hp.Int("n_layers", 1, 3)):
-            model.add(
-                layers.LSTM(
-                    units=hp.Int('units_' + str(i), 
-                                    min_value=32, 
-                                    max_value=128, 
-                                    step=32),
-                    return_sequences=False if \
-                    i == hp.Int("num_layers", 1, 3) - 1 \
-                    else True
-                )
-            )
-        print("break")
-        model.add(layers.Dropout(0.2))
+        # model.add(layers.Input(shape=input_shape))
+        for i in range(hp.Int('num_layers', 1, 3)):  # Tune between 1 and 3 layers
+            if i == 0:
+                # First layer with input shape based on the tuned sequence length
+                model.add(layers.LSTM(units=hp.Int('units_' + str(i), min_value=32, max_value=128, step=32), 
+                            return_sequences=True if hp.Int('num_layers', 1, 3) > 1 else False, 
+                            input_shape=(input_shape)))
+            else:
+                # Additional layers
+                model.add(layers.LSTM(units=hp.Int('units_' + str(i), min_value=32, max_value=128, step=32), 
+                            return_sequences=False if i == hp.Int('num_layers', 1, 3) - 1 else True))
         model.add(layers.Dense(units=n_features))
         model.compile(
             optimizer="adam", 
@@ -216,11 +253,10 @@ class OneStepLSTM(BaseModel):
                 "mean_absolute_error"
             ]
         )
-        self.model = model
         self.n_features = n_features
-        return None
+        return model
     
-    def _create_sequences(self, data):
+    def _create_sequences(self, data, seq_length):
         """Function creates sequences for defined
         period in parameter.json for LSTM model building
         separated by endogenous and exogenous variables
@@ -232,8 +268,8 @@ class OneStepLSTM(BaseModel):
         :rtype: Array
         """
         exog, endog = [], []
-        for i in range(self.seq_length, len(data)):
-            exog.append(data[i-self.seq_length:i, :])
+        for i in range(seq_length, len(data)):
+            exog.append(data[i-seq_length:i, :])
             endog.append(data[i, :])
 
         return np.array(exog), np.array(endog)
