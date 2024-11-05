@@ -31,11 +31,7 @@ class OneStepLSTM(BaseModel):
         :rtype: None
         """
         scaled_data = self._data_scaling(data=self.data)
-        train_set, val_set, test_set = self._data_split(data=scaled_data)
         self.scaled_data = scaled_data
-        self.train_set = train_set
-        self.val_set = val_set
-        self.test_set = test_set
         return None
 
     def build_model(self):
@@ -215,19 +211,23 @@ class OneStepLSTM(BaseModel):
         """
         seq_length = hp.Int(
             'seq_length', 
-            min_value=30, 
-            max_value=120, 
+            min_value=20, 
+            max_value=90, 
             step=10)
+        train_set, val_set, test_set = self._data_split(
+            data=self.scaled_data,
+            seq_length=seq_length
+        )
         self.x_train, self.y_train = self._create_sequences(
-            data=self.train_set,
+            data=train_set,
             seq_length=seq_length
         )
         self.x_val, self.y_val = self._create_sequences(
-            data=self.val_set,
+            data=val_set,
             seq_length=seq_length
         )
         self.x_test, self.y_test = self._create_sequences(
-            data=self.test_set,
+            data=test_set,
             seq_length=seq_length
         )
         n_features = self.x_train.shape[2]

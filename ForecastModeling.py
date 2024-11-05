@@ -152,7 +152,7 @@ def model_building(model_data, models):
                 ticker=tick
             )
             model.preprocess_data()
-            model.build_model()
+            #model.build_model()
             model.hyperparameter_tuning()
             model.train()
             model.evaluate()

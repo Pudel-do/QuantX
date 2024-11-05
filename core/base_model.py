@@ -24,7 +24,7 @@ class BaseModel(ABC):
         self.data = data
         self.ticker = ticker
 
-    def _data_split(self, data):
+    def _data_split(self, data, seq_length):
         """Function splits data set into train, test
         and validation set. Test set consits of the last
         n observations with n equals the out-of-sample
@@ -36,7 +36,7 @@ class BaseModel(ABC):
         :return: Train, validation and test set
         :rtype: Array
         """
-        test_size = self.params["prediction_days"] + self.params["sequence_length"]
+        test_size = self.params["prediction_days"] + seq_length
         train_val_data = data[:-test_size]
         train_size = int(len(train_val_data) * self.params["train_ratio"])
         train_set = train_val_data[:train_size]
