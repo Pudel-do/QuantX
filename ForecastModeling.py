@@ -152,8 +152,11 @@ def model_building(model_data, models):
                 ticker=tick
             )
             model.preprocess_data()
-            #model.build_model()
-            model.hyperparameter_tuning()
+            model.build_model()
+            if PARAMETER["use_hp_tuning"]:
+                model.hyperparameter_tuning()
+            else:
+                pass
             model.train()
             model.evaluate()
             FileAdapter().save_model(model=model)
