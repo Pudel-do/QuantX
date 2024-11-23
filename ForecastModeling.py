@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
+from mttkinter import mtTkinter as tk
 from core.file_adapter import FileAdapter
 from misc.misc import *
-from core.models import OneStepLSTM, MultiStepLSTM
+from core.models import OneStepLSTM, ARIMA
 from core.finance_adapter import FinanceAdapter
 from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, root_mean_squared_error
 
@@ -201,6 +202,8 @@ def model_backtesting(tickers):
                 ticker=tick,
                 model_id=model_id
             )
+            print(tick)
+            print(model.best_hps.values)
             model_type = model_id.split("_")[-1]
             model_type = model_type.split(".")[0]
             if model_type not in model_list:
@@ -262,7 +265,8 @@ if __name__ == "__main__":
         file_name=CONST_DATA["model_data_file"]
     )
     models = [
-        OneStepLSTM()
+        # OneStepLSTM(),
+        ARIMA()
     ]
     if PARAMETER["use_model_training"]:
         model_building(
