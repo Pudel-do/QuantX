@@ -7,6 +7,8 @@ import io
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_absolute_percentage_error
+from pmdarima import auto_arima
+from statsmodels.tsa.statespace.sarimax import SARIMAX
 from keras import layers
 from keras import optimizers
 from core.base_model import BaseModel
@@ -212,8 +214,8 @@ class OneStepLSTM(BaseModel):
         and with subsequential compiling. Compiled model
         is inherited to model class
 
-        :return: None
-        :rtype: None
+        :return: Model object from model building
+        :rtype: LSTM object
         """
         seq_length = hp.Int(
             'seq_length', 
@@ -222,7 +224,8 @@ class OneStepLSTM(BaseModel):
             step=10)
         train_set, val_set, test_set = self._data_split(
             data=self.scaled_data,
-            seq_length=seq_length
+            seq_length=seq_length,
+            use_val_set=True
         )
         self.x_train, self.y_train = self._create_sequences(
             data=train_set,
@@ -305,16 +308,81 @@ class ARIMA(BaseModel):
         self._create_model_id()
 
     def preprocess_data(self):
-        print("break")
+        """Function splits dataset into training and test set
+        and separates both sets into endogenous and exogenous
+        data arrays for model building
+        :return: None
+        :rtype: None
+        """
+        train_set, test_set = self._data_split(
+            data=self.data,
+            seq_length=0,
+            use_val_set=False
+        )
+        self.x_train = np.array(train_set.iloc[:, 1:])
+        self.y_train = np.array(train_set.iloc[:, 0])
+        self.x_test = np.array(test_set.iloc[:, 1:])
+        self.y_test = np.array(test_set.iloc[:, 0])
+        return None
 
     def build_model(self):
-        pass
+        """Function builds seasonal ARIMA model on
+        training set for predefined order. Compiled
+        model is inheritated to model class
+
+        :return: None
+        :rtype: None
+        """
+        model = SARIMAX(
+            endog=self.y_train,
+            exog=self.x_train,
+            order=(1,0,0),
+            enforce_stationarity=False,
+            enforce_invertibility=False
+        )
+        self.model = model
+        return None
 
     def hyperparameter_tuning(self):
-        pass
+        """Function uses auto arima algorithm to find the best 
+        model order for optimizing the AIC criterion and builds
+        model with best model order on the training set. Best model
+        order and model are inheritated to the model class
+
+        :return: None
+        :rtype: None
+        """
+        auto_model = auto_arima(
+            y=self.y_train,
+            X=self.x_train,
+            start_p=0,
+            max_p=4,
+            start_q=0,
+            max_q=4,
+            d=None,
+            information_criterion="aic",
+            seasonal=False,
+            trace=True,
+            error_action="ignore",
+            suppress_warnings=True,
+            stepwise=False
+        )
+        best_order = auto_model.order
+        best_model = SARIMAX(
+            endog=self.y_train,
+            exog=self.x_train,
+            order=best_order,
+            enforce_stationarity=False,
+            enforce_invertibility=False,
+
+        )
+        self.best_order = best_order
+        self.model = best_model
+        return None
     
     def train(self):
-        pass
+        self.model = self.model.fit(disp=True)
+        return None
 
     def evaluate(self):
         pass
