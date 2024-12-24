@@ -8,7 +8,7 @@ from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_absolute_percentage_error
 from pmdarima import auto_arima
-from statsmodels.tsa.statespace.sarimax import SARIMAX
+from sktime.forecasting.sarimax import SARIMAX
 from keras import layers
 from keras import optimizers
 from core.base_model import BaseModel
@@ -319,10 +319,10 @@ class ARIMA(BaseModel):
             seq_length=0,
             use_val_set=False
         )
-        self.x_train = np.array(train_set.iloc[:, 1:])
-        self.y_train = np.array(train_set.iloc[:, 0])
-        self.x_test = np.array(test_set.iloc[:, 1:])
-        self.y_test = np.array(test_set.iloc[:, 0])
+        self.x_train = train_set.iloc[:, 1:]
+        self.y_train = train_set.iloc[:, 0]
+        self.x_test = test_set.iloc[:, 1:]
+        self.y_test = test_set.iloc[:, 0]
         return None
 
     def build_model(self):
@@ -334,8 +334,6 @@ class ARIMA(BaseModel):
         :rtype: None
         """
         model = SARIMAX(
-            endog=self.y_train,
-            exog=self.x_train,
             order=(1,0,0),
             enforce_stationarity=False,
             enforce_invertibility=False
@@ -356,9 +354,9 @@ class ARIMA(BaseModel):
             y=self.y_train,
             X=self.x_train,
             start_p=0,
-            max_p=4,
+            max_p=5,
             start_q=0,
-            max_q=4,
+            max_q=5,
             d=None,
             information_criterion="aic",
             seasonal=False,
@@ -368,24 +366,50 @@ class ARIMA(BaseModel):
             stepwise=False
         )
         best_order = auto_model.order
-        best_model = SARIMAX(
-            endog=self.y_train,
-            exog=self.x_train,
+        model = SARIMAX(
             order=best_order,
-            enforce_stationarity=False,
             enforce_invertibility=False,
-
+            enforce_stationarity=False
         )
-        self.best_order = best_order
-        self.model = best_model
+        self.model = model
         return None
     
     def train(self):
-        self.model = self.model.fit(disp=True)
+        self.model.fit(
+            y=self.y_train,
+            X=self.x_train
+        )
         return None
 
     def evaluate(self):
-        pass
+        y_pred = self.model.predict(
+            # fh=self.pred_days,
+            X=self.x_test
+        )
+        target = self.y_test[:, 0].reshape(self.pred_days, 1)
+        y_pred = self.target_scaler.inverse_transform(y_pred)
+        target = self.target_scaler.inverse_transform(target)
+        rmse = root_mean_squared_error(y_true=target, y_pred=y_pred)
+        rmse = np.round(rmse, 3)
+        log_dir = get_log_path(
+            ticker=self.ticker,
+            model_id=self.model_id,
+            log_key="evaluation_logs"
+        )
+        file_writer = tf.summary.create_file_writer(log_dir)
+        figure = create_in_pred_fig(
+            ticker=self.ticker,
+            target=target,
+            y_pred=y_pred,
+            rmse=rmse
+        )
+        with file_writer.as_default():
+            tf.summary.image(
+                "Real vs Predicted", 
+                plot_to_image(figure), 
+                step=0
+            )
+        return None
 
     def predict(self):
         pass
