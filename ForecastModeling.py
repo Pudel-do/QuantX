@@ -149,7 +149,7 @@ def model_building(model_data, models):
     for tick, data in model_data.items():
         for model in models:
             model.init_data(
-                data=data, 
+                data=data,
                 ticker=tick
             )
             model.preprocess_data()
@@ -202,8 +202,6 @@ def model_backtesting(tickers):
                 ticker=tick,
                 model_id=model_id
             )
-            print(tick)
-            print(model.best_hps.values)
             model_type = model_id.split("_")[-1]
             model_type = model_type.split(".")[0]
             if model_type not in model_list:
@@ -265,8 +263,7 @@ if __name__ == "__main__":
         file_name=CONST_DATA["model_data_file"]
     )
     models = [
-        # OneStepLSTM(),
-        ARIMA()
+        OneStepLSTM(),
     ]
     if PARAMETER["use_model_training"]:
         model_building(
