@@ -231,7 +231,7 @@ def get_log_path(ticker, model_id, log_key):
     )
     return path
 
-def create_in_pred_fig(ticker, target, y_pred, rmse):
+def create_in_pred_fig(ticker, target, y_pred, rmse, facts):
     """Function builds matplot figure to visualize
     prediction performance on the test set against
     target values from the same set. In addition, 
@@ -250,6 +250,7 @@ def create_in_pred_fig(ticker, target, y_pred, rmse):
     :rtype: Matplotlib figure
     """
     fig, ax = plt.subplots(figsize=(10,2))
+    plt.gcf().text(0.01, -0.1, facts, fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
     ax.plot(target, label="Real Values", color='blue')
     ax.plot(y_pred, label="Predicted Values", color='red')
     ax.legend()
