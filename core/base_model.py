@@ -89,7 +89,7 @@ class BaseModel(ABC):
         :return: None
         :rtype: None
         """
-        timestamp = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H%M%S")
         model_name = self.model_name
         model_id = f"{timestamp}_{model_name}"
         self.model_id = model_id
