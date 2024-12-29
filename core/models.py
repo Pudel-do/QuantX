@@ -8,11 +8,13 @@ from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_absolute_percentage_error
 from pmdarima import auto_arima
-from sktime.forecasting.sarimax import SARIMAX
+from statsmodels.tsa.arima.model import ARIMA
 from keras import layers
 from keras import optimizers
 from core.base_model import BaseModel
 from misc.misc import *
+import warnings
+warnings.filterwarnings('ignore') 
 
 class OneStepLSTM(BaseModel):
     def __init__(self):
@@ -302,9 +304,9 @@ class OneStepLSTM(BaseModel):
 
         return np.array(exog), np.array(endog)
 
-class ARIMA(BaseModel):
+class ArimaModel(BaseModel):
     def __init__(self):
-        super().__init__(model_name="ARIMA")
+        super().__init__(model_name="ArimaModel")
         self._create_model_id()
 
     def preprocess_data(self):
@@ -323,6 +325,8 @@ class ARIMA(BaseModel):
         self.y_train = train_set.iloc[:, 0]
         self.x_test = test_set.iloc[:, 1:]
         self.y_test = test_set.iloc[:, 0]
+        self.x_full = pd.concat([self.x_train, self.x_test])
+        self.y_full = pd.concat([self.y_train, self.y_test])
         return None
 
     def build_model(self):
@@ -333,12 +337,7 @@ class ARIMA(BaseModel):
         :return: None
         :rtype: None
         """
-        model = SARIMAX(
-            order=(1,0,0),
-            enforce_stationarity=False,
-            enforce_invertibility=False
-        )
-        self.model = model
+        self.best_order = None
         return None
 
     def hyperparameter_tuning(self):
@@ -350,7 +349,7 @@ class ARIMA(BaseModel):
         :return: None
         :rtype: None
         """
-        auto_model = auto_arima(
+        model = auto_arima(
             y=self.y_train,
             X=self.x_train,
             start_p=0,
@@ -358,37 +357,49 @@ class ARIMA(BaseModel):
             start_q=0,
             max_q=5,
             d=None,
-            information_criterion="aic",
+            max_order=None,
             seasonal=False,
+            stationary=False,
+            test="kpss",
+            information_criterion="aic",
             trace=True,
-            error_action="ignore",
+            error_action="warn",
             suppress_warnings=True,
-            stepwise=False
-        )
-        best_order = auto_model.order
-        model = SARIMAX(
-            order=best_order,
-            enforce_invertibility=False,
-            enforce_stationarity=False
-        )
-        self.model = model
+            stepwise=True
+        ) 
+        self.best_order = model.order
         return None
     
     def train(self):
-        self.model.fit(
-            y=self.y_train,
-            X=self.x_train
-        )
+        if self.best_order is None:
+            self.model_order = (0,0,0)
+            model = ARIMA(
+                endog=self.y_train,
+                exog=self.x_train,
+                order=self.model_order,
+                enforce_stationarity=False,
+                enforce_invertibility=False
+            )
+        else:
+            self.model_order = self.best_order
+            model = ARIMA(
+                endog=self.y_train,
+                exog=self.x_train,
+                order=self.best_order,
+                enforce_stationarity=False,
+                enforce_invertibility=False
+            )
+        self.model = model.fit()
         return None
 
     def evaluate(self):
-        y_pred = self.model.predict(
-            # fh=self.pred_days,
-            X=self.x_test
+        steps=len(self.y_test)
+        y_pred = self.model.forecast(
+            steps=steps,
+            exog=self.x_test
         )
-        target = self.y_test[:, 0].reshape(self.pred_days, 1)
-        y_pred = self.target_scaler.inverse_transform(y_pred)
-        target = self.target_scaler.inverse_transform(target)
+        y_pred = np.array(y_pred)
+        target = np.array(self.y_test)
         rmse = root_mean_squared_error(y_true=target, y_pred=y_pred)
         rmse = np.round(rmse, 3)
         log_dir = get_log_path(
@@ -397,11 +408,17 @@ class ARIMA(BaseModel):
             log_key="evaluation_logs"
         )
         file_writer = tf.summary.create_file_writer(log_dir)
+        facts = """
+        Model Facts:
+        - Exogenous features: {}
+        - Model order: {}
+        """.format(self.x_test.columns, self.model_order)
         figure = create_in_pred_fig(
             ticker=self.ticker,
             target=target,
             y_pred=y_pred,
-            rmse=rmse
+            rmse=rmse,
+            facts=facts
         )
         with file_writer.as_default():
             tf.summary.image(
