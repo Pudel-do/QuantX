@@ -250,14 +250,24 @@ def create_in_pred_fig(ticker, target, y_pred, rmse, facts):
     :rtype: Matplotlib figure
     """
     fig, ax = plt.subplots(figsize=(10,2))
-    plt.gcf().text(0.01, -0.1, facts, fontsize=10, bbox=dict(facecolor='white', alpha=0.8))
     ax.plot(target, label="Real Values", color='blue')
     ax.plot(y_pred, label="Predicted Values", color='red')
     ax.legend()
     ax.set_title(f"In-Sample prediction for {ticker} with RMSE of {rmse}")
     ax.set_xlabel("Sample Index")
     ax.set_ylabel("Value")
+    ax.text(
+        1.02, 1.0,
+        facts,
+        transform=ax.transAxes,
+        fontsize=10,
+        ha='left',
+        va='top',
+        #bbox=dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor="white")
+    )
+    plt.tight_layout()
     return fig
+
 
 def plot_to_image(figure):
     """Function saves figure as tensorflow image

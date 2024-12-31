@@ -412,7 +412,7 @@ class ArimaModel(BaseModel):
         Model Facts:
         - Exogenous features: {}
         - Model order: {}
-        """.format(self.x_test.columns, self.model_order)
+        """.format(list(self.x_test.columns), self.model_order)
         figure = create_in_pred_fig(
             ticker=self.ticker,
             target=target,
