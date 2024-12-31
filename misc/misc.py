@@ -249,10 +249,10 @@ def create_in_pred_fig(ticker, target, y_pred, rmse, facts):
     :return: Line chart figure
     :rtype: Matplotlib figure
     """
-    fig, ax = plt.subplots(figsize=(10,2))
+    fig, ax = plt.subplots(figsize=(12,2))
     ax.plot(target, label="Real Values", color='blue')
     ax.plot(y_pred, label="Predicted Values", color='red')
-    ax.legend()
+    ax.legend(loc="best")
     ax.set_title(f"In-Sample prediction for {ticker} with RMSE of {rmse}")
     ax.set_xlabel("Sample Index")
     ax.set_ylabel("Value")
@@ -263,7 +263,6 @@ def create_in_pred_fig(ticker, target, y_pred, rmse, facts):
         fontsize=10,
         ha='left',
         va='top',
-        #bbox=dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor="white")
     )
     plt.tight_layout()
     return fig
