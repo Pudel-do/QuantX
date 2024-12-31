@@ -372,7 +372,11 @@ class ArimaModel(BaseModel):
     
     def train(self):
         if self.best_order is None:
-            self.model_order = (0,0,0)
+            self.model_order = (
+                self.params["arima_p"],
+                self.params["arima_d"],
+                self.params["arima_q"]
+            )
             model = ARIMA(
                 endog=self.y_train,
                 exog=self.x_train,
@@ -390,6 +394,15 @@ class ArimaModel(BaseModel):
                 enforce_invertibility=False
             )
         self.model = model.fit()
+        model_facts = """
+        Model Characteristics:
+        - Exogenous features: {}
+        - Model order: {}
+        """.format(
+            list(self.x_test.columns), 
+            self.model_order
+        )
+        self.model_facts = model_facts
         return None
 
     def evaluate(self):
@@ -408,17 +421,12 @@ class ArimaModel(BaseModel):
             log_key="evaluation_logs"
         )
         file_writer = tf.summary.create_file_writer(log_dir)
-        facts = """
-        Model Facts:
-        - Exogenous features: {}
-        - Model order: {}
-        """.format(list(self.x_test.columns), self.model_order)
         figure = create_in_pred_fig(
             ticker=self.ticker,
             target=target,
             y_pred=y_pred,
             rmse=rmse,
-            facts=facts
+            facts=self.model_facts
         )
         with file_writer.as_default():
             tf.summary.image(
@@ -429,4 +437,32 @@ class ArimaModel(BaseModel):
         return None
 
     def predict(self):
-        pass
+        self.model = ARIMA(
+            endog=self.y_full,
+            exog=None,
+            order=self.model_order,
+            enforce_stationarity=False,
+            enforce_invertibility=False
+            )
+        self.model = self.model.fit()
+        prediction = self.model.get_forecast(
+            steps=self.pred_days,
+            exog=None
+        )
+        prediction = prediction.predicted_mean
+        prediction = np.array(prediction)
+        prediction = prediction.flatten()
+        last_timestamp = self.data.index[-1]
+        pred_start = last_timestamp + pd.DateOffset(days=1)
+        pred_start = get_business_day(pred_start)
+        prediction_index = pd.date_range(
+            start=pred_start,
+            periods=self.pred_days,
+            freq="B",
+            normalize=True
+        )
+        prediction = pd.Series(
+            data=prediction,
+            index=prediction_index
+        )
+        return prediction
