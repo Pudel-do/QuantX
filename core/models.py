@@ -441,15 +441,15 @@ class ArimaModel(BaseModel):
             endog=self.y_full,
             exog=None,
             order=self.model_order,
+            trend="t",
             enforce_stationarity=False,
             enforce_invertibility=False
             )
         self.model = self.model.fit()
-        prediction = self.model.get_forecast(
+        prediction = self.model.forecast(
             steps=self.pred_days,
             exog=None
         )
-        prediction = prediction.predicted_mean
         prediction = np.array(prediction)
         prediction = prediction.flatten()
         last_timestamp = self.data.index[-1]
