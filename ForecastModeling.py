@@ -160,6 +160,7 @@ def model_building(model_data, models):
                 pass
             model.train()
             model.evaluate()
+            pred = model.predict()
             FileAdapter().save_model(model=model)
             del model
     return None
