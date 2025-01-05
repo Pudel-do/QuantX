@@ -353,63 +353,43 @@ class ArimaModel(BaseModel):
             y=self.y_train,
             X=self.x_train,
             start_p=0,
-            max_p=5,
             start_q=0,
-            max_q=5,
             d=None,
-            max_order=None,
-            seasonal=False,
-            stationary=False,
+            m=1,
             test="kpss",
-            information_criterion="aic",
+            max_order=None,
+            stationary=False,
+            seasonal=False,
             trace=True,
-            error_action="warn",
             suppress_warnings=True,
             stepwise=True
-        ) 
-        self.best_order = model.order
+        )
+        self.model = model
         return None
     
     def train(self):
-        if self.best_order is None:
-            self.model_order = (
-                self.params["arima_p"],
-                self.params["arima_d"],
-                self.params["arima_q"]
-            )
-            model = ARIMA(
-                endog=self.y_train,
-                exog=self.x_train,
-                order=self.model_order,
-                enforce_stationarity=False,
-                enforce_invertibility=False
-            )
-        else:
-            self.model_order = self.best_order
-            model = ARIMA(
-                endog=self.y_train,
-                exog=self.x_train,
-                order=self.best_order,
-                enforce_stationarity=False,
-                enforce_invertibility=False
-            )
-        self.model = model.fit()
+        self.model.fit(
+            y=self.y_train, 
+            X=self.x_train
+        )
+        features = self.x_test.columns
+        order = self.model.get_params()["order"]
         model_facts = """
         Model Characteristics:
         - Exogenous features: {}
         - Model order: {}
         """.format(
-            list(self.x_test.columns), 
-            self.model_order
+            list(features),
+            order
         )
         self.model_facts = model_facts
         return None
 
     def evaluate(self):
-        steps=len(self.y_test)
-        y_pred = self.model.forecast(
-            steps=steps,
-            exog=self.x_test
+        test_length = len(self.y_test)
+        y_pred = self.model.predict(
+            n_periods=test_length,
+            X=self.x_test,
         )
         y_pred = np.array(y_pred)
         target = np.array(self.y_test)
@@ -437,18 +417,27 @@ class ArimaModel(BaseModel):
         return None
 
     def predict(self):
-        self.model = ARIMA(
-            endog=self.y_full,
-            exog=None,
-            order=self.model_order,
-            trend="t",
-            enforce_stationarity=False,
-            enforce_invertibility=False
-            )
-        self.model = self.model.fit()
-        prediction = self.model.forecast(
-            steps=self.pred_days,
-            exog=None
+        self.model.fit(
+            y=self.y_full,
+            X=self.x_full
+        )
+        # future_exog_shape = (
+        #     self.pred_days,
+        #     self.x_full.shape[1]
+        # )
+        # future_exog = np.zeros(future_exog_shape)
+
+        last_exogs = self.x_full.iloc[-1, :]
+        last_exogs = pd.DataFrame(last_exogs)
+        last_exogs = last_exogs.transpose()
+        future_exogs = pd.concat(
+            [last_exogs] * self.pred_days,
+            ignore_index=True
+        )
+        future_exogs = np.array(future_exogs)
+        prediction = self.model.predict(
+            n_periods=self.pred_days,
+            X=future_exogs,
         )
         prediction = np.array(prediction)
         prediction = prediction.flatten()
