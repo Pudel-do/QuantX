@@ -421,12 +421,6 @@ class ArimaModel(BaseModel):
             y=self.y_full,
             X=self.x_full
         )
-        # future_exog_shape = (
-        #     self.pred_days,
-        #     self.x_full.shape[1]
-        # )
-        # future_exog = np.zeros(future_exog_shape)
-
         last_exogs = self.x_full.iloc[-1, :]
         last_exogs = pd.DataFrame(last_exogs)
         last_exogs = last_exogs.transpose()
