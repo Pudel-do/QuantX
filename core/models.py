@@ -110,7 +110,6 @@ class OneStepLSTM(BaseModel):
         best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
         best_model = tuner.hypermodel.build(best_hps)
         self.seq_length = best_hps.get('seq_length')
-        self.best_hps = best_hps
         self.model = best_model
         
     def train(self):
@@ -135,6 +134,37 @@ class OneStepLSTM(BaseModel):
             validation_data=(self.x_val, self.y_val),
             callbacks=[tensorboard_cb, self.earlystop_cb],
         )
+        features = self.params["feature_cols"]
+        lr = self.model.optimizer.learning_rate.value.name
+        length_seq = self.model.input_shape[1]
+        hidden_layers = 0
+        neuron_list = []
+        dropout_list = []
+        for layer in self.model.layers:
+            if isinstance(layer, layers.LSTM):
+                hidden_layers += 1
+                neuron_list.append(layer.units)
+            elif isinstance(layer, layers.Dropout):
+                dropout_list.append(layer.rate)
+            else:
+                pass
+        model_facts = """
+        Model Characteristics:
+        - Exogenous features: {}
+        - Sequence length: {}
+        - Number of hidden layers: {}
+        - Neurons: {}
+        - Dropout rates: {}
+        - Learning rate: {}
+        """.format(
+            list(features),
+            length_seq,
+            hidden_layers,
+            neuron_list,
+            dropout_list,
+            lr
+        )
+        self.model_facts = model_facts
         return None
     
     def evaluate(self):
@@ -162,7 +192,8 @@ class OneStepLSTM(BaseModel):
             ticker=self.ticker,
             target=target,
             y_pred=y_pred,
-            rmse=rmse
+            rmse=rmse,
+            facts=self.model_facts
         )
         with file_writer.as_default():
             tf.summary.image(
@@ -210,6 +241,9 @@ class OneStepLSTM(BaseModel):
             index=prediction_index
         )
         return prediction
+    
+    def _predict():
+        pass
     
     def _build_model_hp(self, hp):
         """Function builds sequential model with LSTM layer
@@ -372,7 +406,7 @@ class ArimaModel(BaseModel):
             y=self.y_train, 
             X=self.x_train
         )
-        features = self.x_test.columns
+        features = self.params["feature_cols"]
         order = self.model.get_params()["order"]
         model_facts = """
         Model Characteristics:
