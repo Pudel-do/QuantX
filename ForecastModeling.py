@@ -65,9 +65,9 @@ def feature_engineering(stock_dict):
     for each ticker
     :rtype: Dictionary
     """
-    model_features = {}
+    model_data = {}
     for tick, data in stock_dict.items():
-        quotes = data[CONST_COLS["quote"]]
+        quotes = data[PARAMETER["target_col"]]
         #RSI
         rsi_window = PARAMETER["rsi_window"]
         delta = quotes.diff(1)
@@ -124,15 +124,20 @@ def feature_engineering(stock_dict):
         vola = vola.std()
         vola.name = CONST_COLS["ret_vola"]
 
-        quotes = pd.DataFrame(quotes)
-        features = quotes.join(
+        target = pd.DataFrame(quotes)
+        features = pd.concat(
             [rsi, macd, atr, obv, vola],
-            how="inner"
+            axis=1,
+            join="outer"
         )
         features = features[PARAMETER["feature_cols"]]
-        features = features.dropna()
-        model_features[tick] = features
-    return model_features
+        data = target.join(
+            features,
+            how="inner"
+        )
+        data = data.dropna()
+        model_data[tick] = data
+    return model_data
         
 def model_building(model_data, models):
     """Function builds, train and evaluates given
@@ -263,7 +268,7 @@ if __name__ == "__main__":
         file_name=CONST_DATA["model_data_file"]
     )
     models = [
-        ArimaModel(),
+        OneStepLSTM(),
     ]
     if PARAMETER["use_model_training"]:
         model_building(
