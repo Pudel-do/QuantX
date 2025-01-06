@@ -57,6 +57,7 @@ class OneStepLSTM(BaseModel):
             seq_length=seq_length,
             use_val_set=True
         )
+        self.val_set = val_set
         self.x_train, self.y_train = self._create_sequences(
             data=train_set,
             seq_length=seq_length
@@ -175,8 +176,11 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
-        y_pred = self.model.predict(x=self.x_test, verbose=0)
-        y_pred = y_pred[:, 0].reshape(self.pred_days, 1)
+        y_pred_list = self._predict(
+            base_data=self.val_set,
+            forecast_horizon=len(self.y_test)
+        )
+        y_pred = np.array(y_pred_list).reshape(-1, 1)
         target = self.y_test[:, 0].reshape(self.pred_days, 1)
         y_pred = self.target_scaler.inverse_transform(y_pred)
         target = self.target_scaler.inverse_transform(target)
@@ -213,17 +217,10 @@ class OneStepLSTM(BaseModel):
         :return: Out-of-sample prediction
         :rtype: Series
         """
-        last_seq = self.scaled_data[-self.seq_length:]
-        last_seq = last_seq.reshape(1, self.seq_length, self.n_features)
-        prediction_list = []
-        for _ in range(self.pred_days):
-            prediction = self.model.predict(last_seq, verbose=0)
-            prediction_list.append(prediction[0, 0])
-            prediction = prediction.reshape(1, 1, self.n_features)
-            cur_seq = last_seq[:, 1:, :]
-            new_seq = np.append(cur_seq, prediction, axis=1)
-            last_seq = new_seq
-        
+        prediction_list = self._predict(
+            base_data=self.scaled_data,
+            forecast_horizon=self.pred_days
+        )
         prediction = np.array(prediction_list).reshape(-1, 1)
         prediction = self.target_scaler.inverse_transform(prediction)
         prediction = prediction.flatten()
@@ -242,8 +239,29 @@ class OneStepLSTM(BaseModel):
         )
         return prediction
     
-    def _predict():
-        pass
+    def _predict(self, base_data, forecast_horizon):
+        """Function performs one step ahead out-of-sample
+        forecast for given forecast horizon
+
+        :param base_data: Data to generate sequence lenght from
+        :type base_data: Dataframe
+        :param forecast_horizon: Number of days to forecast
+        :type forecast_horizon: Integer
+        :return: Forecast values for target variable
+        :rtype: List
+        """
+        last_seq = base_data[-self.seq_length:]
+        last_seq = last_seq.reshape(1, self.seq_length, self.n_features)
+        prediction_list = []
+        for _ in range(forecast_horizon):
+            prediction = self.model.predict(last_seq, verbose=0)
+            prediction_list.append(prediction[0, 0])
+            prediction = prediction.reshape(1, 1, self.n_features)
+            cur_seq = last_seq[:, 1:, :]
+            new_seq = np.append(cur_seq, prediction, axis=1)
+            last_seq = new_seq
+            
+        return prediction_list
     
     def _build_model_hp(self, hp):
         """Function builds sequential model with LSTM layer
