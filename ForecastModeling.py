@@ -268,7 +268,9 @@ if __name__ == "__main__":
         file_name=CONST_DATA["model_data_file"]
     )
     models = [
-        MultiStepLSTM(),
+        # OneStepLSTM(),
+        # MultiStepLSTM(),
+        ArimaModel(),
     ]
     if PARAMETER["use_model_training"]:
         model_building(
