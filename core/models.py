@@ -701,12 +701,24 @@ class ArimaModel(BaseModel):
             seq_length=0,
             use_val_set=False
         )
-        self.x_train = train_set.iloc[:, 1:]
-        self.y_train = train_set.iloc[:, 0]
-        self.x_test = test_set.iloc[:, 1:]
-        self.y_test = test_set.iloc[:, 0]
-        self.x_full = pd.concat([self.x_train, self.x_test])
-        self.y_full = pd.concat([self.y_train, self.y_test])
+        x_train = train_set.iloc[:, 1:]
+        x_train = self._empty_check(x_train)
+        y_train = train_set.iloc[:, 0]
+        x_test = test_set.iloc[:, 1:]
+        x_test = self._empty_check(x_test)
+        y_test = test_set.iloc[:, 0]
+        y_full = pd.concat([y_train, y_test])
+        try:
+            x_full = pd.concat([x_train, x_test])
+        except ValueError as e:
+            x_full = None
+        self.x_train = x_train
+        self.y_train = y_train
+        self.x_test = x_test
+        self.y_test = y_test
+        self.x_full = x_full
+        self.y_full = y_full
+        print("break")
         return None
 
     def build_model(self):
@@ -801,14 +813,17 @@ class ArimaModel(BaseModel):
             y=self.y_full,
             X=self.x_full
         )
-        last_exogs = self.x_full.iloc[-1, :]
-        last_exogs = pd.DataFrame(last_exogs)
-        last_exogs = last_exogs.transpose()
-        future_exogs = pd.concat(
-            [last_exogs] * self.pred_days,
-            ignore_index=True
-        )
-        future_exogs = np.array(future_exogs)
+        if self.x_full is None:
+            future_exogs = None
+        else:
+            last_exogs = self.x_full.iloc[-1, :]
+            last_exogs = pd.DataFrame(last_exogs)
+            last_exogs = last_exogs.transpose()
+            future_exogs = pd.concat(
+                [last_exogs] * self.pred_days,
+                ignore_index=True
+            )
+            future_exogs = np.array(future_exogs)
         prediction = self.model.predict(
             n_periods=self.pred_days,
             X=future_exogs,
@@ -829,3 +844,18 @@ class ArimaModel(BaseModel):
             index=prediction_index
         )
         return prediction
+    
+    def _empty_check(self, exog_data):
+        """Functions checks given data to specify
+        if data is empty and returns None if empty
+        equals true
+
+        :param exog_data: Exogenous model features
+        :type exog_data: Dataframe
+        :return:
+        :rtype: 
+        """
+        if exog_data.empty:
+            return None
+        else:
+            return exog_data
