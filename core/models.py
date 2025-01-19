@@ -7,8 +7,7 @@ import io
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_absolute_percentage_error
-from pmdarima import auto_arima
-from statsmodels.tsa.arima.model import ARIMA
+from pmdarima import auto_arima, ARIMA
 from keras import layers
 from keras import optimizers
 from core.base_model import BaseModel
@@ -718,7 +717,6 @@ class ArimaModel(BaseModel):
         self.y_test = y_test
         self.x_full = x_full
         self.y_full = y_full
-        print("break")
         return None
 
     def build_model(self):
@@ -729,7 +727,16 @@ class ArimaModel(BaseModel):
         :return: None
         :rtype: None
         """
-        self.best_order = None
+        
+        model = ARIMA(
+            order=(
+                self.params["order_p"],
+                self.params["order_d"],
+                self.params["order_q"]
+            ),
+            suppress_warnings=True,
+        )
+        self.model = model
         return None
 
     def hyperparameter_tuning(self):
@@ -764,8 +771,8 @@ class ArimaModel(BaseModel):
             y=self.y_train, 
             X=self.x_train
         )
-        features = self.params["feature_cols"]
         order = self.model.get_params()["order"]
+        features = self.params["feature_cols"]
         model_facts = """
         Model Characteristics:
         - Exogenous features: {}
