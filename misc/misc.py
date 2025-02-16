@@ -82,10 +82,9 @@ def get_business_day(date):
     :type date: string or date object
     :return: Previous business day for given date. 
     If param date is still a business day, the function returns param date
-    :rtype: string
+    :rtype: String
     """
     if not isinstance(date, datetime):
-    
         date = pd.to_datetime(date)
     is_bday = pd.bdate_range(start=date, end=date).shape[0] > 0
     if not is_bday:
@@ -179,7 +178,7 @@ def get_latest_modelid(tick, model_type):
     models_path = os.path.join(models_dir, tick, model_dir)
     if not os.path.exists(models_path):
         logging.warning(f"Model for ticker {tick} does not exist")
-        models = []
+        return None
     else:
         models = os.listdir(models_path)
     model_types = []
@@ -231,7 +230,7 @@ def get_log_path(ticker, model_id, log_key):
     )
     return path
 
-def create_in_pred_fig(ticker, target, y_pred, rmse):
+def create_in_pred_fig(ticker, target, y_pred, rmse, facts):
     """Function builds matplot figure to visualize
     prediction performance on the test set against
     target values from the same set. In addition, 
@@ -249,14 +248,24 @@ def create_in_pred_fig(ticker, target, y_pred, rmse):
     :return: Line chart figure
     :rtype: Matplotlib figure
     """
-    fig, ax = plt.subplots(figsize=(10,2))
+    fig, ax = plt.subplots(figsize=(12,2))
     ax.plot(target, label="Real Values", color='blue')
     ax.plot(y_pred, label="Predicted Values", color='red')
-    ax.legend()
+    ax.legend(loc="best")
     ax.set_title(f"In-Sample prediction for {ticker} with RMSE of {rmse}")
     ax.set_xlabel("Sample Index")
     ax.set_ylabel("Value")
+    ax.text(
+        1.02, 1.0,
+        facts,
+        transform=ax.transAxes,
+        fontsize=10,
+        ha='left',
+        va='top',
+    )
+    plt.tight_layout()
     return fig
+
 
 def plot_to_image(figure):
     """Function saves figure as tensorflow image

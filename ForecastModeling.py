@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
+from mttkinter import mtTkinter as tk
 from core.file_adapter import FileAdapter
 from misc.misc import *
-from core.models import OneStepLSTM, MultiStepLSTM
+from core.models import OneStepLSTM, MultiStepLSTM, ArimaModel
 from core.finance_adapter import FinanceAdapter
 from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, root_mean_squared_error
 
@@ -64,9 +65,9 @@ def feature_engineering(stock_dict):
     for each ticker
     :rtype: Dictionary
     """
-    model_features = {}
+    model_data = {}
     for tick, data in stock_dict.items():
-        quotes = data[CONST_COLS["quote"]]
+        quotes = data[PARAMETER["target_col"]]
         #RSI
         rsi_window = PARAMETER["rsi_window"]
         delta = quotes.diff(1)
@@ -123,15 +124,20 @@ def feature_engineering(stock_dict):
         vola = vola.std()
         vola.name = CONST_COLS["ret_vola"]
 
-        quotes = pd.DataFrame(quotes)
-        features = quotes.join(
+        target = pd.DataFrame(quotes)
+        features = pd.concat(
             [rsi, macd, atr, obv, vola],
-            how="inner"
+            axis=1,
+            join="outer"
         )
         features = features[PARAMETER["feature_cols"]]
-        features = features.dropna()
-        model_features[tick] = features
-    return model_features
+        data = target.join(
+            features,
+            how="inner"
+        )
+        data = data.dropna()
+        model_data[tick] = data
+    return model_data
         
 def model_building(model_data, models):
     """Function builds, train and evaluates given
@@ -148,11 +154,15 @@ def model_building(model_data, models):
     for tick, data in model_data.items():
         for model in models:
             model.init_data(
-                data=data, 
+                data=data,
                 ticker=tick
             )
             model.preprocess_data()
             model.build_model()
+            if PARAMETER["use_hp_tuning"]:
+                model.hyperparameter_tuning()
+            else:
+                pass
             model.train()
             model.evaluate()
             FileAdapter().save_model(model=model)
@@ -258,7 +268,9 @@ if __name__ == "__main__":
         file_name=CONST_DATA["model_data_file"]
     )
     models = [
-        OneStepLSTM()
+        # OneStepLSTM(),
+        # MultiStepLSTM(),
+        ArimaModel(),
     ]
     if PARAMETER["use_model_training"]:
         model_building(

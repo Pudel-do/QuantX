@@ -12,13 +12,13 @@ import logging
 
 class DashboardAdapter:
     def __init__(
-            self, ticks,
+            self, ids,
             moving_avg, opt_moving_avg, stock_rets, fundamentals, 
             model_backtest, model_validation, models, 
             cum_bench_rets, cum_hist_rets, cum_future_rets, 
             port_performance, long_pos, port_types, 
         ):
-        self.ticks = ticks
+        self.ids = ids
         self.moving_avg = moving_avg
         self.opt_moving_avg = opt_moving_avg
         self.stock_rets = stock_rets
@@ -104,8 +104,8 @@ class DashboardAdapter:
             dcc.Dropdown(
                 id="tick_dropdown",
                 options=[{'label': ticker, 'value': ticker} \
-                            for ticker in self.ticks],
-                value=self.ticks[0]
+                            for ticker in self.ids],
+                value=self.ids[0]
             ),
             dcc.Graph(id="quote_ma_line"),
             dcc.Graph(id="ma_performance_line"),
@@ -141,8 +141,8 @@ class DashboardAdapter:
             dash_table.DataTable(
                 id="validation_table",
                 columns=[{"name": i, "id": i} \
-                            for i in self.model_validation[self.ticks[0]].columns],
-                data=self.model_validation[self.ticks[0]].to_dict('records')
+                            for i in self.model_validation[self.ids[0]].columns],
+                data=self.model_validation[self.ids[0]].to_dict('records')
             ),
             html.H1("Portfolio construction and performance"),
             dcc.Checklist(
@@ -372,7 +372,7 @@ class DashboardAdapter:
             start_filter = self.stock_rets.index >= start
             end_filter = self.stock_rets.index <= end
             returns_filtered = self.stock_rets[(start_filter) & (end_filter)]
-            returns_filtered = returns_filtered[self.ticks]
+            returns_filtered = returns_filtered[self.ids]
             corr_matrix = returns_filtered.corr()
             heatmap = px.imshow(corr_matrix, 
                                 text_auto=True, 

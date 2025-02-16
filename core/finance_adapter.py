@@ -47,8 +47,8 @@ class FinanceAdapter:
         return quotes
     
     def get_last_quote(self):
-        start = datetime.now()
-        start = start.strftime(format="%Y-%m-%d")
+        actual_date = datetime.now()
+        start = get_business_day(date=actual_date)
         quotes = yf.download(
             tickers=self.tick,
             start=start,
@@ -195,7 +195,7 @@ class FinanceAdapter:
                     converter = converter.ffill()
                     converter = np.array(converter).flatten()
                 else:
-                    start = datetime.now()
+                    start = data.index[0]
                     start = start.strftime(format="%Y-%m-%d")
                     fx_rate = yf.download(
                         tickers=fx_ticker,

@@ -24,7 +24,7 @@ class BaseModel(ABC):
         self.data = data
         self.ticker = ticker
 
-    def _data_split(self, data):
+    def _data_split(self, data, seq_length, use_val_set):
         """Function splits data set into train, test
         and validation set. Test set consits of the last
         n observations with n equals the out-of-sample
@@ -33,16 +33,24 @@ class BaseModel(ABC):
         :param data: Data set of endogenous and 
         exogenous variables for model building
         :type data: Array
+        :param seq_length: Sequence length for LSTM models
+        :type seq_length: Integer
+        :param use_val_set: Flag whether to return validation set
+        :type use_val_set: Boolean
         :return: Train, validation and test set
         :rtype: Array
         """
-        test_size = self.params["prediction_days"] + self.params["sequence_length"]
-        train_val_data = data[:-test_size]
-        train_size = int(len(train_val_data) * self.params["train_ratio"])
-        train_set = train_val_data[:train_size]
-        val_set = train_val_data[train_size:]
+        test_size = self.params["prediction_days"] + seq_length
         test_set = data[-test_size:]
-        return train_set, val_set, test_set
+        train_val_data = data[:-test_size]
+        if use_val_set:
+            train_size = int(len(train_val_data) * self.params["train_ratio"])
+            train_set = train_val_data[:train_size]
+            val_set = train_val_data[train_size:]
+            return train_set, val_set, test_set
+        else:
+            train_set = train_val_data
+            return train_set, test_set
     
     def _data_scaling(self, data):
         """Function scales model data for target and 
@@ -81,7 +89,7 @@ class BaseModel(ABC):
         :return: None
         :rtype: None
         """
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H%M%S")
         model_name = self.model_name
         model_id = f"{timestamp}_{model_name}"
         self.model_id = model_id
@@ -93,6 +101,10 @@ class BaseModel(ABC):
 
     @abstractmethod
     def build_model(self):
+        pass
+
+    @abstractmethod
+    def hyperparameter_tuning(self):
         pass
 
     @abstractmethod
