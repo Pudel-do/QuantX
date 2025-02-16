@@ -169,14 +169,17 @@ def concat_dict_to_df(dict):
     :rtype: Dataframe
     """
     tick_col = CONST_COLS["ticker"]
-    for key, value in dict.items():
-        value[tick_col] = key
+    if bool(dict):
+        for key, value in dict.items():
+            value[tick_col] = key
 
-    df = pd.concat(
-        objs=dict.values(),
-        axis=0,
-        ignore_index=False
-        )
+        df = pd.concat(
+            objs=dict.values(),
+            axis=0,
+            ignore_index=False
+            )
+    else:
+        df = pd.DataFrame()
     return df
 
 if __name__ == "__main__":

@@ -82,10 +82,9 @@ def get_business_day(date):
     :type date: string or date object
     :return: Previous business day for given date. 
     If param date is still a business day, the function returns param date
-    :rtype: string
+    :rtype: String
     """
     if not isinstance(date, datetime):
-    
         date = pd.to_datetime(date)
     is_bday = pd.bdate_range(start=date, end=date).shape[0] > 0
     if not is_bday:
@@ -179,7 +178,7 @@ def get_latest_modelid(tick, model_type):
     models_path = os.path.join(models_dir, tick, model_dir)
     if not os.path.exists(models_path):
         logging.warning(f"Model for ticker {tick} does not exist")
-        models = []
+        return None
     else:
         models = os.listdir(models_path)
     model_types = []
