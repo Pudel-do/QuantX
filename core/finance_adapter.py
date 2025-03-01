@@ -73,6 +73,15 @@ class FinanceAdapter:
             quotes = self._quote_converter(quotes, currency)
         return quotes
     
+    def get_stock_infos(self):
+        """Function extracts set of actual stock information
+
+        :return: Actual stock information
+        :rtype: Dictionary
+        """
+        stock_infos = yf.Ticker(self.tick).info
+        return stock_infos
+    
     def get_fundamental(self, fd_kpi):
         """Function extracts converted fundamental stock data from FMP
 

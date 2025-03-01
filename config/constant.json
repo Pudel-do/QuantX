@@ -12,6 +12,7 @@
         "stock_returns_file": "stock_returns",
         "benchmark_returns_file": "benchmark_returns",
         "fundamentals_file": "fundamentals",
+        "stock_infos": "stock_infos",
         "moving_averages_file": "moving_averages",
         "optimal_moving_averages_file": "optimal_moving_averages",
         "daily_trading_data_file": "daily_trading_data",
