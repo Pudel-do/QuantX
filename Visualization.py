@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
+import warnings
 from core.finance_adapter import FinanceAdapter
 from core.dashboard_adapter import DashboardAdapter
 from core.file_adapter import FileAdapter
 from misc.misc import *
+warnings.filterwarnings('ignore')
 
 def transform_df(df, index_name):
     """Function transforms given dataframe
@@ -108,6 +110,10 @@ if __name__ == "__main__":
         path=CONST_DATA["raw_data_dir"],
         file_name=CONST_DATA["stock_returns_file"]
     )
+    stock_infos = FileAdapter().load_dataframe(
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["stock_infos"]
+    )
     fundamentals = FileAdapter().load_dataframe(
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["fundamentals_file"]
@@ -165,6 +171,10 @@ if __name__ == "__main__":
         df=stock_rets,
         tick_map=ticker_mapping
     )
+    stock_infos = rename_dataframe(
+        df=stock_infos,
+        tick_map=ticker_mapping
+    )
     fundamentals = rename_dataframe(
         df=fundamentals,
         tick_map=ticker_mapping
@@ -206,6 +216,7 @@ if __name__ == "__main__":
         moving_avg=moving_averages,
         opt_moving_avg=opt_moving_averages,
         stock_rets=stock_rets,
+        stock_infos=stock_infos,
         fundamentals=fundamentals,
         model_backtest=model_backtest,
         model_validation=model_validation,

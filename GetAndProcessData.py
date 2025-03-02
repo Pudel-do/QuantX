@@ -2,11 +2,13 @@ import pandas as pd
 import numpy as np
 import os
 import json
+import warnings
 from datetime import datetime
 from core.finance_adapter import FinanceAdapter
 from core.file_adapter import FileAdapter
 from itertools import chain
 from misc.misc import *
+warnings.filterwarnings('ignore')
 
 def drop_duplicate_fundamental_cols(fundamentals):
     """Function drops duplicate fundamental KPIs
