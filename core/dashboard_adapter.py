@@ -375,7 +375,7 @@ class DashboardAdapter:
             :return: _description_
             :rtype: _type_
             """
-            data = data[stock_info_filter]
+            data = self.stock_infos[stock_info_filter]
             fig = px.bar(data, 
                          barmode="group",
                          )
