@@ -26,13 +26,10 @@ class FinanceAdapter:
         """
         last_bday = get_last_business_day()
         end = pd.to_datetime(last_bday) + pd.offsets.BDay(1)
-        quotes = yf.download(
-            tickers=self.tick,
+        quotes = self._download_data(
+            ticker=self.tick,
             start=start,
-            end=end,
-            progress=False,
-            interval="1d",
-            ignore_tz=True
+            end=end
         )
         if quotes.empty:
             logging.error(f"No quote data available for ticker {self.tick}")
@@ -54,7 +51,8 @@ class FinanceAdapter:
             start=start,
             progress=False,
             interval="1d",
-            ignore_tz=True
+            ignore_tz=True,
+            auto_adjust=False
         )
         if quotes.empty:
             logging.error(f"No quote data available for ticker {self.tick}")
@@ -197,7 +195,8 @@ class FinanceAdapter:
                         end=end,
                         progress=False,
                         interval="1d",
-                        ignore_tz=True
+                        ignore_tz=True,
+                        auto_adjust=False
                     )["Close"]
                     converter = pd.DataFrame(index=data.index)
                     converter = converter.join(fx_rate)
@@ -211,7 +210,8 @@ class FinanceAdapter:
                         start=start,
                         progress=False,
                         interval="1d",
-                        ignore_tz=True
+                        ignore_tz=True,
+                        auto_adjust=False
                     )["Close"] 
                     converter = fx_rate.iloc[0]
             except KeyError:
@@ -223,5 +223,18 @@ class FinanceAdapter:
         gen = (col for col in data.columns if not col == "Volume")
         for col in gen:
             data[col] = data[col] * converter
+        return data
+
+    def _download_data(self, ticker, start, end):
+        data = yf.download(
+                    tickers=ticker,
+                    start=start,
+                    end=end,
+                    progress=False,
+                    interval="1d",
+                    ignore_tz=True,
+                    auto_adjust=False
+        )
+        data = data.droplevel("Ticker", axis=1)
         return data
     
