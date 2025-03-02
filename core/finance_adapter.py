@@ -46,13 +46,10 @@ class FinanceAdapter:
     def get_last_quote(self):
         actual_date = datetime.now()
         start = get_business_day(date=actual_date)
-        quotes = yf.download(
-            tickers=self.tick,
+        quotes = self._download_data(
+            ticker=self.tick,
             start=start,
-            progress=False,
-            interval="1d",
-            ignore_tz=True,
-            auto_adjust=False
+            end=None
         )
         if quotes.empty:
             logging.error(f"No quote data available for ticker {self.tick}")
@@ -148,13 +145,10 @@ class FinanceAdapter:
             try:
                 fx_ticker = fx_ticker_mapping[currency]
                 try:
-                    fx_rate = yf.download(
-                        tickers=fx_ticker,
+                    fx_rate = self._download_data(
+                        ticker=fx_ticker,
                         start=fd_start_date,
-                        end=fd_end_date,
-                        progress=False,
-                        interval="1d",
-                        ignore_tz=True,
+                        end=fd_end_date
                     )
                     converter = float(fx_rate["Close"].values)
                 except KeyError:
@@ -189,14 +183,10 @@ class FinanceAdapter:
                 if len(data) > 1:
                     start = data.index[0]
                     end = data.index[-1]
-                    fx_rate = yf.download(
-                        tickers=fx_ticker,
+                    fx_rate = self._download_data(
+                        ticker=fx_ticker,
                         start=start,
-                        end=end,
-                        progress=False,
-                        interval="1d",
-                        ignore_tz=True,
-                        auto_adjust=False
+                        end=end
                     )["Close"]
                     converter = pd.DataFrame(index=data.index)
                     converter = converter.join(fx_rate)
@@ -205,13 +195,10 @@ class FinanceAdapter:
                 else:
                     start = data.index[0]
                     start = start.strftime(format="%Y-%m-%d")
-                    fx_rate = yf.download(
-                        tickers=fx_ticker,
+                    fx_rate = self._download_data(
+                        ticker=fx_ticker,
                         start=start,
-                        progress=False,
-                        interval="1d",
-                        ignore_tz=True,
-                        auto_adjust=False
+                        end=None
                     )["Close"] 
                     converter = fx_rate.iloc[0]
             except KeyError:
