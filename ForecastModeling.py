@@ -266,7 +266,7 @@ if __name__ == "__main__":
     )
     FileAdapter().save_object(
         obj=model_data_dict,
-        path=CONST_DATA["raw_data_dir"],
+        path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["model_data_file"]
     )
     models = [
