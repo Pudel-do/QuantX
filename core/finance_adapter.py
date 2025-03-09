@@ -45,14 +45,22 @@ class FinanceAdapter:
     
     def get_last_quote(self):
         actual_date = datetime.now()
-        start = get_business_day(date=actual_date)
+        actual_business_date = get_business_day(date=actual_date)
         quotes = self._download_data(
             ticker=self.tick,
-            start=start,
+            start=actual_business_date,
             end=None
         )
         if quotes.empty:
-            logging.error(f"No quote data available for ticker {self.tick}")
+            logging.warning(f"No actual quote data available for ticker {self.tick}")
+            actual_business_date = actual_business_date.strptime(format="%Y-%m-%d")
+            previous_business_date = actual_business_date - pd.offsets.BDay(1)
+            previous_business_date = previous_business_date.strftime(format="%Y-%m-%d")
+            quotes = self._download_data(
+                ticker=self.tick,
+                start=previous_business_date,
+                end=None
+        )
         elif len(quotes) > 1:
             logging.warning(f"Multiple quote data available for ticker {self.tick}")
             quotes = quotes.iloc[-1, :]
@@ -213,15 +221,25 @@ class FinanceAdapter:
         return data
 
     def _download_data(self, ticker, start, end):
-        data = yf.download(
-                    tickers=ticker,
-                    start=start,
-                    end=end,
-                    progress=False,
-                    interval="1d",
-                    ignore_tz=True,
-                    auto_adjust=False
-        )
+        if end is None:
+            data = yf.download(
+                tickers=ticker,
+                start=start,
+                progress=False,
+                interval="1d",
+                ignore_tz=True,
+                auto_adjust=False
+            )
+        else:
+            data = yf.download(
+                tickers=ticker,
+                start=start,
+                end=end,
+                progress=False,
+                interval="1d",
+                ignore_tz=True,
+                auto_adjust=False
+            )
         data = data.droplevel("Ticker", axis=1)
         return data
     
