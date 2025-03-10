@@ -53,7 +53,7 @@ class FinanceAdapter:
         )
         if quotes.empty:
             logging.warning(f"No actual quote data available for ticker {self.tick}")
-            actual_business_date = actual_business_date.strptime(format="%Y-%m-%d")
+            actual_business_date = pd.Timestamp(actual_business_date)
             previous_business_date = actual_business_date - pd.offsets.BDay(1)
             previous_business_date = previous_business_date.strftime(format="%Y-%m-%d")
             quotes = self._download_data(

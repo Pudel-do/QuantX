@@ -866,3 +866,40 @@ class ArimaModel(BaseModel):
             return None
         else:
             return exog_data
+        
+class DummyModel(BaseModel):
+    def __init__(self):
+        super().__init__(model_name="DummyModel")
+
+    def predict(self):
+        prediction = np.full((self.pred_days,), np.nan)
+        prediction = prediction.flatten()
+        last_timestamp = self.data.index[-1]
+        pred_start = last_timestamp + pd.DateOffset(days=1)
+        pred_start = get_business_day(pred_start)
+        prediction_index = pd.date_range(
+            start=pred_start,
+            periods=self.pred_days,
+            freq="B",
+            normalize=True
+        )
+        prediction = pd.Series(
+            data=prediction,
+            index=prediction_index
+        )
+        return prediction
+    
+    def preprocess_data(self):
+        pass
+
+    def build_model(self):
+        pass
+
+    def hyperparameter_tuning(self):
+        pass
+
+    def train(self):
+        pass
+
+    def evaluate(self):
+        pass

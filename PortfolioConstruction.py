@@ -88,7 +88,7 @@ def build_historical_portfolios(hist_returns, weights):
     hist_ports = pd.concat(hist_ports_list, axis=1)
     return hist_ports
     
-def build_future_portfolios(tickers, weights):
+def build_future_portfolios(tickers, weights, rets):
     """Function loads trained models for given tickers and 
     defined model type in parameter file and calculates and
     concats daily future portfolio returns for given weights
@@ -110,6 +110,11 @@ def build_future_portfolios(tickers, weights):
             ticker=tick,
             model_id=model_id
         )
+        if model_id is None:
+            model.init_data(
+                data=rets,
+                ticker=tick
+            )
         quote_prediction = model.predict()
         returns = calculate_returns(quotes=quote_prediction)
         returns.name = tick
@@ -368,7 +373,8 @@ if __name__ == "__main__":
     )
     future_port_rets = build_future_portfolios(
         tickers=tickers, 
-        weights=actual_weights
+        weights=actual_weights,
+        rets=stock_rets
     )
     cum_bench_rets = cumulate_returns(
         returns=bench_rets

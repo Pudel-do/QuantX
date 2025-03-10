@@ -4,6 +4,7 @@ import logging
 import keras
 import os
 from misc.misc import read_json
+from core.models import DummyModel
 
 
 class FileAdapter:
@@ -98,16 +99,19 @@ class FileAdapter:
         return obj
     
     def load_model(self, ticker, model_id):
-        dir = os.path.join(
-            os.getcwd(),
-            self.config["models_dir"],
-            ticker,
-            self.config["model"]
-        )
-        model = self._load_pickel(
-            dir=dir,
-            file_name=model_id
-        )
+        if model_id is None:
+            model = DummyModel()
+        else:
+            dir = os.path.join(
+                os.getcwd(),
+                self.config["models_dir"],
+                ticker,
+                self.config["model"]
+            )
+            model = self._load_pickel(
+                dir=dir,
+                file_name=model_id
+            )
         return model
 
     def _write_csv(self, data, dir, file_name):
