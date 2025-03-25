@@ -149,9 +149,6 @@ class DashboardAdapter:
             dcc.Graph(id="quote_backtest_line"),
             dash_table.DataTable(
                 id="validation_table",
-                columns=[{"name": i, "id": i} \
-                            for i in self.model_validation[self.ids[0]].columns],
-                data=self.model_validation[self.ids[0]].to_dict('records')
             ),
             html.H1("Portfolio construction and performance"),
             dcc.Checklist(
@@ -476,7 +473,6 @@ class DashboardAdapter:
             columns = [{"name": i, "id": i} \
                        for i in validation_data.columns]
             data = validation_data.to_dict('records')
-
             return columns, data
         
     def _register_callbacks_portfolio(self):
