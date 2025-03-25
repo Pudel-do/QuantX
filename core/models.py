@@ -73,10 +73,22 @@ class OneStepLSTM(BaseModel):
         n_features = self.x_train.shape[2]
         input_shape = (seq_length, n_features)
         model.add(layers.Input(shape=input_shape))
-        model.add(layers.LSTM(units=100, return_sequences=True))
-        model.add(layers.Dropout(0.2))
-        model.add(layers.LSTM(units=50, return_sequences=False))
-        model.add(layers.Dropout(0.2))
+        for i in range(self.params["n_layers"]):
+            try:
+                units = self.params["neurons"][i]
+            except IndexError as e:
+                logging.warning("Number of layers greater than list entries for neurons")
+                units = 50
+            try:
+                drop_rate = self.params["drop_rates"][i]
+            except IndexError as e:
+                logging.warning("Number of layers greater than list entries for drop rates")
+                drop_rate = 0
+            
+            return_sequences = i < (self.params["n_layers"] - 1)
+            model.add(layers.LSTM(units=units, return_sequences=return_sequences))
+            model.add(layers.Dropout(drop_rate))
+
         model.add(layers.Dense(units=n_features))
         model.compile(
             optimizer="adam", 
