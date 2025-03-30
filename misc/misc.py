@@ -52,6 +52,25 @@ def calculate_returns(quotes):
     rets = np.log(quotes / quotes.shift(1))
     rets = rets.iloc[1:]
     return rets
+
+def cumulate_returns(returns):
+    """Function calculates the cumulative and
+    exponential portfolio returns
+
+    :param returns: Daily portfolio returns
+    :type returns: Dataframe
+    :return: Cumulative portfolio returns
+    :rtype: Dataframe
+    """
+    cum_returns = pd.DataFrame()
+    for name, values in returns.items():
+        try:
+            cum_rets = values.cumsum().apply(np.exp)
+            cum_rets = cum_rets * 1000
+            cum_returns[name] = cum_rets
+        except:
+            cum_returns[name] = values
+    return cum_returns
     
 def rename_yfcolumns(data):
     """Function renames dataframe columns
