@@ -14,9 +14,7 @@ class DashboardAdapter:
     def __init__(
             self, ids,
             moving_avg, opt_moving_avg, stock_rets, stock_infos,
-            fundamentals, model_backtest, model_validation, models, 
-            cum_bench_rets, cum_hist_rets, cum_future_rets, 
-            port_performance, long_pos, port_types, 
+            fundamentals, model_backtest, model_validation, models
         ):
         self.ids = ids
         self.moving_avg = moving_avg
@@ -27,12 +25,6 @@ class DashboardAdapter:
         self.model_backtest = model_backtest
         self.model_validation = model_validation
         self.models = models
-        self.cum_bench_rets = cum_bench_rets
-        self.cum_hist_rets = cum_hist_rets
-        self.cum_future_rets = cum_future_rets
-        self.port_performance = port_performance
-        self.long_pos = long_pos
-        self.port_types = port_types
         self.const_cols = read_json("constant.json")["columns"]
         self.fundamental_cols = read_json("constant.json")["fundamentals"]["measures"]
         self.app = Dash(__name__)
