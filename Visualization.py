@@ -107,11 +107,19 @@ if __name__ == "__main__":
         file_name=CONST_DATA["optimal_moving_averages_file"]
     )
     stock_rets = FileAdapter().load_dataframe(
-        path=CONST_DATA["raw_data_dir"],
+        path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["stock_returns_file"]
     )
-    stock_infos = FileAdapter().load_dataframe(
+    bench_rets = FileAdapter().load_dataframe(
         path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["benchmark_returns_file"]
+    )
+    future_stock_rets = FileAdapter().load_dataframe(
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["future_stock_returns_file"]
+    )
+    stock_infos = FileAdapter().load_dataframe(
+        path=CONST_DATA["raw_data_dir"],
         file_name=CONST_DATA["stock_infos"]
     )
     fundamentals = FileAdapter().load_dataframe(
@@ -130,87 +138,13 @@ if __name__ == "__main__":
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["model_list"]
     )
-    cum_bench_rets = FileAdapter().load_dataframe(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["cum_benchmark_returns_file"]
-    )
-    cum_hist_rets = FileAdapter().load_dataframe(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["cum_historical_returns_file"]
-    )
-    cum_future_rets = FileAdapter().load_dataframe(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["cum_future_returns_file"]
-    )
-    port_performance = FileAdapter().load_dataframe(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["port_performance_file"]
-    )
-    long_pos = FileAdapter().load_object(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["long_position_file"]
-    )
-    port_types = FileAdapter().load_object(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["port_types"]
-    )
-
+    stock_infos, _ = harmonize_tickers(object=stock_infos)
+    stock_infos = stock_infos.transpose()
     ticker_mapping, companies = get_tick_mapping(
         stock_ticks=ticks,
         bench_tick=bench_tick
     )
-    moving_averages = rename_dataframe(
-        df=moving_averages,
-        tick_map=ticker_mapping
-    )
-    opt_moving_averages = rename_dataframe(
-        df=opt_moving_averages,
-        tick_map=ticker_mapping
-    )
-    stock_rets = rename_dataframe(
-        df=stock_rets,
-        tick_map=ticker_mapping
-    )
-    stock_infos = rename_dataframe(
-        df=stock_infos,
-        tick_map=ticker_mapping
-    )
-    fundamentals = rename_dataframe(
-        df=fundamentals,
-        tick_map=ticker_mapping
-    )
-    model_backtest = rename_dictionary(
-        dict=model_backtest,
-        tick_map=ticker_mapping
-    )
-    model_validation = rename_dictionary(
-        dict=model_validation,
-        tick_map=ticker_mapping
-    )
-    cum_bench_rets = rename_dataframe(
-        df=cum_bench_rets,
-        tick_map=ticker_mapping
-    )
-    port_performance = rename_dataframe(
-        df=port_performance,
-        tick_map=ticker_mapping
-    )
-    long_pos = rename_dictionary(
-        dict=long_pos,
-        tick_map=ticker_mapping
-    )
-    port_performance = transform_df(
-        df=port_performance,
-        index_name=CONST_COLS["port_types"]
-    )
-    model_validation = transform_dict(
-        dict=model_validation,
-        index_name=CONST_COLS["measures"]
-    )
-    long_pos = transform_dict(
-        dict=long_pos,
-        index_name=CONST_COLS["ticker"]
-    )
+
     dashboard = DashboardAdapter(
         ids=companies,
         moving_avg=moving_averages,
@@ -220,13 +154,7 @@ if __name__ == "__main__":
         fundamentals=fundamentals,
         model_backtest=model_backtest,
         model_validation=model_validation,
-        models=models,
-        cum_bench_rets=cum_bench_rets,
-        cum_hist_rets=cum_hist_rets,
-        cum_future_rets=cum_future_rets,
-        port_performance=port_performance,
-        long_pos=long_pos,
-        port_types=port_types
+        models=models
     )
     dashboard.run(debug=True)
 
