@@ -197,18 +197,12 @@ if __name__ == "__main__":
         path=CONST_DATA["raw_data_dir"],
         file_name=CONST_DATA["quotes_file"]
     )
-    stock_infos = FileAdapter().load_dataframe(
-        path=CONST_DATA["raw_data_dir"],
-        file_name=CONST_DATA["stock_infos"]
-    )
     fundamentals_dict = FileAdapter().load_object(
         path=CONST_DATA["raw_data_dir"],
         file_name=CONST_DATA["fundamentals_file"]
     )
     closing_quotes, _ = harmonize_tickers(object=closing_quotes)
     fundamentals_dict, _ = harmonize_tickers(object=fundamentals_dict)
-    stock_infos, _ = harmonize_tickers(object=stock_infos)
-    stock_infos = stock_infos.transpose()
     fundamentals = concat_dict_to_df(dict=fundamentals_dict)
     moving_averages, optimal_values = get_moving_averages(
         quote_data=closing_quotes, 
@@ -230,8 +224,3 @@ if __name__ == "__main__":
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["fundamentals_file"]
     )
-    FileAdapter().save_dataframe(
-    df=stock_infos,
-    path=CONST_DATA["processed_data_dir"],
-    file_name=CONST_DATA["stock_infos"]
-)
