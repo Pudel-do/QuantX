@@ -2,11 +2,13 @@ import pandas as pd
 import numpy as np
 import os
 import json
+import warnings
 from datetime import datetime
 from core.finance_adapter import FinanceAdapter
 from core.file_adapter import FileAdapter
 from itertools import chain
 from misc.misc import *
+warnings.filterwarnings('ignore')
 
 def drop_duplicate_fundamental_cols(fundamentals):
     """Function drops duplicate fundamental KPIs
@@ -79,6 +81,20 @@ def get_daily_stock_data(ticker_list):
         ticker_dict[tick] = data
 
     return ticker_dict
+
+def get_stock_infos(ticker_list):
+    df_infos = pd.DataFrame()
+    info_list = PARAMETER["stock_infos"]
+    for tick in ticker_list:
+        try:
+            stock_infos = FinanceAdapter(tick).get_stock_infos()
+            for info in info_list:
+                df_infos.loc[info, tick] = stock_infos[info]
+        except KeyError:
+            logging.warning(f"No information available for {tick}")
+            df_infos = pd.DataFrame(columns=ticker_list)
+    return df_infos
+
     
 def get_fundamentals(ticker_list):
     """Function extracts quarterly currency converted fundamental data 
@@ -143,6 +159,7 @@ if __name__ == "__main__":
     daily_trading_data = get_daily_stock_data(ticker_list)
     fundamentals = get_fundamentals(ticker_list)
     fundamentals = drop_duplicate_fundamental_cols(fundamentals)
+    stock_infos = get_stock_infos(ticker_list)
     FileAdapter().save_dataframe(
         df=stock_quotes,
         path=CONST_DATA["raw_data_dir"],
@@ -157,6 +174,11 @@ if __name__ == "__main__":
     df=benchmark_returns,
     path=CONST_DATA["raw_data_dir"],
     file_name=CONST_DATA["benchmark_returns_file"]
+    )
+    FileAdapter().save_dataframe(
+        df=stock_infos,
+        path=CONST_DATA["raw_data_dir"],
+        file_name=CONST_DATA["stock_infos"]
     )
     FileAdapter().save_object(
         obj=daily_trading_data,

@@ -1,11 +1,13 @@
 import pandas as pd
 import numpy as np
+import warnings
 from mttkinter import mtTkinter as tk
 from core.file_adapter import FileAdapter
 from misc.misc import *
 from core.models import OneStepLSTM, MultiStepLSTM, ArimaModel
 from core.finance_adapter import FinanceAdapter
 from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, root_mean_squared_error
+warnings.filterwarnings('ignore')
 
 def merge_features(quotes, features):
     """Function merges daily quote data with
@@ -264,13 +266,13 @@ if __name__ == "__main__":
     )
     FileAdapter().save_object(
         obj=model_data_dict,
-        path=CONST_DATA["raw_data_dir"],
+        path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["model_data_file"]
     )
     models = [
-        # OneStepLSTM(),
+        OneStepLSTM(),
         # MultiStepLSTM(),
-        ArimaModel(),
+        # ArimaModel(),
     ]
     if PARAMETER["use_model_training"]:
         model_building(

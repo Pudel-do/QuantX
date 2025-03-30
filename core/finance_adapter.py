@@ -26,13 +26,10 @@ class FinanceAdapter:
         """
         last_bday = get_last_business_day()
         end = pd.to_datetime(last_bday) + pd.offsets.BDay(1)
-        quotes = yf.download(
-            tickers=self.tick,
+        quotes = self._download_data(
+            ticker=self.tick,
             start=start,
-            end=end,
-            progress=False,
-            interval="1d",
-            ignore_tz=True
+            end=end
         )
         if quotes.empty:
             logging.error(f"No quote data available for ticker {self.tick}")
@@ -48,16 +45,22 @@ class FinanceAdapter:
     
     def get_last_quote(self):
         actual_date = datetime.now()
-        start = get_business_day(date=actual_date)
-        quotes = yf.download(
-            tickers=self.tick,
-            start=start,
-            progress=False,
-            interval="1d",
-            ignore_tz=True
+        actual_business_date = get_business_day(date=actual_date)
+        quotes = self._download_data(
+            ticker=self.tick,
+            start=actual_business_date,
+            end=None
         )
         if quotes.empty:
-            logging.error(f"No quote data available for ticker {self.tick}")
+            logging.warning(f"No actual quote data available for ticker {self.tick}")
+            actual_business_date = pd.Timestamp(actual_business_date)
+            previous_business_date = actual_business_date - pd.offsets.BDay(1)
+            previous_business_date = previous_business_date.strftime(format="%Y-%m-%d")
+            quotes = self._download_data(
+                ticker=self.tick,
+                start=previous_business_date,
+                end=None
+        )
         elif len(quotes) > 1:
             logging.warning(f"Multiple quote data available for ticker {self.tick}")
             quotes = quotes.iloc[-1, :]
@@ -72,6 +75,15 @@ class FinanceAdapter:
         if not currency == base_currency:
             quotes = self._quote_converter(quotes, currency)
         return quotes
+    
+    def get_stock_infos(self):
+        """Function extracts set of actual stock information
+
+        :return: Actual stock information
+        :rtype: Dictionary
+        """
+        stock_infos = yf.Ticker(self.tick).info
+        return stock_infos
     
     def get_fundamental(self, fd_kpi):
         """Function extracts converted fundamental stock data from FMP
@@ -141,13 +153,10 @@ class FinanceAdapter:
             try:
                 fx_ticker = fx_ticker_mapping[currency]
                 try:
-                    fx_rate = yf.download(
-                        tickers=fx_ticker,
+                    fx_rate = self._download_data(
+                        ticker=fx_ticker,
                         start=fd_start_date,
-                        end=fd_end_date,
-                        progress=False,
-                        interval="1d",
-                        ignore_tz=True,
+                        end=fd_end_date
                     )
                     converter = float(fx_rate["Close"].values)
                 except KeyError:
@@ -182,13 +191,10 @@ class FinanceAdapter:
                 if len(data) > 1:
                     start = data.index[0]
                     end = data.index[-1]
-                    fx_rate = yf.download(
-                        tickers=fx_ticker,
+                    fx_rate = self._download_data(
+                        ticker=fx_ticker,
                         start=start,
-                        end=end,
-                        progress=False,
-                        interval="1d",
-                        ignore_tz=True
+                        end=end
                     )["Close"]
                     converter = pd.DataFrame(index=data.index)
                     converter = converter.join(fx_rate)
@@ -197,12 +203,10 @@ class FinanceAdapter:
                 else:
                     start = data.index[0]
                     start = start.strftime(format="%Y-%m-%d")
-                    fx_rate = yf.download(
-                        tickers=fx_ticker,
+                    fx_rate = self._download_data(
+                        ticker=fx_ticker,
                         start=start,
-                        progress=False,
-                        interval="1d",
-                        ignore_tz=True
+                        end=None
                     )["Close"] 
                     converter = fx_rate.iloc[0]
             except KeyError:
@@ -214,5 +218,28 @@ class FinanceAdapter:
         gen = (col for col in data.columns if not col == "Volume")
         for col in gen:
             data[col] = data[col] * converter
+        return data
+
+    def _download_data(self, ticker, start, end):
+        if end is None:
+            data = yf.download(
+                tickers=ticker,
+                start=start,
+                progress=False,
+                interval="1d",
+                ignore_tz=True,
+                auto_adjust=False
+            )
+        else:
+            data = yf.download(
+                tickers=ticker,
+                start=start,
+                end=end,
+                progress=False,
+                interval="1d",
+                ignore_tz=True,
+                auto_adjust=False
+            )
+        data = data.droplevel("Ticker", axis=1)
         return data
     

@@ -13,8 +13,8 @@ import logging
 class DashboardAdapter:
     def __init__(
             self, ids,
-            moving_avg, opt_moving_avg, stock_rets, fundamentals, 
-            model_backtest, model_validation, models, 
+            moving_avg, opt_moving_avg, stock_rets, stock_infos,
+            fundamentals, model_backtest, model_validation, models, 
             cum_bench_rets, cum_hist_rets, cum_future_rets, 
             port_performance, long_pos, port_types, 
         ):
@@ -22,6 +22,7 @@ class DashboardAdapter:
         self.moving_avg = moving_avg
         self.opt_moving_avg = opt_moving_avg
         self.stock_rets = stock_rets
+        self.stock_infos = stock_infos
         self.fundamentals = fundamentals
         self.model_backtest = model_backtest
         self.model_validation = model_validation
@@ -118,6 +119,14 @@ class DashboardAdapter:
                 labelStyle={'display': 'inline-block'}
             ),
             dcc.Graph(id='fundamentals_bar'),
+            dcc.Checklist(
+                id='checklist_stock_infos',
+                options=[{'label': col, 'value': col} \
+                            for col in self.stock_infos.columns],
+                value=[self.stock_infos.columns[0]],
+                labelStyle={'display': 'inline-block'}
+            ),
+            dcc.Graph(id='stock_infos_bar'),
             html.Label("Adjust Time Period for correlation matrix"),
             dcc.RangeSlider(
                 id="time_range_slider",
@@ -140,9 +149,6 @@ class DashboardAdapter:
             dcc.Graph(id="quote_backtest_line"),
             dash_table.DataTable(
                 id="validation_table",
-                columns=[{"name": i, "id": i} \
-                            for i in self.model_validation[self.ids[0]].columns],
-                data=self.model_validation[self.ids[0]].to_dict('records')
             ),
             html.H1("Portfolio construction and performance"),
             dcc.Checklist(
@@ -350,6 +356,27 @@ class DashboardAdapter:
                          barmode="group",
                          )
             return fig
+        @self.app.callback(
+            Output("stock_infos_bar", "figure"),
+            Input("checklist_stock_infos", "value")
+        )
+        def _dropdown_checklist_chart(stock_info_filter):
+            """Function defines all graphs on which the checklist
+            dropdown should be applied. Selecting columns triggers
+            the callback and rearranges the calculated data
+
+            :param tick_filter: _description_
+            :type tick_filter: _type_
+            :param fundamental_filter: _description_
+            :type fundamental_filter: _type_
+            :return: _description_
+            :rtype: _type_
+            """
+            data = self.stock_infos[stock_info_filter]
+            fig = px.bar(data, 
+                         barmode="group",
+                         )
+            return fig
 
         @self.app.callback(
             Output("corr_heatmap", "figure"),
@@ -446,7 +473,6 @@ class DashboardAdapter:
             columns = [{"name": i, "id": i} \
                        for i in validation_data.columns]
             data = validation_data.to_dict('records')
-
             return columns, data
         
     def _register_callbacks_portfolio(self):

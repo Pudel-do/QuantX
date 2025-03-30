@@ -73,10 +73,22 @@ class OneStepLSTM(BaseModel):
         n_features = self.x_train.shape[2]
         input_shape = (seq_length, n_features)
         model.add(layers.Input(shape=input_shape))
-        model.add(layers.LSTM(units=100, return_sequences=True))
-        model.add(layers.Dropout(0.2))
-        model.add(layers.LSTM(units=50, return_sequences=False))
-        model.add(layers.Dropout(0.2))
+        for i in range(self.params["n_layers"]):
+            try:
+                units = self.params["neurons"][i]
+            except IndexError as e:
+                logging.warning("Number of layers greater than list entries for neurons")
+                units = 50
+            try:
+                drop_rate = self.params["drop_rates"][i]
+            except IndexError as e:
+                logging.warning("Number of layers greater than list entries for drop rates")
+                drop_rate = 0
+            
+            return_sequences = i < (self.params["n_layers"] - 1)
+            model.add(layers.LSTM(units=units, return_sequences=return_sequences))
+            model.add(layers.Dropout(drop_rate))
+
         model.add(layers.Dense(units=n_features))
         model.compile(
             optimizer="adam", 
@@ -866,3 +878,40 @@ class ArimaModel(BaseModel):
             return None
         else:
             return exog_data
+        
+class DummyModel(BaseModel):
+    def __init__(self):
+        super().__init__(model_name="DummyModel")
+
+    def predict(self):
+        prediction = np.full((self.pred_days,), np.nan)
+        prediction = prediction.flatten()
+        last_timestamp = self.data.index[-1]
+        pred_start = last_timestamp + pd.DateOffset(days=1)
+        pred_start = get_business_day(pred_start)
+        prediction_index = pd.date_range(
+            start=pred_start,
+            periods=self.pred_days,
+            freq="B",
+            normalize=True
+        )
+        prediction = pd.Series(
+            data=prediction,
+            index=prediction_index
+        )
+        return prediction
+    
+    def preprocess_data(self):
+        pass
+
+    def build_model(self):
+        pass
+
+    def hyperparameter_tuning(self):
+        pass
+
+    def train(self):
+        pass
+
+    def evaluate(self):
+        pass

@@ -2,10 +2,12 @@ import pandas as pd
 import numpy as np
 import logging
 import math
+import warnings
 from misc.misc import *
 from core.portfolio_generator import PortfolioGenerator
 from core.file_adapter import FileAdapter
 from core.finance_adapter import FinanceAdapter
+warnings.filterwarnings('ignore')
 
 def return_cleaning(returns):
     """Function preprocesses return data
@@ -19,8 +21,9 @@ def return_cleaning(returns):
     :return: Clean returns data
     :rtype: Dataframe
     """
-    period_mask = returns.index >= PARAMETER["portfolio_start"]
-    returns_clean = returns[period_mask]
+    period_start_mask = returns.index >= PARAMETER["portfolio_start"]
+    period_end_mask = returns.index <= PARAMETER["portfolio_end"]
+    returns_clean = returns[period_start_mask & period_end_mask]
     returns_clean = returns_clean.iloc[1:]
     returns_clean = returns_clean.fillna(0)
     return returns_clean
@@ -86,7 +89,7 @@ def build_historical_portfolios(hist_returns, weights):
     hist_ports = pd.concat(hist_ports_list, axis=1)
     return hist_ports
     
-def build_future_portfolios(tickers, weights):
+def build_future_portfolios(tickers, weights, rets):
     """Function loads trained models for given tickers and 
     defined model type in parameter file and calculates and
     concats daily future portfolio returns for given weights
@@ -108,6 +111,11 @@ def build_future_portfolios(tickers, weights):
             ticker=tick,
             model_id=model_id
         )
+        if model_id is None:
+            model.init_data(
+                data=rets,
+                ticker=tick
+            )
         quote_prediction = model.predict()
         returns = calculate_returns(quotes=quote_prediction)
         returns.name = tick
@@ -366,7 +374,8 @@ if __name__ == "__main__":
     )
     future_port_rets = build_future_portfolios(
         tickers=tickers, 
-        weights=actual_weights
+        weights=actual_weights,
+        rets=stock_rets
     )
     cum_bench_rets = cumulate_returns(
         returns=bench_rets

@@ -5,9 +5,12 @@ import os
 import logging
 import io
 import tensorflow as tf
+import matplotlib
+matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 from core import logging_config
 from datetime import datetime
+matplotlib.use('Agg') 
 
 def read_json(file_name):
     """
