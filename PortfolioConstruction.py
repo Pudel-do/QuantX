@@ -21,8 +21,9 @@ def return_cleaning(returns):
     :return: Clean returns data
     :rtype: Dataframe
     """
-    period_mask = returns.index >= PARAMETER["portfolio_start"]
-    returns_clean = returns[period_mask]
+    period_start_mask = returns.index >= PARAMETER["portfolio_start"]
+    period_end_mask = returns.index <= PARAMETER["portfolio_end"]
+    returns_clean = returns[period_start_mask & period_end_mask]
     returns_clean = returns_clean.iloc[1:]
     returns_clean = returns_clean.fillna(0)
     return returns_clean
