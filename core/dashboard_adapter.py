@@ -26,6 +26,7 @@ class DashboardAdapter:
         self.model_validation = model_validation
         self.models = models
         self.const_cols = read_json("constant.json")["columns"]
+        self.port_types = list(read_json("constant.json")["keys"].values())
         self.fundamental_cols = read_json("constant.json")["fundamentals"]["measures"]
         self.app = Dash(__name__)
         self._init_values()
@@ -150,10 +151,7 @@ class DashboardAdapter:
                 inline=True
             ),
             dcc.Graph(id="portfolio_performances"),
-            dash_table.DataTable(
-                id="performance_table",
-                data=self.port_performance.to_dict('records')
-            ),
+            dash_table.DataTable(id="performance_table"),
             html.H3("Select portfolio for long positions"),
             dcc.Dropdown(
                 id="portfolio_dropdown",
@@ -162,12 +160,7 @@ class DashboardAdapter:
                 value=self.port_types[0]
             ),
             html.P(),
-            dash_table.DataTable(
-                id="long_positions",
-                columns=[{"name": i, "id": i} \
-                            for i in self.long_pos[self.port_types[0]].columns],
-                data=self.long_pos[self.port_types[0]].to_dict('records')
-            )
+            dash_table.DataTable(id="long_positions")
         ]
     )
 
