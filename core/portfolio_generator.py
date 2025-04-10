@@ -134,9 +134,6 @@ class PortfolioGenerator:
             long_pos_dict[tick] = long_pos_list
         return weight_dict, long_pos_dict
     
-    
-
-
     def _annualized_volatility(self, weights):
         """Function calculates the annualized
         portfolio volatility by inherited returns

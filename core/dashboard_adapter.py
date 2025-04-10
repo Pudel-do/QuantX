@@ -3,7 +3,8 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import plotly.graph_objects as go
 from core import logging_config
-from misc.misc import read_json
+from misc.misc import *
+from core.portfolio_generator import PortfolioGenerator
 import pandas as pd
 import numpy as np
 import threading
@@ -13,30 +14,34 @@ import logging
 class DashboardAdapter:
     def __init__(
             self, ids,
-            moving_avg, opt_moving_avg, stock_rets, stock_infos,
-            fundamentals, model_backtest, model_validation, models
+            moving_avg, opt_moving_avg, 
+            stock_rets, bench_rets, stock_infos, fundamentals,
+            model_backtest, model_validation, models
         ):
         self.ids = ids
         self.moving_avg = moving_avg
         self.opt_moving_avg = opt_moving_avg
         self.stock_rets = stock_rets
+        self.bench_rets = bench_rets
         self.stock_infos = stock_infos
         self.fundamentals = fundamentals
         self.model_backtest = model_backtest
         self.model_validation = model_validation
         self.models = models
         self.const_cols = read_json("constant.json")["columns"]
-        self.port_types = list(read_json("constant.json")["keys"].values())
+        self.const_keys = read_json("constant.json")["keys"]
+        self.port_types = list(self.const_keys.values())
         self.fundamental_cols = read_json("constant.json")["fundamentals"]["measures"]
+        self.quote_marks, self.quote_date_range = self._init_time_range_values(self.moving_avg)
+        self.rets_marks, self.rets_date_range = self._init_time_range_values(self.stock_rets)
         self.app = Dash(__name__)
-        self._init_values()
         self._setup_layout()
         self._register_callbacks_analysis()
         self._register_callbacks_backtesting()
         self._register_callbacks_portfolio()
     
-    def _init_values(self):
-        date_range = self.stock_rets.index
+    def _init_time_range_values(self, ts):
+        date_range = ts.index
         raw_marks = {i: str(date.year) \
             for i, date in enumerate(date_range)}
         seen_years = set()
@@ -45,8 +50,7 @@ class DashboardAdapter:
             if value not in seen_years:
                 marks[key] = value
                 seen_years.add(value)
-        self.marks = marks
-        self.date_range = date_range
+        return marks, date_range
 
     def _filter_df(self, df, tick):
         """Function filters dataframe for given ticker symbol.
@@ -90,7 +94,21 @@ class DashboardAdapter:
         except KeyError:
             logging.error(f"Ticker {filter} not in model dictionary")
             return pd.DataFrame()
-
+        
+    def _filter_time_range(self, data, slider_array):
+        date_range = data.index
+        start = date_range[slider_array[0]]
+        end = date_range[slider_array[1]]
+        start_filter = data.index >= start
+        end_filter = data.index <= end
+        df_filtered = data[(start_filter) & (end_filter)]
+        return df_filtered, start, end
+    
+    def _return_cleaning(self, df):
+        df_clean = df.iloc[1:]
+        df_clean = df_clean.fillna(0)
+        return df_clean
+    
     def _setup_layout(self):
         self.app.layout = html.Div(
         [   
@@ -122,11 +140,11 @@ class DashboardAdapter:
             dcc.Graph(id='stock_infos_bar'),
             html.Label("Adjust Time Period for correlation matrix"),
             dcc.RangeSlider(
-                id="time_range_slider",
+                id="time_range_slider_corr_matrix",
                 min=0,
-                max=len(self.date_range) - 1,
-                value=[0, len(self.date_range) - 1],
-                marks=self.marks,
+                max=len(self.rets_date_range) - 1,
+                value=[0, len(self.rets_date_range) - 1],
+                marks=self.rets_marks,
                 step=1,
                 allowCross=False,
             ),
@@ -142,6 +160,15 @@ class DashboardAdapter:
             dcc.Graph(id="quote_backtest_line"),
             dash_table.DataTable(
                 id="validation_table",
+            ),
+            dcc.RangeSlider(
+                id="time_range_slider_port",
+                min=0,
+                max=len(self.rets_date_range) - 1,
+                value=[0, len(self.rets_date_range) - 1],
+                marks=self.rets_marks,
+                step=1,
+                allowCross=False,
             ),
             html.H1("Portfolio construction and performance"),
             dcc.Checklist(
@@ -312,8 +339,7 @@ class DashboardAdapter:
         @self.app.callback(
             Output("fundamentals_bar", "figure"),
             [Input("tick_dropdown", "value"),
-            Input("checklist_fundamentals", "value")
-             ]
+            Input("checklist_fundamentals", "value")]
         )
         def _dropdown_checklist_chart(tick_filter, fundamental_filter):
             """Function defines all graphs on which the checklist
@@ -365,7 +391,7 @@ class DashboardAdapter:
 
         @self.app.callback(
             Output("corr_heatmap", "figure"),
-            [Input("time_range_slider", "value")]
+            [Input("time_range_slider_corr_matrix", "value")]
         )
         def _range_slider_charts(slider_array):
             """Function defines all graphs on which the time range slider 
@@ -377,14 +403,10 @@ class DashboardAdapter:
             :return: Correlation heatmap
             :rtype: Plotly object
             """
-            date_range = self.stock_rets.index
-            start = date_range[slider_array[0]]
-            end = date_range[slider_array[1]]
-
-            start_filter = self.stock_rets.index >= start
-            end_filter = self.stock_rets.index <= end
-            returns_filtered = self.stock_rets[(start_filter) & (end_filter)]
-            returns_filtered = returns_filtered[self.ids]
+            returns_filtered, start, end = self._filter_time_range(
+                data=self.stock_rets,
+                slider_array=slider_array
+            )
             corr_matrix = returns_filtered.corr()
             heatmap = px.imshow(corr_matrix, 
                                 text_auto=True, 
@@ -471,9 +493,10 @@ class DashboardAdapter:
         """
         @self.app.callback(
             Output('portfolio_performances', 'figure'),
-            Input('portfolio_checklist', 'value')
+            [Input("time_range_slider_port", "value"),
+             Input('portfolio_checklist', 'value')]
         )
-        def _checklist_charts(selected_columns):
+        def _checklist_charts(slider_array, selected_columns):
             """Function defines all graphs on
             which the ticker dropdown should be applied
 
@@ -482,30 +505,61 @@ class DashboardAdapter:
             :return: Line Chart and histogram
             :rtype: Plotly object
             """
-            bench_rets = self.cum_bench_rets.squeeze()
+            stock_rets_filtered, start, end = self._filter_time_range(
+                data=self.stock_rets,
+                slider_array=slider_array
+            )
+            bench_rets_filtered, _, _ = self._filter_time_range(
+                data=self.bench_rets,
+                slider_array=slider_array
+            )
+            stock_rets_filtered = self._return_cleaning(stock_rets_filtered)
+            bench_rets_filtered = self._return_cleaning(bench_rets_filtered)
+            # bench_rets_filtered = bench_rets_filtered.squeeze()
+
+            max_sharpe_weights = PortfolioGenerator(stock_rets_filtered).get_max_sharpe_weights()
+            min_var_weights = PortfolioGenerator(stock_rets_filtered).get_max_sharpe_weights()
+            custom_weights = PortfolioGenerator(stock_rets_filtered).get_custom_weights()
+            equal_weights = PortfolioGenerator(stock_rets_filtered).get_equal_weights()
+
+            weight_dict = {}
+            weight_dict[self.const_keys["MAX_SHARPE"]] = max_sharpe_weights
+            weight_dict[self.const_keys["MIN_VAR"]] = min_var_weights
+            weight_dict[self.const_keys["CUSTOM"]] = custom_weights
+            weight_dict[self.const_keys["EQUAL"]] = equal_weights
+
+            hist_port_list = []
+            for key, weights in weight_dict.items():
+                port_rets = PortfolioGenerator(stock_rets_filtered).get_returns(weights)
+                port_rets.name = key
+                hist_port_list.append(port_rets)
+            hist_port_rets = pd.concat(hist_port_list, axis=1)
+            cum_hist_port_rets = cumulate_returns(hist_port_rets)
+            cum_hist_bench_rets = cumulate_returns(bench_rets_filtered)
+
             fig = go.Figure()
             for col in selected_columns:
                 fig.add_trace(go.Scatter(
-                    x=self.cum_hist_rets.index,
-                    y=self.cum_hist_rets[col],
+                    x=cum_hist_port_rets.index,
+                    y=cum_hist_port_rets[col],
                     mode="lines",
                     name=col,
                     line=dict(width=2, dash='solid')
                 ))
-                fig.add_trace(go.Scatter(
-                    x=self.cum_future_rets.index,
-                    y=self.cum_future_rets[col],
-                    mode="lines",
-                    name=col,
-                    line=dict(width=2, dash='dash')
-                ))
-            fig.add_trace(go.Scatter(
-                x=bench_rets.index,
-                y=bench_rets,
-                mode="lines",
-                name=f"Benchmark {bench_rets.name}",
-                line=dict(width=1, dash='solid')
-            ))
+                # fig.add_trace(go.Scatter(
+                #     x=self.cum_future_rets.index,
+                #     y=self.cum_future_rets[col],
+                #     mode="lines",
+                #     name=col,
+                #     line=dict(width=2, dash='dash')
+                # ))
+            # fig.add_trace(go.Scatter(
+            #     x=cum_hist_bench_rets.index,
+            #     y=cum_hist_bench_rets,
+            #     mode="lines",
+            #     name=f"Benchmark {bench_rets.name}",
+            #     line=dict(width=1, dash='solid')
+            # ))
             fig.update_layout(
                 title="Portfolio performance for different portfolio types",
                 xaxis_title="Date",
@@ -537,3 +591,4 @@ class DashboardAdapter:
         dash_thread = threading.Thread(target=run_dash)
         dash_thread.start()
         webbrowser.open_new("http://127.0.0.1:8050/")
+
