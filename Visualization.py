@@ -107,11 +107,11 @@ if __name__ == "__main__":
         file_name=CONST_DATA["optimal_moving_averages_file"]
     )
     stock_rets = FileAdapter().load_dataframe(
-        path=CONST_DATA["processed_data_dir"],
+        path=CONST_DATA["raw_data_dir"],
         file_name=CONST_DATA["stock_returns_file"]
     )
     bench_rets = FileAdapter().load_dataframe(
-        path=CONST_DATA["processed_data_dir"],
+        path=CONST_DATA["raw_data_dir"],
         file_name=CONST_DATA["benchmark_returns_file"]
     )
     future_stock_rets = FileAdapter().load_dataframe(
@@ -150,6 +150,7 @@ if __name__ == "__main__":
         moving_avg=moving_averages,
         opt_moving_avg=opt_moving_averages,
         stock_rets=stock_rets,
+        bench_rets = bench_rets,
         stock_infos=stock_infos,
         fundamentals=fundamentals,
         model_backtest=model_backtest,
