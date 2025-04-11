@@ -13,12 +13,13 @@ import logging
 
 class DashboardAdapter:
     def __init__(
-            self, ids,
+            self, ids, ticks,
             moving_avg, opt_moving_avg, 
             stock_rets, bench_rets, stock_infos, fundamentals,
             model_backtest, model_validation, models
         ):
         self.ids = ids
+        self.ticks = ticks
         self.moving_avg = moving_avg
         self.opt_moving_avg = opt_moving_avg
         self.stock_rets = stock_rets
@@ -413,7 +414,7 @@ class DashboardAdapter:
                                 aspect="auto", 
                                 color_continuous_scale="RdBu_r"
                                 )
-            title = title=f"Return correlation {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
+            title = f"Return correlation for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
             heatmap.update_layout(title=title)
             return heatmap
         
@@ -491,6 +492,11 @@ class DashboardAdapter:
         :return: None
         :rtype: None
         """
+
+        future_rets = get_future_returns(
+            tickers=self.ticks,
+            rets=self.stock_rets
+        )
         @self.app.callback(
             Output('portfolio_performances', 'figure'),
             [Input("time_range_slider_port", "value"),
@@ -505,7 +511,7 @@ class DashboardAdapter:
             :return: Line Chart and histogram
             :rtype: Plotly object
             """
-            stock_rets_filtered, start, end = self._filter_time_range(
+            hist_rets_filtered, start, end = self._filter_time_range(
                 data=self.stock_rets,
                 slider_array=slider_array
             )
@@ -513,14 +519,13 @@ class DashboardAdapter:
                 data=self.bench_rets,
                 slider_array=slider_array
             )
-            stock_rets_filtered = self._return_cleaning(stock_rets_filtered)
+            hist_rets_filtered = self._return_cleaning(hist_rets_filtered)
             bench_rets_filtered = self._return_cleaning(bench_rets_filtered)
-            # bench_rets_filtered = bench_rets_filtered.squeeze()
 
-            max_sharpe_weights = PortfolioGenerator(stock_rets_filtered).get_max_sharpe_weights()
-            min_var_weights = PortfolioGenerator(stock_rets_filtered).get_max_sharpe_weights()
-            custom_weights = PortfolioGenerator(stock_rets_filtered).get_custom_weights()
-            equal_weights = PortfolioGenerator(stock_rets_filtered).get_equal_weights()
+            max_sharpe_weights = PortfolioGenerator(hist_rets_filtered).get_max_sharpe_weights()
+            min_var_weights = PortfolioGenerator(hist_rets_filtered).get_min_var_weights()
+            custom_weights = PortfolioGenerator(hist_rets_filtered).get_custom_weights()
+            equal_weights = PortfolioGenerator(hist_rets_filtered).get_equal_weights()
 
             weight_dict = {}
             weight_dict[self.const_keys["MAX_SHARPE"]] = max_sharpe_weights
@@ -528,14 +533,21 @@ class DashboardAdapter:
             weight_dict[self.const_keys["CUSTOM"]] = custom_weights
             weight_dict[self.const_keys["EQUAL"]] = equal_weights
 
+            #Add future port list for same iteration
             hist_port_list = []
+            future_post_list = []
             for key, weights in weight_dict.items():
-                port_rets = PortfolioGenerator(stock_rets_filtered).get_returns(weights)
-                port_rets.name = key
-                hist_port_list.append(port_rets)
+                hist_port_rets = PortfolioGenerator(hist_rets_filtered).get_returns(weights)
+                future_port_rets = PortfolioGenerator(future_rets).get_returns(weights)
+                hist_port_rets.name = key
+                future_port_rets.name = key
+                hist_port_list.append(hist_port_rets)   
+                future_post_list.append(future_port_rets)
             hist_port_rets = pd.concat(hist_port_list, axis=1)
+            future_port_rets = pd.concat(future_post_list, axis=1)
             cum_hist_port_rets = cumulate_returns(hist_port_rets)
             cum_hist_bench_rets = cumulate_returns(bench_rets_filtered)
+            cum_hist_bench_rets = cum_hist_bench_rets.squeeze()
 
             fig = go.Figure()
             for col in selected_columns:
@@ -553,15 +565,15 @@ class DashboardAdapter:
                 #     name=col,
                 #     line=dict(width=2, dash='dash')
                 # ))
-            # fig.add_trace(go.Scatter(
-            #     x=cum_hist_bench_rets.index,
-            #     y=cum_hist_bench_rets,
-            #     mode="lines",
-            #     name=f"Benchmark {bench_rets.name}",
-            #     line=dict(width=1, dash='solid')
-            # ))
+            fig.add_trace(go.Scatter(
+                x=cum_hist_bench_rets.index,
+                y=cum_hist_bench_rets,
+                mode="lines",
+                name=f"Benchmark {cum_hist_bench_rets.name}",
+                line=dict(width=1, dash='solid')
+            ))
             fig.update_layout(
-                title="Portfolio performance for different portfolio types",
+                title=f"Portfolio performance for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
                 xaxis_title="Date",
                 yaxis_title="Cumulative returns",
                 template="plotly"

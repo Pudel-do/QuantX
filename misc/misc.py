@@ -6,7 +6,6 @@ import logging
 import io
 import tensorflow as tf
 import matplotlib
-matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 from core import logging_config
 from datetime import datetime
@@ -231,6 +230,43 @@ def get_latest_modelid(tick, model_type):
             else:
                 logging.warning(f"Model type {model_type} not in model folder")
                 return None
+            
+def get_future_returns(tickers, rets):
+    """Function loads trained models for given tickers and 
+    defined model type in parameter file and calculates and
+    concats daily future portfolio returns for given weights
+
+    :param tickers: Tickers for future return calculation
+    :type tickers: List
+    :param weights: Weights for portfolio calculation
+    :type weights: Dictionary
+    :return: Future portfolio returns 
+    :rtype: Dataframe
+    """
+    from core.file_adapter import FileAdapter
+    params = read_json("parameter.json")
+    return_list = []
+    for tick in tickers:
+        model_id = get_latest_modelid(
+            tick=tick, 
+            model_type=params["model"]
+        )
+        model = FileAdapter().load_model(
+            ticker=tick,
+            model_id=model_id
+        )
+        if model_id is None:
+            model.init_data(
+                data=rets,
+                ticker=tick
+            )
+        quote_prediction = model.predict()
+        returns = calculate_returns(quotes=quote_prediction)
+        returns.name = tick
+        return_list.append(returns)
+
+    future_returns = pd.concat(return_list, axis=1)
+    return future_returns
 
 def get_log_path(ticker, model_id, log_key):
     """Function builds path for saving model logs.
