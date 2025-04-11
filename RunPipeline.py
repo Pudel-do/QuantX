@@ -10,7 +10,6 @@ GET_DATA = read_json("parameter.json")["get_data"]
 task_list = [
     "DataAnalysis.py ",
     "ForecastModeling.py ",
-    "PortfolioConstruction.py ",
     "Visualization.py "
 ]
 if GET_DATA:
