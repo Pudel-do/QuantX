@@ -23,41 +23,6 @@ def return_cleaning(returns):
     """
     returns_clean = returns.iloc[1:]
     return returns_clean
-    
-def get_future_returns(tickers, rets):
-    """Function loads trained models for given tickers and 
-    defined model type in parameter file and calculates and
-    concats daily future portfolio returns for given weights
-
-    :param tickers: Tickers for future return calculation
-    :type tickers: List
-    :param weights: Weights for portfolio calculation
-    :type weights: Dictionary
-    :return: Future portfolio returns 
-    :rtype: Dataframe
-    """
-    return_list = []
-    for tick in tickers:
-        model_id = get_latest_modelid(
-            tick=tick, 
-            model_type=PARAMETER["model"]
-        )
-        model = FileAdapter().load_model(
-            ticker=tick,
-            model_id=model_id
-        )
-        if model_id is None:
-            model.init_data(
-                data=rets,
-                ticker=tick
-            )
-        quote_prediction = model.predict()
-        returns = calculate_returns(quotes=quote_prediction)
-        returns.name = tick
-        return_list.append(returns)
-
-    future_returns = pd.concat(return_list, axis=1)
-    return future_returns
 
 if __name__ == "__main__":
     CONST_COLS = read_json("constant.json")["columns"]

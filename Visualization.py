@@ -114,10 +114,6 @@ if __name__ == "__main__":
         path=CONST_DATA["raw_data_dir"],
         file_name=CONST_DATA["benchmark_returns_file"]
     )
-    future_stock_rets = FileAdapter().load_dataframe(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["future_stock_returns_file"]
-    )
     stock_infos = FileAdapter().load_dataframe(
         path=CONST_DATA["raw_data_dir"],
         file_name=CONST_DATA["stock_infos"]
