@@ -39,14 +39,15 @@ class PortfolioGenerator:
         :rtype: Series
         """
 
-        rets = self.rets.copy()
+        # rets = self.rets.copy()
+        port_rets = pd.DataFrame(index=self.rets.index)
         for tick, weight in weights.items():
             try:
                 weighted_rets = self.rets[tick] * weight
-                rets[tick] = weighted_rets
+                port_rets[tick] = weighted_rets
             except:
                 logging.warning(f"Ticker {tick} not in return portfolio constituents")
-        port_rets = rets.sum(axis=1)
+        port_rets = port_rets.sum(axis=1)
         return port_rets
     
     def get_max_sharpe_weights(self):

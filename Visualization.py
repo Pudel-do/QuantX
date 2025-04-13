@@ -134,19 +134,19 @@ if __name__ == "__main__":
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["model_list"]
     )
-    stock_infos, _ = harmonize_tickers(object=stock_infos)
+    stock_rets_clean, _ = harmonize_tickers(stock_rets)
+    stock_infos, _ = harmonize_tickers(stock_infos)
     stock_infos = stock_infos.transpose()
     ticker_mapping, companies = get_tick_mapping(
         stock_ticks=ticks,
         bench_tick=bench_tick
     )
-
     dashboard = DashboardAdapter(
         ids=ticks,
         ticks=ticks,
         moving_avg=moving_averages,
         opt_moving_avg=opt_moving_averages,
-        stock_rets=stock_rets,
+        stock_rets=stock_rets_clean,
         bench_rets = bench_rets,
         stock_infos=stock_infos,
         fundamentals=fundamentals,

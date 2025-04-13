@@ -68,6 +68,7 @@ def cumulate_returns(returns):
             cum_rets = cum_rets * 1000
             cum_returns[name] = cum_rets
         except:
+            logging.error(f"Return cumulation failed for portfolio type {name}")
             cum_returns[name] = values
     return cum_returns
     
@@ -134,7 +135,7 @@ def harmonize_tickers(object):
     dictionary. If input object is different type, the 
     function returns the raw input object
 
-    :param object: Quotes or fundamental data
+    :param object: Data to harmonize
     :type object: Dataframe, Dictionary
     :return: Input object adjusted for base tickers
     :rtype: Dataframe, Dictionary

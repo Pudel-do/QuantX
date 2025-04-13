@@ -533,9 +533,9 @@ class DashboardAdapter:
             weight_dict[self.const_keys["CUSTOM"]] = custom_weights
             weight_dict[self.const_keys["EQUAL"]] = equal_weights
 
-            #Add future port list for same iteration
             hist_port_list = []
             future_post_list = []
+            port_types = []
             for key, weights in weight_dict.items():
                 hist_port_rets = PortfolioGenerator(hist_rets_filtered).get_returns(weights)
                 future_port_rets = PortfolioGenerator(future_rets).get_returns(weights)
@@ -543,9 +543,22 @@ class DashboardAdapter:
                 future_port_rets.name = key
                 hist_port_list.append(hist_port_rets)   
                 future_post_list.append(future_port_rets)
+                port_types.append(key)
+
             hist_port_rets = pd.concat(hist_port_list, axis=1)
             future_port_rets = pd.concat(future_post_list, axis=1)
-            cum_hist_port_rets = cumulate_returns(hist_port_rets)
+            hist_idx = hist_port_rets.index
+            future_idx = future_port_rets.index
+            common_idx_mask = future_idx.isin(hist_idx)
+            future_port_rets = future_port_rets[~common_idx_mask]
+            port_rets = pd.concat(
+                [hist_port_rets, future_port_rets],
+                axis=0
+            )
+            cum_port_rets = cumulate_returns(port_rets)
+            hist_port_mask = cum_port_rets.index.isin(hist_idx)
+            cum_hist_port_rets = cum_port_rets[hist_port_mask]
+            cum_future_port_rets = cum_port_rets[~hist_port_mask]
             cum_hist_bench_rets = cumulate_returns(bench_rets_filtered)
             cum_hist_bench_rets = cum_hist_bench_rets.squeeze()
 
@@ -558,13 +571,13 @@ class DashboardAdapter:
                     name=col,
                     line=dict(width=2, dash='solid')
                 ))
-                # fig.add_trace(go.Scatter(
-                #     x=self.cum_future_rets.index,
-                #     y=self.cum_future_rets[col],
-                #     mode="lines",
-                #     name=col,
-                #     line=dict(width=2, dash='dash')
-                # ))
+                fig.add_trace(go.Scatter(
+                    x=cum_future_port_rets.index,
+                    y=cum_future_port_rets[col],
+                    mode="lines",
+                    name=col,
+                    line=dict(width=2, dash='dash')
+                ))
             fig.add_trace(go.Scatter(
                 x=cum_hist_bench_rets.index,
                 y=cum_hist_bench_rets,
