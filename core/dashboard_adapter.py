@@ -498,7 +498,8 @@ class DashboardAdapter:
             rets=self.stock_rets
         )
         @self.app.callback(
-            Output('portfolio_performances', 'figure'),
+            [Output('portfolio_performances', 'figure'),
+             Output('performance_table', 'data')],
             [Input("time_range_slider_port", "value"),
              Input('portfolio_checklist', 'value')]
         )
@@ -560,8 +561,23 @@ class DashboardAdapter:
             cum_hist_port_rets = cum_port_rets[hist_port_mask]
             cum_future_port_rets = cum_port_rets[~hist_port_mask]
             cum_hist_bench_rets = cumulate_returns(bench_rets_filtered)
+            bench_rets_filtered = bench_rets_filtered.squeeze()
             cum_hist_bench_rets = cum_hist_bench_rets.squeeze()
 
+            port_performance = pd.DataFrame()
+            for port_type, rets in hist_port_rets.items():
+                ann_mean_ret, ann_mean_vol, sharpe_ratio, bench_corr = PortfolioGenerator(rets).get_portfolio_performance(bench_rets_filtered)
+                ann_mean_ret = ann_mean_ret * 100
+                sharpe_ratio = sharpe_ratio * 100
+                port_performance.loc[port_type, self.const_cols["ann_mean_ret"]] = ann_mean_ret
+                port_performance.loc[port_type, self.const_cols["ann_vola"]] = ann_mean_vol
+                port_performance.loc[port_type, self.const_cols["sharpe_ratio"]] = sharpe_ratio
+                port_performance.loc[port_type, self.const_cols["bench_corr"]] = bench_corr
+
+            port_performance = port_performance.round(2)
+            port_performance.index.name = self.const_cols["port_types"]
+            port_performance.reset_index(inplace=True)
+            table = port_performance.to_dict('records')
             fig = go.Figure()
             for col in selected_columns:
                 fig.add_trace(go.Scatter(
@@ -591,7 +607,7 @@ class DashboardAdapter:
                 yaxis_title="Cumulative returns",
                 template="plotly"
             )
-            return fig
+            return fig, table
         
         @self.app.callback(
             [Output("long_positions", "columns"),

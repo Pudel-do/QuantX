@@ -10,7 +10,10 @@ from core.finance_adapter import FinanceAdapter
 class PortfolioGenerator:
     def __init__(self, returns):
         self.rets = returns
-        self.ticks = returns.columns
+        try:
+            self.ticks = returns.columns
+        except:
+            pass
         self.params = read_json("parameter.json")
 
     def _init_params(self):
@@ -39,7 +42,6 @@ class PortfolioGenerator:
         :rtype: Series
         """
 
-        # rets = self.rets.copy()
         port_rets = pd.DataFrame(index=self.rets.index)
         for tick, weight in weights.items():
             try:
@@ -135,6 +137,13 @@ class PortfolioGenerator:
             long_pos_dict[tick] = long_pos_list
         return weight_dict, long_pos_dict
     
+    def get_portfolio_performance(self, bench_rets):
+        ann_mean_ret = self.rets.mean() * 252
+        ann_mean_vol = np.sqrt(self.rets.std() * 252)
+        sharpe_ratio = ann_mean_ret / ann_mean_vol
+        bench_corr = self.rets.corr(bench_rets)
+        return ann_mean_ret, ann_mean_vol, sharpe_ratio, bench_corr
+
     def _annualized_volatility(self, weights):
         """Function calculates the annualized
         portfolio volatility by inherited returns
