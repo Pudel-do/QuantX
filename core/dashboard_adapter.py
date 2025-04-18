@@ -42,7 +42,7 @@ class DashboardAdapter:
         self._register_callbacks_portfolio()
     
     def _init_time_range_values(self, ts):
-        date_range = ts.index
+        date_range = ts.index.unique()
         raw_marks = {i: str(date.year) \
             for i, date in enumerate(date_range)}
         seen_years = set()
@@ -115,10 +115,21 @@ class DashboardAdapter:
         [   
             html.H1("Technical and fundamental stock analysis"),
             dcc.Dropdown(
-                id="tick_dropdown",
+                id="tick_dropdown_analysis",
                 options=[{'label': ticker, 'value': ticker} \
                             for ticker in self.ids],
                 value=self.ids[0]
+            ),
+            html.P(),
+            html.Label("Adjust time period for quote analysis"),
+            dcc.RangeSlider(
+                id="time_range_slider_quote",
+                min=0,
+                max=len(self.quote_date_range) - 1,
+                value=[0, len(self.quote_date_range) - 1],
+                marks=self.quote_marks,
+                step=1,
+                allowCross=False,
             ),
             dcc.Graph(id="quote_ma_line"),
             dcc.Graph(id="ma_performance_line"),
@@ -150,6 +161,12 @@ class DashboardAdapter:
                 allowCross=False,
             ),
             dcc.Graph(id="corr_heatmap"),
+            dcc.Dropdown(
+                id="tick_dropdown_models",
+                options=[{'label': ticker, 'value': ticker} \
+                            for ticker in self.ids],
+                value=self.ids[0]
+            ),
             html.H1("Backtesting of forecast models"),
             dcc.Checklist(
                 id='checklist_models',
@@ -205,9 +222,10 @@ class DashboardAdapter:
             [Output("quote_ma_line", "figure"),
              Output("ma_performance_line", "figure"),
              Output("return_hist", "figure")],
-            [Input("tick_dropdown", "value")]
+            [Input("tick_dropdown_analysis", "value"),
+             Input("time_range_slider_quote", "value")]
         )
-        def _dropdwon_charts(tick_filter):
+        def _dropdwon_charts(tick_filter, slider_array):
             """Function defines all graphs on
             which the ticker dropdown should be applied
 
@@ -219,6 +237,10 @@ class DashboardAdapter:
             ma_data_filtered = self._filter_df(
                 df=self.moving_avg,
                 tick=tick_filter
+            )
+            ma_data_filtered, start, end = self._filter_time_range(
+                data=ma_data_filtered,
+                slider_array=slider_array
             )
             quote_cols = [
                 self.const_cols["quote"], 
@@ -236,21 +258,31 @@ class DashboardAdapter:
             performance = ma_values_filtered.loc[self.const_cols["performance"]]
             performance = np.round(performance, 3)
             returns_filtered = self.stock_rets[tick_filter]
+            quote = ma_data_quote.loc[:, self.const_cols["quote"]]
+            sma1 = ma_data_quote.loc[:, self.const_cols["sma1"]]
+            sma2 = ma_data_quote.loc[:, self.const_cols["sma2"]]
+
+            rets = calculate_returns(quote)
+            ann_mean_ret = rets.mean() * 252
+            ann_mean_ret = np.round(ann_mean_ret, 2) * 100
+            total_ret = np.exp(rets.sum()) - 1
+            total_ret = np.round(total_ret, 2) * 100
+
             quote_line_fig = {
                 "data": [
                     {
                         "x": ma_data_quote.index, 
-                        "y": ma_data_quote.loc[:, self.const_cols["quote"]], 
+                        "y": quote, 
                         "type": "line", 
                         "name": "Quote",
                         "line": {"color": "blue"}
                     },
                     {
                         "x": ma_data_quote.index, 
-                        "y": ma_data_quote.loc[:, self.const_cols["sma1"]], 
+                        "y": sma1, 
                         "type": "line", 
                         "name": f"SMA {int(ma_values_filtered.loc[self.const_cols["sma1"]])} Days",
-                        "opacity": 0.75,
+                        "opacity": 0.5,
                         "line": {
                             "color": "green",
                             "width": 1.5
@@ -258,10 +290,10 @@ class DashboardAdapter:
                     },
                     {
                         "x": ma_data_quote.index, 
-                        "y": ma_data_quote.loc[:, self.const_cols["sma2"]], 
+                        "y": sma2, 
                         "type": "line", 
                         "name": f"SMA {int(ma_values_filtered.loc[self.const_cols["sma2"]])} Days",
-                        "opacity": 0.75,
+                        "opacity": 0.5,
                         "line": {
                             "color": "red",
                             "width": 1.5
@@ -269,7 +301,7 @@ class DashboardAdapter:
                     },
                 ],
                 "layout": {
-                    "title": f"Optimal Moving Averages for {tick_filter}",
+                    "title": f"Annualized mean return of {ann_mean_ret}% and total return of {total_ret}% for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
                     "xaxis": {"title": "Date"},
                     "yaxis": {"title": "Values"},
                     "legend": {
@@ -339,7 +371,7 @@ class DashboardAdapter:
         
         @self.app.callback(
             Output("fundamentals_bar", "figure"),
-            [Input("tick_dropdown", "value"),
+            [Input("tick_dropdown_analysis", "value"),
             Input("checklist_fundamentals", "value")]
         )
         def _dropdown_checklist_chart(tick_filter, fundamental_filter):
@@ -429,7 +461,7 @@ class DashboardAdapter:
         """
         @self.app.callback(
             Output("quote_backtest_line", "figure"),
-            [Input("tick_dropdown", "value"), 
+            [Input("tick_dropdown_models", "value"), 
              Input("checklist_models", "value")]
         )
         def _dropdwon_checklist_charts(tick_filter, selected_models):
@@ -470,7 +502,7 @@ class DashboardAdapter:
         @self.app.callback(
             [Output("validation_table", "columns"),
              Output("validation_table", "data")],
-             Input("tick_dropdown", "value")
+             Input("tick_dropdown_analysis", "value")
         )
         def _dropdown_table(tick_filter):
             validation_data = self._filter_dict(
@@ -568,7 +600,6 @@ class DashboardAdapter:
             for port_type, rets in hist_port_rets.items():
                 ann_mean_ret, ann_mean_vol, sharpe_ratio, bench_corr = PortfolioGenerator(rets).get_portfolio_performance(bench_rets_filtered)
                 ann_mean_ret = ann_mean_ret * 100
-                sharpe_ratio = sharpe_ratio * 100
                 port_performance.loc[port_type, self.const_cols["ann_mean_ret"]] = ann_mean_ret
                 port_performance.loc[port_type, self.const_cols["ann_vola"]] = ann_mean_vol
                 port_performance.loc[port_type, self.const_cols["sharpe_ratio"]] = sharpe_ratio
