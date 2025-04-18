@@ -69,7 +69,7 @@
         "ret_id": "RETURN_ID",
         "hist_rets": "HISTORICAL_RETURNS",
         "future_rets": "FUTURE_RETURNS",
-        "sharpe_ratio": "SHARPE RATIO (%)",
+        "sharpe_ratio": "SHARPE RATIO",
         "ann_mean_ret": "ANNUALIZED MEAN RETURN (%)",
         "ann_vola": "ANNUALIZED VOLA",
         "bench_corr": "BENCHMARK_CORRELATION",
