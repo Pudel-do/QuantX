@@ -205,12 +205,7 @@ class DashboardAdapter:
                 value=self.port_types[0]
             ),
             html.P(),
-            dash_table.DataTable(
-                id="long_positions",
-                # columns=[{"name": i, "id": i} \
-                #             for i in self.long_pos[self.port_types[0]].columns],
-                # data=self.long_pos[self.port_types[0]].to_dict('records')
-            )
+            dash_table.DataTable(id="long_positions")
         ]
     )
 
@@ -569,16 +564,16 @@ class DashboardAdapter:
             custom_weights = PortfolioGenerator(hist_rets_filtered).get_custom_weights()
             equal_weights = PortfolioGenerator(hist_rets_filtered).get_equal_weights()
 
-            weight_dict = {}
-            weight_dict[self.const_keys["MAX_SHARPE"]] = max_sharpe_weights
-            weight_dict[self.const_keys["MIN_VAR"]] = min_var_weights
-            weight_dict[self.const_keys["CUSTOM"]] = custom_weights
-            weight_dict[self.const_keys["EQUAL"]] = equal_weights
+            optimal_weights = {}
+            optimal_weights[self.const_keys["MAX_SHARPE"]] = max_sharpe_weights
+            optimal_weights[self.const_keys["MIN_VAR"]] = min_var_weights
+            optimal_weights[self.const_keys["CUSTOM"]] = custom_weights
+            optimal_weights[self.const_keys["EQUAL"]] = equal_weights
 
             hist_port_list = []
             future_post_list = []
             port_types = []
-            for key, weights in weight_dict.items():
+            for key, weights in optimal_weights.items():
                 hist_port_rets = PortfolioGenerator(hist_rets_filtered).get_returns(weights)
                 future_port_rets = PortfolioGenerator(future_rets).get_returns(weights)
                 hist_port_rets.name = key
@@ -647,15 +642,14 @@ class DashboardAdapter:
                 yaxis_title="Cumulative returns",
                 template="plotly"
             )
-            #ToDO: weight_dict auf gleiche Struktur anpassen wie actual_weights und actual_long_pos
             actual_weights = {}
             actual_long_pos = {}
-            for port_type, weights in weight_dict.items():
+            for port_type, weights in optimal_weights.items():
                 weight_dict, long_pos_dict = PortfolioGenerator(self.stock_rets).get_actual_invest(weights)
                 actual_weights[port_type] = weight_dict
                 actual_long_pos[port_type] = long_pos_dict
 
-            opt_dict_keys = list(weight_dict.keys())
+            opt_dict_keys = list(optimal_weights.keys())
             act_dict_keys = list(actual_weights.keys())
             long_pos_keys = list(actual_long_pos.keys())
             common_keys = get_list_intersection(
@@ -669,7 +663,7 @@ class DashboardAdapter:
                     index=self.ticks
                 )
                 for tick in self.ticks:
-                    opt_weight = weight_dict[type].get(tick)
+                    opt_weight = optimal_weights[type].get(tick)
                     act_weight = actual_weights[type].get(tick)
                     n_shares = actual_long_pos[type].get(tick)[0]
                     invest = actual_long_pos[type].get(tick)[1]
@@ -683,8 +677,6 @@ class DashboardAdapter:
                 dict=result_dict,
                 filter=port_filter
             )
-            # columns = [{"name": i, "id": i} \
-            #            for i in port_long_pos.columns]
             data = port_long_pos.to_dict('records')
 
             return fig, table, data
