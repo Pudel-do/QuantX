@@ -205,7 +205,12 @@ class DashboardAdapter:
                 value=self.port_types[0]
             ),
             html.P(),
-            dash_table.DataTable(id="long_positions")
+            dash_table.DataTable(
+                id="long_positions",
+                # columns=[{"name": i, "id": i} \
+                #             for i in self.long_pos[self.port_types[0]].columns],
+                # data=self.long_pos[self.port_types[0]].to_dict('records')
+            )
         ]
     )
 
@@ -529,13 +534,17 @@ class DashboardAdapter:
             tickers=self.ticks,
             rets=self.stock_rets
         )
+
         @self.app.callback(
             [Output('portfolio_performances', 'figure'),
-             Output('performance_table', 'data')],
+             Output('performance_table', 'data'),
+            #  Output("long_positions", "columns"),
+             Output("long_positions", "data")],
             [Input("time_range_slider_port", "value"),
-             Input('portfolio_checklist', 'value')]
+             Input('portfolio_checklist', 'value'),
+             Input("portfolio_dropdown", "value")]
         )
-        def _checklist_charts(slider_array, selected_columns):
+        def _checklist_charts(slider_array, selected_columns, port_filter):
             """Function defines all graphs on
             which the ticker dropdown should be applied
 
@@ -638,22 +647,47 @@ class DashboardAdapter:
                 yaxis_title="Cumulative returns",
                 template="plotly"
             )
-            return fig, table
-        
-        @self.app.callback(
-            [Output("long_positions", "columns"),
-            Output("long_positions", "data")],
-            Input("portfolio_dropdown", "value")
-        )
-        def _dropdown_table(port_filter):
+            #ToDO: weight_dict auf gleiche Struktur anpassen wie actual_weights und actual_long_pos
+            actual_weights = {}
+            actual_long_pos = {}
+            for port_type, weights in weight_dict.items():
+                weight_dict, long_pos_dict = PortfolioGenerator(self.stock_rets).get_actual_invest(weights)
+                actual_weights[port_type] = weight_dict
+                actual_long_pos[port_type] = long_pos_dict
+
+            opt_dict_keys = list(weight_dict.keys())
+            act_dict_keys = list(actual_weights.keys())
+            long_pos_keys = list(actual_long_pos.keys())
+            common_keys = get_list_intersection(
+                opt_dict_keys,
+                act_dict_keys,
+                long_pos_keys
+            )
+            result_dict = {}
+            for type in common_keys:
+                long_pos_results = pd.DataFrame(
+                    index=self.ticks
+                )
+                for tick in self.ticks:
+                    opt_weight = weight_dict[type].get(tick)
+                    act_weight = actual_weights[type].get(tick)
+                    n_shares = actual_long_pos[type].get(tick)[0]
+                    invest = actual_long_pos[type].get(tick)[1]
+                    long_pos_results.loc[tick, self.const_cols["opt_weight"]] = opt_weight
+                    long_pos_results.loc[tick, self.const_cols["act_weight"]] = act_weight
+                    long_pos_results.loc[tick, self.const_cols["long_pos"]] = n_shares
+                    long_pos_results.loc[tick, self.const_cols["amount"]] = invest
+                result_dict[type] = long_pos_results
+
             port_long_pos = self._filter_dict(
-                dict=self.long_pos,
+                dict=result_dict,
                 filter=port_filter
             )
-            columns = [{"name": i, "id": i} \
-                       for i in port_long_pos.columns]
+            # columns = [{"name": i, "id": i} \
+            #            for i in port_long_pos.columns]
             data = port_long_pos.to_dict('records')
-            return columns, data
+
+            return fig, table, data
 
     def run(self, debug=True):
 
