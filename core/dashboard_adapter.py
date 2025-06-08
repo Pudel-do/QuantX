@@ -529,11 +529,17 @@ class DashboardAdapter:
             tickers=self.ticks,
             rets=self.stock_rets
         )
+        #ToDo: Design object as dictionary with ticker symbol as key and actual quote as value
+        
+        # actual_quotes = FinanceAdapter(tick).get_last_quote()
+        # actual_quotes = rename_yfcolumns(data=actual_quotes)
+        # actual_quote = actual_quotes[self.params["quote_id"]]
+        # actual_quote = actual_quote.iloc[0]
+        actual_quote = 100
 
         @self.app.callback(
             [Output('portfolio_performances', 'figure'),
              Output('performance_table', 'data'),
-            #  Output("long_positions", "columns"),
              Output("long_positions", "data")],
             [Input("time_range_slider_port", "value"),
              Input('portfolio_checklist', 'value'),
@@ -645,7 +651,7 @@ class DashboardAdapter:
             actual_weights = {}
             actual_long_pos = {}
             for port_type, weights in optimal_weights.items():
-                weight_dict, long_pos_dict = PortfolioGenerator(self.stock_rets).get_actual_invest(weights)
+                weight_dict, long_pos_dict = PortfolioGenerator(self.stock_rets).get_actual_invest(weights, actual_quote)
                 actual_weights[port_type] = weight_dict
                 actual_long_pos[port_type] = long_pos_dict
 
