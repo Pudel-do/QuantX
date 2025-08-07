@@ -16,7 +16,7 @@ class DashboardAdapter:
             self, ids, ticks,
             moving_avg, opt_moving_avg, 
             stock_rets, bench_rets, stock_infos, fundamentals,
-            model_backtest, model_validation, models
+            model_backtest, model_validation, models, actual_quotes
         ):
         self.ids = ids
         self.ticks = ticks
@@ -29,6 +29,7 @@ class DashboardAdapter:
         self.model_backtest = model_backtest
         self.model_validation = model_validation
         self.models = models
+        self.actual_quotes = actual_quotes
         self.const_cols = read_json("constant.json")["columns"]
         self.const_keys = read_json("constant.json")["keys"]
         self.port_types = list(self.const_keys.values())
@@ -529,14 +530,6 @@ class DashboardAdapter:
             tickers=self.ticks,
             rets=self.stock_rets
         )
-        #ToDo: Design object as dictionary with ticker symbol as key and actual quote as value
-        
-        # actual_quotes = FinanceAdapter(tick).get_last_quote()
-        # actual_quotes = rename_yfcolumns(data=actual_quotes)
-        # actual_quote = actual_quotes[self.params["quote_id"]]
-        # actual_quote = actual_quote.iloc[0]
-        actual_quote = 100
-
         @self.app.callback(
             [Output('portfolio_performances', 'figure'),
              Output('performance_table', 'data'),
@@ -651,7 +644,7 @@ class DashboardAdapter:
             actual_weights = {}
             actual_long_pos = {}
             for port_type, weights in optimal_weights.items():
-                weight_dict, long_pos_dict = PortfolioGenerator(self.stock_rets).get_actual_invest(weights, actual_quote)
+                weight_dict, long_pos_dict = PortfolioGenerator(self.stock_rets).get_actual_invest(weights, self.actual_quotes)
                 actual_weights[port_type] = weight_dict
                 actual_long_pos[port_type] = long_pos_dict
 
