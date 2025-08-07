@@ -222,7 +222,6 @@ def get_latest_modelid(tick, model_type):
             latest_date = max(value)
             model_id = f"{latest_date}_{key_split}"
             model_ids.append(model_id)
-            return model_ids
         else:
             if model_type in key_split:
                 latest_date = max(value)
@@ -231,6 +230,7 @@ def get_latest_modelid(tick, model_type):
             else:
                 logging.warning(f"Model type {model_type} not in model folder")
                 return None
+    return model_ids
             
 def get_future_returns(tickers, rets):
     """Function loads trained models for given tickers and 
