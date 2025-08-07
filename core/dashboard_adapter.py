@@ -122,7 +122,6 @@ class DashboardAdapter:
                 value=self.ids[0]
             ),
             html.P(),
-            html.Label("Adjust time period for quote analysis"),
             dcc.RangeSlider(
                 id="time_range_slider_quote",
                 min=0,
@@ -187,6 +186,7 @@ class DashboardAdapter:
                 value=[self.port_types[0]],
                 inline=True
             ),
+            html.P(),
             dcc.RangeSlider(
                 id="time_range_slider_port",
                 min=0,
