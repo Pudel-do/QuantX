@@ -77,7 +77,8 @@
         "opt_weight": "OPTIMAL_WEIGHT",
         "act_weight": "ACTUAL_WEIGHT",
         "long_pos": "LONG_POSITION",
-        "amount": "AMOUNT"
+        "amount": "AMOUNT",
+        "company": "COMPANY"
     },
     "keys": {
         "MIN_VAR": "MinimumVariance",
