@@ -56,7 +56,6 @@ def get_moving_averages(quote_data, use_train):
         cum_rets.name = CONST_COLS["cumreturns"]
         cum_strat.name = CONST_COLS["cumstrategy"]
         ma_results = pd.DataFrame(quotes)
-        ma_results = ma_results.dropna()
         ma_results = ma_results.join(
             [backtest[
                 [CONST_COLS["sma1"], 
@@ -67,6 +66,7 @@ def get_moving_averages(quote_data, use_train):
             ],
             how="outer"
         )
+        ma_results = ma_results.fillna(method="ffill")
         moving_average_dict[ticker] = ma_results
         optimal_ma_value_list.append(opt_values)
     optimal_ma_values = pd.DataFrame(optimal_ma_value_list)
