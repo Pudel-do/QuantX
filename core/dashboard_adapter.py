@@ -499,8 +499,7 @@ class DashboardAdapter:
             return backtest_fig
         
         @self.app.callback(
-            [Output("validation_table", "columns"),
-             Output("validation_table", "data")],
+             Output("validation_table", "data"),
              Input("tick_dropdown_analysis", "value")
         )
         def _dropdown_table(tick_filter):
@@ -509,10 +508,10 @@ class DashboardAdapter:
                 filter=tick_filter
             )
             validation_data = validation_data.round(3)
-            columns = [{"name": i, "id": i} \
-                       for i in validation_data.columns]
+            validation_data.index.name = self.const_cols["measures"]
+            validation_data.reset_index(inplace=True)
             data = validation_data.to_dict('records')
-            return columns, data
+            return data
         
     def _register_callbacks_portfolio(self):
         """Functions defines the app callbacks to adjust
@@ -659,6 +658,7 @@ class DashboardAdapter:
                 long_pos_results = pd.DataFrame(
                     index=self.ticks
                 )
+                long_pos_results.index.name = self.const_cols["company"]
                 for tick in self.ticks:
                     opt_weight = optimal_weights[type].get(tick)
                     act_weight = actual_weights[type].get(tick)
@@ -674,6 +674,7 @@ class DashboardAdapter:
                 dict=result_dict,
                 filter=port_filter
             )
+            port_long_pos = port_long_pos.round(2)
             port_long_pos.reset_index(inplace=True)
             data = port_long_pos.to_dict('records')
             return fig, table, data
