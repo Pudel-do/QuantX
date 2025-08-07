@@ -180,6 +180,13 @@ class DashboardAdapter:
             dash_table.DataTable(
                 id="validation_table",
             ),
+            html.H1("Portfolio construction and performance"),
+            dcc.Checklist(
+                id='portfolio_checklist',
+                options=[{'label': col, 'value': col} for col in self.port_types],
+                value=[self.port_types[0]],
+                inline=True
+            ),
             dcc.RangeSlider(
                 id="time_range_slider_port",
                 min=0,
@@ -188,13 +195,6 @@ class DashboardAdapter:
                 marks=self.rets_marks,
                 step=1,
                 allowCross=False,
-            ),
-            html.H1("Portfolio construction and performance"),
-            dcc.Checklist(
-                id='portfolio_checklist',
-                options=[{'label': col, 'value': col} for col in self.port_types],
-                value=[self.port_types[0]],
-                inline=True
             ),
             dcc.Graph(id="portfolio_performances"),
             dash_table.DataTable(id="performance_table"),
@@ -264,10 +264,8 @@ class DashboardAdapter:
             sma2 = ma_data_quote.loc[:, self.const_cols["sma2"]]
 
             rets = calculate_returns(quote)
-            ann_mean_ret = rets.mean() * 252
-            ann_mean_ret = np.round(ann_mean_ret, 2) * 100
-            total_ret = np.exp(rets.sum()) - 1
-            total_ret = np.round(total_ret, 2) * 100
+            ann_mean_ret = rets.mean() * 252 * 100
+            total_ret = (np.exp(rets.sum()) - 1) * 100
 
             quote_line_fig = {
                 "data": [
@@ -283,10 +281,10 @@ class DashboardAdapter:
                         "y": sma1, 
                         "type": "line", 
                         "name": f"SMA {int(ma_values_filtered.loc[self.const_cols["sma1"]])} Days",
-                        "opacity": 0.5,
+                        "opacity": .75,
                         "line": {
                             "color": "green",
-                            "width": 1.5
+                            "width": 1
                         }
                     },
                     {
@@ -294,15 +292,15 @@ class DashboardAdapter:
                         "y": sma2, 
                         "type": "line", 
                         "name": f"SMA {int(ma_values_filtered.loc[self.const_cols["sma2"]])} Days",
-                        "opacity": 0.5,
+                        "opacity": 0.75,
                         "line": {
                             "color": "red",
-                            "width": 1.5
+                            "width": 1
                         }
                     },
                 ],
                 "layout": {
-                    "title": f"Annualized mean return of {ann_mean_ret}% and total return of {total_ret}% for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
+                    "title": f"Annualized mean return of {ann_mean_ret: .2f}% and total return of {total_ret: .2f}% for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
                     "xaxis": {"title": "Date"},
                     "yaxis": {"title": "Values"},
                     "legend": {
@@ -676,8 +674,8 @@ class DashboardAdapter:
                 dict=result_dict,
                 filter=port_filter
             )
+            port_long_pos.reset_index(inplace=True)
             data = port_long_pos.to_dict('records')
-
             return fig, table, data
 
     def run(self, debug=True):
