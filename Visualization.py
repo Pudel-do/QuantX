@@ -92,6 +92,17 @@ def rename_dictionary(dict, tick_map):
         dict_adj[key_adj] = value_adj
     return dict_adj
 
+def get_actual_quotes(ticks):
+    tick_quotes = {}
+    for tick in ticks:
+        actual_quotes = FinanceAdapter(tick).get_last_quote()
+        actual_quotes = rename_yfcolumns(data=actual_quotes)
+        actual_quote = actual_quotes[PARAMETER["quote_id"]]
+        actual_quote = actual_quote.iloc[0]
+        tick_quotes[tick] = actual_quote
+
+    return tick_quotes
+
 if __name__ == "__main__":
     PARAMETER = read_json("parameter.json")
     CONST_COLS = read_json("constant.json")["columns"]
@@ -141,6 +152,8 @@ if __name__ == "__main__":
         stock_ticks=ticks,
         bench_tick=bench_tick
     )
+    actual_quotes = get_actual_quotes(ticks=ticks)
+
     dashboard = DashboardAdapter(
         ids=ticks,
         ticks=ticks,
@@ -152,7 +165,8 @@ if __name__ == "__main__":
         fundamentals=fundamentals,
         model_backtest=model_backtest,
         model_validation=model_validation,
-        models=models
+        models=models,
+        actual_quotes=actual_quotes
     )
     dashboard.run(debug=True)
 
