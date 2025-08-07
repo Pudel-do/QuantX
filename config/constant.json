@@ -73,7 +73,7 @@
         "ann_mean_ret": "ANNUALIZED MEAN RETURN (%)",
         "ann_vola": "ANNUALIZED VOLA",
         "bench_corr": "BENCHMARK_CORRELATION",
-        "port_types": "PORTFOLIO_TYPES",
+        "port_types": "PORTFOLIO TYPES",
         "opt_weight": "OPTIMAL_WEIGHT",
         "act_weight": "ACTUAL_WEIGHT",
         "long_pos": "LONG_POSITION",
