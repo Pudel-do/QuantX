@@ -115,12 +115,13 @@ class PortfolioGenerator:
             equal_weights[tick] = equal_weight
         return equal_weights
     
-    def get_actual_invest(self, weights, actual_quote):
+    def get_actual_invest(self, weights, actual_quotes):
         weight_dict = {}
         long_pos_dict = {}
         invest = self.params["investment"]
         for tick, weight in weights.items():
             long_pos_list = []
+            actual_quote = actual_quotes[tick]
             raw_amount = invest * weight
             n_shares = raw_amount / actual_quote
             n_shares_adj = int(math.floor(n_shares))
