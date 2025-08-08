@@ -271,8 +271,7 @@ if __name__ == "__main__":
     )
     models = [
         OneStepLSTM(),
-        # MultiStepLSTM(),
-        # ArimaModel(),
+        ArimaModel(),
     ]
     if PARAMETER["use_model_training"]:
         model_building(
