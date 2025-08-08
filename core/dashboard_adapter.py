@@ -506,7 +506,7 @@ class DashboardAdapter:
         
         @self.app.callback(
              Output("validation_table", "data"),
-             Input("tick_dropdown_analysis", "value")
+             Input("tick_dropdown_models", "value")
         )
         def _dropdown_table(tick_filter):
             validation_data = self._filter_dict(
