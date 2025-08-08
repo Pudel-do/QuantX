@@ -68,14 +68,18 @@ class DashboardAdapter:
         :rtype: Dataframe
         """
         tick_col = self.const_cols["ticker"]
-        try:
-            filter_mask = df[tick_col] == tick
-            df_filtered = df[filter_mask]
-            df_filtered = df_filtered.drop(columns=tick_col)
-            return df_filtered
-        except KeyError:
-            logging.error(f"Column {tick_col} or ticker symbol {tick} not in dataframe")
-            return pd.DataFrame()
+        if not df.empty:
+            try:
+                filter_mask = df[tick_col] == tick
+                df_filtered = df[filter_mask]
+                df_filtered = df_filtered.drop(columns=tick_col)
+                return df_filtered
+            except KeyError:
+                logging.error(f"Column {tick_col} or ticker symbol {tick} not in dataframe")
+                return pd.DataFrame()
+        else:
+            return df
+
         
     def _filter_dict(self, dict, filter):
         """Function filters dictionary for given ticker symbol.
@@ -385,14 +389,16 @@ class DashboardAdapter:
             :return: _description_
             :rtype: _type_
             """
-            try:
-                data = self._filter_df(
-                    df=self.fundamentals,
-                    tick=tick_filter
-                )
-            except KeyError:
+
+            data = self._filter_df(
+                df=self.fundamentals,
+                tick=tick_filter
+            )
+            if data.empty:
                 data = pd.DataFrame(columns=self.fundamental_cols)
                 logging.warning(f"No fundamental data available for ticker {tick_filter}")
+            else:
+                pass
 
             data = data[fundamental_filter]
             fig = px.bar(data, 
