@@ -71,6 +71,31 @@ def cumulate_returns(returns):
             logging.error(f"Return cumulation failed for column {name}")
             cum_returns[name] = values
     return cum_returns
+
+def rename_dataframe(df, tick_map, const_cols):
+    df_cols = df.columns
+    if const_cols["ticker"] in df_cols:
+        df_adj = df.replace(
+            {const_cols["ticker"]: tick_map}
+        )
+    else:
+        df_adj = df.rename(mapper=tick_map, axis=0)
+        df_adj = df_adj.rename(mapper=tick_map, axis=1)
+    return df_adj
+
+def rename_dictionary(dict, tick_map):
+    dict_adj = {}
+    for key, value in dict.items():
+        if key in list(tick_map.keys()):
+            key_adj = tick_map[key]
+        else:
+            key_adj = key
+        value_adj = rename_dataframe(
+            df=value,
+            tick_map=tick_map
+        )
+        dict_adj[key_adj] = value_adj
+    return dict_adj
     
 def rename_yfcolumns(data):
     """Function renames dataframe columns
