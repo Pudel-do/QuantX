@@ -129,6 +129,42 @@ def get_last_business_day():
     last_bday = last_bday.strftime(format="%Y-%m-%d")
     return last_bday
 
+def calc_annualized_mean_return(returns):
+    """Function calculates annualized mean return for daily 
+    return series
+
+    :param returns: Daily stock returns
+    :type returns: Series
+    :return: Annualized mean return
+    :rtype: Float
+    """
+    ann_mean_ret = returns.mean() * 252
+    return ann_mean_ret
+
+def calc_total_return(returns):
+    """Function calculates total return for daily return series
+
+    :param returns: Daily stock returns
+    :type returns: Series
+    :return: Total stock return
+    :rtype: Float
+    """
+    total_ret = (np.exp(returns.sum()) - 1)
+    return total_ret
+
+def calc_annualized_vola(returns):
+    """Function calculates annualized volatility for daily
+    return series
+
+    :param returns: Daily stock returns
+    :type returns: Series
+    :return: Annualized volatililty
+    :rtype: Float
+    """
+    ann_vola = np.sqrt(returns.std() * 252)
+    return ann_vola
+
+
 def harmonize_tickers(object):
     """Functions harmonizes ticker symbols in input object
     with base tickers in parameter.json for dataframes and

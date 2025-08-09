@@ -268,8 +268,8 @@ class DashboardAdapter:
             sma2 = ma_data_quote.loc[:, self.const_cols["sma2"]]
 
             rets = calculate_returns(quote)
-            ann_mean_ret = rets.mean() * 252 * 100
-            total_ret = (np.exp(rets.sum()) - 1) * 100
+            ann_mean_ret = calc_annualized_mean_return(rets) * 100
+            total_ret = calc_total_return(rets) * 100
 
             quote_line_fig = {
                 "data": [
