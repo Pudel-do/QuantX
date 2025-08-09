@@ -4,7 +4,7 @@ import warnings
 from core.finance_adapter import FinanceAdapter
 from core.dashboard_adapter import DashboardAdapter
 from core.file_adapter import FileAdapter
-from misc.misc import *
+from misc.utils import *
 warnings.filterwarnings('ignore')
 
 def transform_df(df, index_name):

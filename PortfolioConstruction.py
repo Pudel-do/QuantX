@@ -3,7 +3,7 @@ import numpy as np
 import logging
 import math
 import warnings
-from misc.misc import *
+from misc.utils import *
 from core.portfolio_generator import PortfolioGenerator
 from core.file_adapter import FileAdapter
 from core.finance_adapter import FinanceAdapter

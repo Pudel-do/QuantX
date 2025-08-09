@@ -2,7 +2,7 @@ import subprocess
 import logging
 import warnings
 from core import logging_config
-from misc.misc import *
+from misc.utils import *
 warnings.filterwarnings('ignore')
 
 GET_DATA = read_json("parameter.json")["get_data"]

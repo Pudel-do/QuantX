@@ -4,7 +4,7 @@ import scipy.optimize as sco
 import logging
 import math
 from core import logging_config
-from misc.misc import *
+from misc.utils import *
 from core.finance_adapter import FinanceAdapter
 
 class PortfolioGenerator:

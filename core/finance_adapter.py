@@ -8,7 +8,7 @@ from core import logging_config
 from alpha_vantage.fundamentaldata import FundamentalData
 from datetime import datetime
 from bs4 import BeautifulSoup
-from misc.misc import *
+from misc.utils import *
 
 class FinanceAdapter:
     def __init__(self, tick):

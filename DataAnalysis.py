@@ -3,7 +3,7 @@ import numpy as np
 import warnings
 from itertools import product
 from core.file_adapter import FileAdapter
-from misc.misc import *
+from misc.utils import *
 warnings.filterwarnings('ignore')
 
 def get_moving_averages(quote_data, use_train):

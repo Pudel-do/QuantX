@@ -3,7 +3,7 @@ import pickle
 import logging
 import keras
 import os
-from misc.misc import read_json
+from misc.utils import read_json
 from core.models import DummyModel
 
 

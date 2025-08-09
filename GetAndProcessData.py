@@ -7,7 +7,7 @@ from datetime import datetime
 from core.finance_adapter import FinanceAdapter
 from core.file_adapter import FileAdapter
 from itertools import chain
-from misc.misc import *
+from misc.utils import *
 warnings.filterwarnings('ignore')
 
 def drop_duplicate_fundamental_cols(fundamentals):

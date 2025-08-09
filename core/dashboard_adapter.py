@@ -3,7 +3,7 @@ from dash.dependencies import Input, Output
 import plotly.express as px
 import plotly.graph_objects as go
 from core import logging_config
-from misc.misc import *
+from misc.utils import *
 from core.portfolio_generator import PortfolioGenerator
 import pandas as pd
 import numpy as np

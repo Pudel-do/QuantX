@@ -3,7 +3,7 @@ import numpy as np
 import warnings
 from mttkinter import mtTkinter as tk
 from core.file_adapter import FileAdapter
-from misc.misc import *
+from misc.utils import *
 from core.models import OneStepLSTM, MultiStepLSTM, ArimaModel
 from core.finance_adapter import FinanceAdapter
 from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, root_mean_squared_error
