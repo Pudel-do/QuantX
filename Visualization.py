@@ -25,27 +25,6 @@ def transform_df(df, index_name):
     df = df.round(3)
     return df
 
-def transform_dict(dict, index_name):
-    """Function transforms dataframes in 
-    given dictionoary by applying transform
-    function
-
-    :param dict: Dictionary containing dataframes
-    :type dict: Dictionary
-    :param index_name: Index name for transformation
-    :type index_name: String
-    :return: Adjusted dictionary with transformed dataframes
-    :rtype: Dictionary
-    """
-    dict_adj = {}
-    for key, value in dict.items():
-        value = transform_df(
-            df=value,
-            index_name=index_name
-        )
-        dict_adj[key] = value
-    return dict_adj
-
 def get_tick_mapping(stock_ticks, bench_tick):
     """Function creates mapping dictionary
     with tick values as keys and the company
@@ -67,29 +46,25 @@ def get_tick_mapping(stock_ticks, bench_tick):
     ticker_mapping[bench_tick] = benchmark_name
     return ticker_mapping, company_names
 
-def rename_dataframe(df, tick_map):
-    df_cols = df.columns
-    if CONST_COLS["ticker"] in df_cols:
-        df_adj = df.replace(
-            {CONST_COLS["ticker"]: tick_map}
-        )
-    else:
-        df_adj = df.rename(mapper=tick_map, axis=0)
-        df_adj = df_adj.rename(mapper=tick_map, axis=1)
-    return df_adj
+def transform_dict(dict, index_name):
+    """Function transforms dataframes in 
+    given dictionoary by applying transform
+    function
 
-def rename_dictionary(dict, tick_map):
+    :param dict: Dictionary containing dataframes
+    :type dict: Dictionary
+    :param index_name: Index name for transformation
+    :type index_name: String
+    :return: Adjusted dictionary with transformed dataframes
+    :rtype: Dictionary
+    """
     dict_adj = {}
     for key, value in dict.items():
-        if key in list(tick_map.keys()):
-            key_adj = tick_map[key]
-        else:
-            key_adj = key
-        value_adj = rename_dataframe(
+        value = transform_df(
             df=value,
-            tick_map=tick_map
+            index_name=index_name
         )
-        dict_adj[key_adj] = value_adj
+        dict_adj[key] = value
     return dict_adj
 
 def get_actual_quotes(ticks):
@@ -109,6 +84,10 @@ if __name__ == "__main__":
     CONST_DATA = read_json("constant.json")["datamodel"]
     ticks = PARAMETER["ticker"]
     bench_tick = PARAMETER["benchmark_tick"]
+    ticker_mapping, assets = get_tick_mapping(
+        stock_ticks=ticks,
+        bench_tick=bench_tick
+    )
     moving_averages = FileAdapter().load_dataframe(
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["moving_averages_file"]
@@ -147,16 +126,17 @@ if __name__ == "__main__":
     )
     stock_rets_clean, _ = harmonize_tickers(stock_rets)
     stock_infos, _ = harmonize_tickers(stock_infos)
+    actual_quotes = get_actual_quotes(ticks=ticks)
     stock_infos = stock_infos.transpose()
-    ticker_mapping, companies = get_tick_mapping(
+    tick_mapping, assets = get_tick_mapping(
         stock_ticks=ticks,
         bench_tick=bench_tick
     )
-    actual_quotes = get_actual_quotes(ticks=ticks)
 
     dashboard = DashboardAdapter(
-        ids=ticks,
+        ids=assets,
         ticks=ticks,
+        tick_mapping=tick_mapping,
         moving_avg=moving_averages,
         opt_moving_avg=opt_moving_averages,
         stock_rets=stock_rets_clean,
