@@ -42,83 +42,26 @@ class DashboardAdapter:
         self._register_callbacks_backtesting()
         self._register_callbacks_portfolio()
     
-    def _init_time_range_values(self, ts):
-        date_range = ts.index.unique()
-        raw_marks = {i: str(date.year) \
-            for i, date in enumerate(date_range)}
-        seen_years = set()
-        marks = {}
-        for key, value in raw_marks.items():
-            if value not in seen_years:
-                marks[key] = value
-                seen_years.add(value)
-        return marks, date_range
-
-    def _filter_df(self, df, tick):
-        """Function filters dataframe for given ticker symbol.
-        If symbol is not in ticker column or ticker column
-        does not exist, the functin returns an empty dataframe
-
-        :param df: Fundamental data or quotes to filter 
-        for given ticker symbol
-        :type df: Dataframe
-        :param tick: Ticker symbol for filtering
-        :type tick: String
-        :return: Filtered object
-        :rtype: Dataframe
-        """
-        tick_col = self.const_cols["ticker"]
-        if not df.empty:
-            try:
-                filter_mask = df[tick_col] == tick
-                df_filtered = df[filter_mask]
-                df_filtered = df_filtered.drop(columns=tick_col)
-                return df_filtered
-            except KeyError:
-                logging.error(f"Column {tick_col} or ticker symbol {tick} not in dataframe")
-                return pd.DataFrame()
-        else:
-            return df
-
-        
-    def _filter_dict(self, dict, filter):
-        """Function filters dictionary for given ticker symbol.
-        If symbol is not in ticker column or ticker column
-        does not exist, the functin returns an empty dataframe
-
-        :param dict: Prediction values to filter 
-        for given ticker symbol
-        :type dict: Dictionary
-        :param tick: Ticker symbol for filtering
-        :type tick: String
-        :return: Filtered object
-        :rtype: Dataframe
-        """
-        try:
-            dict_filtered = dict[filter]
-            return dict_filtered
-        except KeyError:
-            logging.error(f"Ticker {filter} not in model dictionary")
-            return pd.DataFrame()
-        
-    def _filter_time_range(self, data, slider_array):
-        date_range = data.index
-        start = date_range[slider_array[0]]
-        end = date_range[slider_array[1]]
-        start_filter = data.index >= start
-        end_filter = data.index <= end
-        df_filtered = data[(start_filter) & (end_filter)]
-        return df_filtered, start, end
-    
-    def _return_cleaning(self, df):
-        df_clean = df.iloc[1:]
-        df_clean = df_clean.fillna(0)
-        return df_clean
-    
     def _setup_layout(self):
         self.app.layout = html.Div(
         [   
-            html.H1("Technical and fundamental stock analysis"),
+            html.H1("Technical analysis"),
+            html.Label("Adjust time period for return analysis"),
+            html.P(),
+            dcc.RangeSlider(
+                id="time_range_slider_returns",
+                min=0,
+                max=len(self.rets_date_range) - 1,
+                value=[0, len(self.rets_date_range) - 1],
+                marks=self.rets_marks,
+                step=1,
+                allowCross=False,
+            ),
+            dcc.Graph(id="cumulated_stock_returns"),
+            dash_table.DataTable(id="stock_performance_table"),
+            dcc.Graph(id="corr_heatmap"),
+            html.P(),
+            html.H1("Technical and fundamental analysis for selected asset"),
             dcc.Dropdown(
                 id="tick_dropdown_analysis",
                 options=[{'label': ticker, 'value': ticker} \
@@ -154,17 +97,6 @@ class DashboardAdapter:
                 labelStyle={'display': 'inline-block'}
             ),
             dcc.Graph(id='stock_infos_bar'),
-            html.Label("Adjust Time Period for correlation matrix"),
-            dcc.RangeSlider(
-                id="time_range_slider_corr_matrix",
-                min=0,
-                max=len(self.rets_date_range) - 1,
-                value=[0, len(self.rets_date_range) - 1],
-                marks=self.rets_marks,
-                step=1,
-                allowCross=False,
-            ),
-            dcc.Graph(id="corr_heatmap"),
             dcc.Dropdown(
                 id="tick_dropdown_models",
                 options=[{'label': ticker, 'value': ticker} \
@@ -428,14 +360,18 @@ class DashboardAdapter:
             return fig
 
         @self.app.callback(
-            Output("corr_heatmap", "figure"),
-            [Input("time_range_slider_corr_matrix", "value")]
+            [
+            Output("cumulated_stock_returns", "figure"),
+            Output("stock_performance_table", "data"),
+            Output("corr_heatmap", "figure")
+            ],
+            Input("time_range_slider_returns", "value")
         )
         def _range_slider_charts(slider_array):
             """Function defines all graphs on which the time range slider 
             should be applied. Rearranging the time range triggers callback
             and recalculates the underlying data.
-
+            
             :param slider_array: Containing lower and upper value for time range selection
             :type slider_value: Array
             :return: Correlation heatmap
@@ -445,15 +381,40 @@ class DashboardAdapter:
                 data=self.stock_rets,
                 slider_array=slider_array
             )
+
+            cum_returns = cumulate_returns(returns=returns_filtered)
+            cum_returns_fig = px.line(
+                cum_returns, 
+                x=cum_returns.index, 
+                y=cum_returns.columns,
+                title=f"Cumulative stock returns for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
+                labels={"value": "Cumulative Returns", "variable": self.const_cols["asset"]}
+            )
+
             corr_matrix = returns_filtered.corr()
-            heatmap = px.imshow(corr_matrix, 
+            corr_heatmap = px.imshow(corr_matrix, 
                                 text_auto=True, 
                                 aspect="auto", 
                                 color_continuous_scale="RdBu_r"
                                 )
             title = f"Return correlation for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
-            heatmap.update_layout(title=title)
-            return heatmap
+            corr_heatmap.update_layout(title=title)
+
+            performance_table = pd.DataFrame(index=self.ticks)
+            for col, values in returns_filtered.items():
+                total_ret = calc_total_return(values) * 100
+                ann_mean_ret = calc_annualized_mean_return(values) * 100
+                ann_vola = calc_annualized_vola(values)
+                performance_table.loc[col, self.const_cols["total_ret"]] = total_ret
+                performance_table.loc[col, self.const_cols["ann_mean_ret"]] = ann_mean_ret
+                performance_table.loc[col, self.const_cols["ann_vola"]] = ann_vola
+
+            performance_table = performance_table.round(2)
+            performance_table.index.name = self.const_cols["asset"]
+            performance_table.reset_index(inplace=True)
+            performance_table = performance_table.to_dict('records')
+
+            return cum_returns_fig, performance_table, corr_heatmap
         
     def _register_callbacks_backtesting(self):
         """Functions defines the app callbacks to adjust
@@ -661,10 +622,8 @@ class DashboardAdapter:
             )
             result_dict = {}
             for type in common_keys:
-                long_pos_results = pd.DataFrame(
-                    index=self.ticks
-                )
-                long_pos_results.index.name = self.const_cols["company"]
+                long_pos_results = pd.DataFrame(index=self.ticks)
+                long_pos_results.index.name = self.const_cols["asset"]
                 for tick in self.ticks:
                     opt_weight = optimal_weights[type].get(tick)
                     act_weight = actual_weights[type].get(tick)
@@ -694,3 +653,75 @@ class DashboardAdapter:
         dash_thread.start()
         webbrowser.open_new("http://127.0.0.1:8050/")
 
+    def _init_time_range_values(self, ts):
+        date_range = ts.index.unique()
+        raw_marks = {i: str(date.year) \
+            for i, date in enumerate(date_range)}
+        seen_years = set()
+        marks = {}
+        for key, value in raw_marks.items():
+            if value not in seen_years:
+                marks[key] = value
+                seen_years.add(value)
+        return marks, date_range
+
+    def _filter_df(self, df, tick):
+        """Function filters dataframe for given ticker symbol.
+        If symbol is not in ticker column or ticker column
+        does not exist, the functin returns an empty dataframe
+
+        :param df: Fundamental data or quotes to filter 
+        for given ticker symbol
+        :type df: Dataframe
+        :param tick: Ticker symbol for filtering
+        :type tick: String
+        :return: Filtered object
+        :rtype: Dataframe
+        """
+        tick_col = self.const_cols["ticker"]
+        if not df.empty:
+            try:
+                filter_mask = df[tick_col] == tick
+                df_filtered = df[filter_mask]
+                df_filtered = df_filtered.drop(columns=tick_col)
+                return df_filtered
+            except KeyError:
+                logging.error(f"Column {tick_col} or ticker symbol {tick} not in dataframe")
+                return pd.DataFrame()
+        else:
+            return df
+
+        
+    def _filter_dict(self, dict, filter):
+        """Function filters dictionary for given ticker symbol.
+        If symbol is not in ticker column or ticker column
+        does not exist, the functin returns an empty dataframe
+
+        :param dict: Prediction values to filter 
+        for given ticker symbol
+        :type dict: Dictionary
+        :param tick: Ticker symbol for filtering
+        :type tick: String
+        :return: Filtered object
+        :rtype: Dataframe
+        """
+        try:
+            dict_filtered = dict[filter]
+            return dict_filtered
+        except KeyError:
+            logging.error(f"Ticker {filter} not in model dictionary")
+            return pd.DataFrame()
+        
+    def _filter_time_range(self, data, slider_array):
+        date_range = data.index
+        start = date_range[slider_array[0]]
+        end = date_range[slider_array[1]]
+        start_filter = data.index >= start
+        end_filter = data.index <= end
+        df_filtered = data[(start_filter) & (end_filter)]
+        return df_filtered, start, end
+    
+    def _return_cleaning(self, df):
+        df_clean = df.iloc[1:]
+        df_clean = df_clean.fillna(0)
+        return df_clean
