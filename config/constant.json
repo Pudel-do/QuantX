@@ -71,6 +71,7 @@
         "future_rets": "FUTURE_RETURNS",
         "sharpe_ratio": "SHARPE RATIO",
         "ann_mean_ret": "ANNUALIZED MEAN RETURN (%)",
+        "total_ret": "TOTAL RETURN (%)",
         "ann_vola": "ANNUALIZED VOLA",
         "bench_corr": "BENCHMARK_CORRELATION",
         "port_types": "PORTFOLIO TYPES",
@@ -78,7 +79,7 @@
         "act_weight": "ACTUAL_WEIGHT",
         "long_pos": "LONG_POSITION",
         "amount": "AMOUNT",
-        "company": "COMPANY"
+        "asset": "ASSET"
     },
     "keys": {
         "MIN_VAR": "MinimumVariance",
