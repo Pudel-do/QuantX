@@ -68,7 +68,7 @@ def cumulate_returns(returns):
             cum_rets = cum_rets * 1000
             cum_returns[name] = cum_rets
         except:
-            logging.error(f"Return cumulation failed for portfolio type {name}")
+            logging.error(f"Return cumulation failed for column {name}")
             cum_returns[name] = values
     return cum_returns
     
