@@ -383,6 +383,7 @@ class DashboardAdapter:
             )
 
             cum_returns = cumulate_returns(returns=returns_filtered)
+            cum_returns = cum_returns.fillna("ffill")
             cum_returns_fig = px.line(
                 cum_returns, 
                 x=cum_returns.index, 
