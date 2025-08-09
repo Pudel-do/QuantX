@@ -202,12 +202,13 @@ class DashboardAdapter:
             rets = calculate_returns(quote)
             ann_mean_ret = calc_annualized_mean_return(rets) * 100
             total_ret = calc_total_return(rets) * 100
+            quote_plot = quote.fillna(method="ffill")
 
             quote_line_fig = {
                 "data": [
                     {
                         "x": ma_data_quote.index, 
-                        "y": quote, 
+                        "y": quote_plot, 
                         "type": "line", 
                         "name": "Quote",
                         "line": {"color": "blue"}
@@ -236,7 +237,7 @@ class DashboardAdapter:
                     },
                 ],
                 "layout": {
-                    "title": f"Annualized mean return of {ann_mean_ret: .2f}% and total return of {total_ret: .2f}% for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
+                    "title": f"Annualized mean return for {tick_filter} of {ann_mean_ret: .2f}% and total return of {total_ret: .2f}% for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
                     "xaxis": {"title": "Date"},
                     "yaxis": {"title": "Values"},
                     "legend": {
@@ -383,7 +384,7 @@ class DashboardAdapter:
             )
 
             cum_returns = cumulate_returns(returns=returns_filtered)
-            cum_returns = cum_returns.fillna("ffill")
+            cum_returns = cum_returns.fillna(method="ffill")
             cum_returns_fig = px.line(
                 cum_returns, 
                 x=cum_returns.index, 
