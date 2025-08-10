@@ -92,11 +92,10 @@ class PortfolioGenerator:
         )
         return weight_dict
     
-    def get_custom_weights(self):
-        custom = self.params["custom_weights"]
-        custom_weights = custom.copy()
+    def get_custom_weights(self, custom_w):
+        custom_weights = custom_w.copy()
         custom_weight_sum = 0
-        for tick, custom_weight in custom.items():
+        for tick, custom_weight in custom_w.items():
             if tick not in self.ticks:
                 logging.warning(f"Ticker {tick} not in ticker list for historical returns")
                 custom_weights.pop(tick)

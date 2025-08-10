@@ -13,30 +13,32 @@ import logging
 
 class DashboardAdapter:
     def __init__(
-            self, ids, ticks,
+            self, ids, ticks, tick_mapping,
             moving_avg, opt_moving_avg, 
             stock_rets, bench_rets, stock_infos, fundamentals,
             model_backtest, model_validation, models, actual_quotes
         ):
+        self.app = Dash(__name__)
         self.ids = ids
         self.ticks = ticks
-        self.moving_avg = moving_avg
-        self.opt_moving_avg = opt_moving_avg
-        self.stock_rets = stock_rets
-        self.bench_rets = bench_rets
-        self.stock_infos = stock_infos
-        self.fundamentals = fundamentals
-        self.model_backtest = model_backtest
-        self.model_validation = model_validation
+        self.tick_mapping = tick_mapping
         self.models = models
-        self.actual_quotes = actual_quotes
+        self.params = read_json("parameter.json")
         self.const_cols = read_json("constant.json")["columns"]
         self.const_keys = read_json("constant.json")["keys"]
-        self.port_types = list(self.const_keys.values())
         self.fundamental_cols = read_json("constant.json")["fundamentals"]["measures"]
+        self.port_types = list(self.const_keys.values())    
+        self.moving_avg = rename_dataframe(df=moving_avg, tick_map=tick_mapping)
+        self.opt_moving_avg = rename_dataframe(df=opt_moving_avg, tick_map=tick_mapping)
+        self.stock_rets = rename_dataframe(df=stock_rets, tick_map=tick_mapping)
+        self.bench_rets = rename_dataframe(df=bench_rets, tick_map=tick_mapping)
+        self.stock_infos = rename_dataframe(df=stock_infos, tick_map=tick_mapping)
+        self.fundamentals = rename_dataframe(df=fundamentals, tick_map=tick_mapping)
+        self.model_backtest = rename_dictionary(dict=model_backtest, tick_map=tick_mapping)
+        self.model_validation = rename_dictionary(dict=model_validation, tick_map=tick_mapping)
+        self.actual_quotes = rename_dictionary(dict=actual_quotes, tick_map=tick_mapping)
         self.quote_marks, self.quote_date_range = self._init_time_range_values(self.moving_avg)
         self.rets_marks, self.rets_date_range = self._init_time_range_values(self.stock_rets)
-        self.app = Dash(__name__)
         self._setup_layout()
         self._register_callbacks_analysis()
         self._register_callbacks_backtesting()
@@ -64,8 +66,8 @@ class DashboardAdapter:
             html.H1("Technical and fundamental analysis for selected asset"),
             dcc.Dropdown(
                 id="tick_dropdown_analysis",
-                options=[{'label': ticker, 'value': ticker} \
-                            for ticker in self.ids],
+                options=[{'label': id, 'value': id} \
+                            for id in self.ids],
                 value=self.ids[0]
             ),
             html.P(),
@@ -99,8 +101,8 @@ class DashboardAdapter:
             dcc.Graph(id='stock_infos_bar'),
             dcc.Dropdown(
                 id="tick_dropdown_models",
-                options=[{'label': ticker, 'value': ticker} \
-                            for ticker in self.ids],
+                options=[{'label': id, 'value': id} \
+                            for id in self.ids],
                 value=self.ids[0]
             ),
             html.H1("Backtesting of forecast models"),
@@ -115,10 +117,19 @@ class DashboardAdapter:
             dash_table.DataTable(
                 id="validation_table",
             ),
-            html.H1("Portfolio construction and performance"),
+            html.H1("Portfolio analysis"),
+            dcc.Checklist(
+                id='portfolio_constituents',
+                options=[{'label': id, 'value': id} \
+                            for id in self.ids],
+                value=self.ids,
+                inline=True
+            ),
+            html.P(),
             dcc.Checklist(
                 id='portfolio_checklist',
-                options=[{'label': col, 'value': col} for col in self.port_types],
+                options=[{'label': col, 'value': col} \
+                         for col in self.port_types],
                 value=[self.port_types[0]],
                 inline=True
             ),
@@ -496,15 +507,25 @@ class DashboardAdapter:
             tickers=self.ticks,
             rets=self.stock_rets
         )
-        @self.app.callback(
-            [Output('portfolio_performances', 'figure'),
-             Output('performance_table', 'data'),
-             Output("long_positions", "data")],
-            [Input("time_range_slider_port", "value"),
-             Input('portfolio_checklist', 'value'),
-             Input("portfolio_dropdown", "value")]
+        weights_custom = self.params["custom_weights"]
+        weights_custom = rename_dictionary(
+            dict=weights_custom,
+            tick_map=self.tick_mapping
         )
-        def _checklist_charts(slider_array, selected_columns, port_filter):
+        @self.app.callback(
+            [
+            Output('portfolio_performances', 'figure'),
+            Output('performance_table', 'data'),
+            Output("long_positions", "data")
+            ],
+            [
+            Input("portfolio_constituents", "value"),
+            Input("time_range_slider_port", "value"),
+            Input('portfolio_checklist', 'value'),
+            Input("portfolio_dropdown", "value")
+            ]
+        )
+        def _checklist_charts(constituents_filter, slider_array, selected_columns, port_filter):
             """Function defines all graphs on
             which the ticker dropdown should be applied
 
@@ -521,12 +542,23 @@ class DashboardAdapter:
                 data=self.bench_rets,
                 slider_array=slider_array
             )
-            hist_rets_filtered = self._return_cleaning(hist_rets_filtered)
-            bench_rets_filtered = self._return_cleaning(bench_rets_filtered)
+            hist_rets_filtered = self._return_cleaning(
+                df=hist_rets_filtered,
+                col_filter=constituents_filter
+            )
+            bench_rets_filtered = self._return_cleaning(
+                df=bench_rets_filtered,
+                col_filter=constituents_filter
+            )
+            future_rets_renamed = rename_dataframe(
+                df=future_rets, 
+                tick_map=self.tick_mapping
+            ) 
+            future_rets_filtered = future_rets_renamed[constituents_filter]
 
             max_sharpe_weights = PortfolioGenerator(hist_rets_filtered).get_max_sharpe_weights()
             min_var_weights = PortfolioGenerator(hist_rets_filtered).get_min_var_weights()
-            custom_weights = PortfolioGenerator(hist_rets_filtered).get_custom_weights()
+            custom_weights = PortfolioGenerator(hist_rets_filtered).get_custom_weights(weights_custom)
             equal_weights = PortfolioGenerator(hist_rets_filtered).get_equal_weights()
 
             optimal_weights = {}
@@ -540,7 +572,7 @@ class DashboardAdapter:
             port_types = []
             for key, weights in optimal_weights.items():
                 hist_port_rets = PortfolioGenerator(hist_rets_filtered).get_returns(weights)
-                future_port_rets = PortfolioGenerator(future_rets).get_returns(weights)
+                future_port_rets = PortfolioGenerator(future_rets_filtered).get_returns(weights)
                 hist_port_rets.name = key
                 future_port_rets.name = key
                 hist_port_list.append(hist_port_rets)   
@@ -624,17 +656,17 @@ class DashboardAdapter:
             )
             result_dict = {}
             for type in common_keys:
-                long_pos_results = pd.DataFrame(index=self.ticks)
+                long_pos_results = pd.DataFrame(index=constituents_filter)
                 long_pos_results.index.name = self.const_cols["asset"]
-                for tick in self.ticks:
-                    opt_weight = optimal_weights[type].get(tick)
-                    act_weight = actual_weights[type].get(tick)
-                    n_shares = actual_long_pos[type].get(tick)[0]
-                    invest = actual_long_pos[type].get(tick)[1]
-                    long_pos_results.loc[tick, self.const_cols["opt_weight"]] = opt_weight
-                    long_pos_results.loc[tick, self.const_cols["act_weight"]] = act_weight
-                    long_pos_results.loc[tick, self.const_cols["long_pos"]] = n_shares
-                    long_pos_results.loc[tick, self.const_cols["amount"]] = invest
+                for constituent in constituents_filter:
+                    opt_weight = optimal_weights[type].get(constituent)
+                    act_weight = actual_weights[type].get(constituent)
+                    n_shares = actual_long_pos[type].get(constituent)[0]
+                    invest = actual_long_pos[type].get(constituent)[1]
+                    long_pos_results.loc[constituent, self.const_cols["opt_weight"]] = opt_weight
+                    long_pos_results.loc[constituent, self.const_cols["act_weight"]] = act_weight
+                    long_pos_results.loc[constituent, self.const_cols["long_pos"]] = n_shares
+                    long_pos_results.loc[constituent, self.const_cols["amount"]] = invest
                 result_dict[type] = long_pos_results
 
             port_long_pos = self._filter_dict(
@@ -723,7 +755,16 @@ class DashboardAdapter:
         df_filtered = data[(start_filter) & (end_filter)]
         return df_filtered, start, end
     
-    def _return_cleaning(self, df):
+    def _return_cleaning(self, df, col_filter):
         df_clean = df.iloc[1:]
         df_clean = df_clean.fillna(0)
+        try:
+            df_clean = df_clean[col_filter]
+        except:
+            pass
         return df_clean
+    
+    def _get_matching_keys(self, mapping_dict, base_list):
+        matching_keys = [key for key, value in mapping_dict.items() \
+                         if value in base_list]
+        return matching_keys

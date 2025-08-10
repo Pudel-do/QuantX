@@ -72,7 +72,8 @@ def cumulate_returns(returns):
             cum_returns[name] = values
     return cum_returns
 
-def rename_dataframe(df, tick_map, const_cols):
+def rename_dataframe(df, tick_map):
+    const_cols = read_json("constant.json")["columns"]
     df_cols = df.columns
     if const_cols["ticker"] in df_cols:
         df_adj = df.replace(
@@ -90,10 +91,13 @@ def rename_dictionary(dict, tick_map):
             key_adj = tick_map[key]
         else:
             key_adj = key
-        value_adj = rename_dataframe(
-            df=value,
-            tick_map=tick_map
-        )
+        if isinstance(value, pd.DataFrame):
+            value_adj = rename_dataframe(
+                df=value,
+                tick_map=tick_map
+            )
+        else:
+            value_adj = value
         dict_adj[key_adj] = value_adj
     return dict_adj
     
@@ -300,8 +304,6 @@ def get_future_returns(tickers, rets):
 
     :param tickers: Tickers for future return calculation
     :type tickers: List
-    :param weights: Weights for portfolio calculation
-    :type weights: Dictionary
     :return: Future portfolio returns 
     :rtype: Dataframe
     """

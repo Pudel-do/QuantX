@@ -111,6 +111,7 @@ class FinanceAdapter:
         """
         tick_info = yf.Ticker(self.tick).info
         name = tick_info["shortName"]
+        name = " ".join(name.split())
         return name
 
     def _establish_fmb_connection(self, fd_kpi):
