@@ -134,7 +134,7 @@ if __name__ == "__main__":
     )
 
     dashboard = DashboardAdapter(
-        ids=assets,
+        assets=assets,
         ticks=ticks,
         tick_mapping=tick_mapping,
         moving_avg=moving_averages,

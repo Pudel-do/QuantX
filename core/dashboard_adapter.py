@@ -13,13 +13,13 @@ import logging
 
 class DashboardAdapter:
     def __init__(
-            self, ids, ticks, tick_mapping,
+            self, assets, ticks, tick_mapping,
             moving_avg, opt_moving_avg, 
             stock_rets, bench_rets, stock_infos, fundamentals,
             model_backtest, model_validation, models, actual_quotes
         ):
         self.app = Dash(__name__)
-        self.ids = ids
+        self.assets = assets
         self.ticks = ticks
         self.tick_mapping = tick_mapping
         self.models = models
@@ -66,9 +66,9 @@ class DashboardAdapter:
             html.H1("Technical and fundamental analysis for selected asset"),
             dcc.Dropdown(
                 id="tick_dropdown_analysis",
-                options=[{'label': id, 'value': id} \
-                            for id in self.ids],
-                value=self.ids[0]
+                options=[{'label': asset, 'value': asset} \
+                            for asset in self.assets],
+                value=self.assets[0]
             ),
             html.P(),
             dcc.RangeSlider(
@@ -101,9 +101,9 @@ class DashboardAdapter:
             dcc.Graph(id='stock_infos_bar'),
             dcc.Dropdown(
                 id="tick_dropdown_models",
-                options=[{'label': id, 'value': id} \
-                            for id in self.ids],
-                value=self.ids[0]
+                options=[{'label': asset, 'value': asset} \
+                            for asset in self.assets],
+                value=self.assets[0]
             ),
             html.H1("Backtesting of forecast models"),
             dcc.Checklist(
@@ -120,9 +120,9 @@ class DashboardAdapter:
             html.H1("Portfolio analysis"),
             dcc.Checklist(
                 id='portfolio_constituents',
-                options=[{'label': id, 'value': id} \
-                            for id in self.ids],
-                value=self.ids,
+                options=[{'label': asset, 'value': asset} \
+                            for asset in self.assets],
+                value=self.assets,
                 inline=True
             ),
             html.P(),
@@ -340,7 +340,7 @@ class DashboardAdapter:
             )
             if data.empty:
                 data = pd.DataFrame(columns=self.fundamental_cols)
-                logging.warning(f"No fundamental data available for ticker {tick_filter}")
+                logging.warning(f"No fundamental data available for company {tick_filter}")
             else:
                 pass
 
@@ -413,7 +413,7 @@ class DashboardAdapter:
             title = f"Return correlation for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
             corr_heatmap.update_layout(title=title)
 
-            performance_table = pd.DataFrame(index=self.ticks)
+            performance_table = pd.DataFrame(index=self.assets)
             for col, values in returns_filtered.items():
                 total_ret = calc_total_return(values) * 100
                 ann_mean_ret = calc_annualized_mean_return(values) * 100
