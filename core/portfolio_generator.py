@@ -92,20 +92,27 @@ class PortfolioGenerator:
         )
         return weight_dict
     
-    def get_custom_weights(self, custom_w):
-        custom_weights = custom_w.copy()
-        custom_weight_sum = 0
-        for tick, custom_weight in custom_w.items():
-            if tick not in self.ticks:
-                logging.warning(f"Ticker {tick} not in ticker list for historical returns")
-                custom_weights.pop(tick)
-                logging.info(f"Ticker {tick} was removed from custom weights")
+    def get_custom_weights(self, custom_weights):
+        clean_custom_weights = {}
+        filtered_weights = {key: value for key, value in custom_weights.items() \
+                            if key in self.ticks}
+        sum_weights = sum(filtered_weights.values())
+        if sum_weights != 1:
+            delta_weights = 1-sum_weights
+            delta_weight = delta_weights / len(self.ticks)
+        else:
+            delta_weight = 0
+
+        for tick in self.ticks:
+            custom_weight_raw = filtered_weights.get(tick)
+            if custom_weight_raw is None:
+                logging.warning(f"Company {tick} not in custom weights")
+                custom_weight = 0
             else:
-                custom_weight_sum += custom_weight
-        custom_weighs_ticks = custom_weights.keys()
-        if custom_weight_sum != 1 or len(self.ticks) != len(custom_weighs_ticks):
-            logging.warning("Sum of custom weights are not equal to 1 or length of custom weights not match with portfolio constituents") 
-        return custom_weights
+                custom_weight = custom_weight_raw + delta_weight
+            clean_custom_weights[tick] = custom_weight
+
+        return clean_custom_weights
     
     def get_equal_weights(self):
         equal_weights = {}

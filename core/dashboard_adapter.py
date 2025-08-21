@@ -558,14 +558,20 @@ class DashboardAdapter:
 
             max_sharpe_weights = PortfolioGenerator(hist_rets_filtered).get_max_sharpe_weights()
             min_var_weights = PortfolioGenerator(hist_rets_filtered).get_min_var_weights()
-            custom_weights = PortfolioGenerator(hist_rets_filtered).get_custom_weights(weights_custom)
             equal_weights = PortfolioGenerator(hist_rets_filtered).get_equal_weights()
-
+            if self.params["use_custom_weights"]:
+                custom_weights = PortfolioGenerator(hist_rets_filtered).get_custom_weights(weights_custom)
+            else:
+                pass
+            
             optimal_weights = {}
             optimal_weights[self.const_keys["MAX_SHARPE"]] = max_sharpe_weights
             optimal_weights[self.const_keys["MIN_VAR"]] = min_var_weights
-            optimal_weights[self.const_keys["CUSTOM"]] = custom_weights
             optimal_weights[self.const_keys["EQUAL"]] = equal_weights
+            if self.params["use_custom_weights"]:
+                optimal_weights[self.const_keys["CUSTOM"]] = custom_weights
+            else:
+                pass
 
             hist_port_list = []
             future_post_list = []
