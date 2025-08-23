@@ -14,7 +14,7 @@ import logging
 class DashboardAdapter:
     def __init__(
             self, assets, ticks, tick_mapping,
-            moving_avg, opt_moving_avg, 
+            moving_avg, opt_moving_avg, port_types,
             stock_rets, bench_rets, stock_infos, fundamentals,
             model_backtest, model_validation, models, actual_quotes
         ):
@@ -25,9 +25,8 @@ class DashboardAdapter:
         self.models = models
         self.params = read_json("parameter.json")
         self.const_cols = read_json("constant.json")["columns"]
-        self.const_keys = read_json("constant.json")["keys"]
         self.fundamental_cols = read_json("constant.json")["fundamentals"]["measures"]
-        self.port_types = list(self.const_keys.values())    
+        self.port_types = port_types    
         self.moving_avg = rename_dataframe(df=moving_avg, tick_map=tick_mapping)
         self.opt_moving_avg = rename_dataframe(df=opt_moving_avg, tick_map=tick_mapping)
         self.stock_rets = rename_dataframe(df=stock_rets, tick_map=tick_mapping)
@@ -129,8 +128,8 @@ class DashboardAdapter:
             dcc.Checklist(
                 id='portfolio_checklist',
                 options=[{'label': col, 'value': col} \
-                         for col in self.port_types],
-                value=[self.port_types[0]],
+                         for col in list(self.port_types.values())],
+                value=[list(self.port_types.values())[0]],
                 inline=True
             ),
             html.P(),
@@ -149,8 +148,8 @@ class DashboardAdapter:
             dcc.Dropdown(
                 id="portfolio_dropdown",
                 options=[{'label': port_type, 'value': port_type} \
-                            for port_type in self.port_types],
-                value=self.port_types[0]
+                            for port_type in list(self.port_types.values())],
+                value=list(self.port_types.values())[0]
             ),
             html.P(),
             dash_table.DataTable(id="long_positions")
@@ -565,11 +564,11 @@ class DashboardAdapter:
                 pass
             
             optimal_weights = {}
-            optimal_weights[self.const_keys["MAX_SHARPE"]] = max_sharpe_weights
-            optimal_weights[self.const_keys["MIN_VAR"]] = min_var_weights
-            optimal_weights[self.const_keys["EQUAL"]] = equal_weights
+            optimal_weights[self.port_types["MAX_SHARPE"]] = max_sharpe_weights
+            optimal_weights[self.port_types["MIN_VAR"]] = min_var_weights
+            optimal_weights[self.port_types["EQUAL"]] = equal_weights
             if self.params["use_custom_weights"]:
-                optimal_weights[self.const_keys["CUSTOM"]] = custom_weights
+                optimal_weights[self.port_types["CUSTOM"]] = custom_weights
             else:
                 pass
 

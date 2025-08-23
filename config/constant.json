@@ -81,7 +81,7 @@
         "amount": "AMOUNT",
         "asset": "ASSET"
     },
-    "keys": {
+    "port_keys": {
         "MIN_VAR": "MinimumVariance",
         "MAX_SHARPE": "MaximumSharpeRatio",
         "CUSTOM": "CustomWeights",

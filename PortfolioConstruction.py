@@ -26,7 +26,7 @@ def return_cleaning(returns):
 
 if __name__ == "__main__":
     CONST_COLS = read_json("constant.json")["columns"]
-    CONST_KEYS = read_json("constant.json")["keys"]
+    CONST_KEYS = read_json("constant.json")["port_keys"]
     CONST_DATA = read_json("constant.json")["datamodel"]
     PARAMETER = read_json("parameter.json")
     raw_stock_returns = FileAdapter().load_dataframe(
