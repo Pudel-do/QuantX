@@ -26,7 +26,8 @@ class DashboardAdapter:
         self.params = read_json("parameter.json")
         self.const_cols = read_json("constant.json")["columns"]
         self.fundamental_cols = read_json("constant.json")["fundamentals"]["measures"]
-        self.port_types = port_types    
+        self.weight_list = [self.const_cols["opt_weight"], self.const_cols["act_weight"]]
+        self.port_types = port_types
         self.moving_avg = rename_dataframe(df=moving_avg, tick_map=tick_mapping)
         self.opt_moving_avg = rename_dataframe(df=opt_moving_avg, tick_map=tick_mapping)
         self.stock_rets = rename_dataframe(df=stock_rets, tick_map=tick_mapping)
@@ -117,6 +118,13 @@ class DashboardAdapter:
                 id="validation_table",
             ),
             html.H1("Portfolio analysis"),
+            html.P(),
+            dcc.Dropdown(
+                id="weight_filter",
+                options=[{'label': weight_type, 'value': weight_type} \
+                            for weight_type in self.weight_list],
+                value=self.const_cols["opt_weight"]
+            ),
             dcc.Checklist(
                 id='portfolio_constituents',
                 options=[{'label': asset, 'value': asset} \
