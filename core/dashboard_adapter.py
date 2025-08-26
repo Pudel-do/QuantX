@@ -125,6 +125,7 @@ class DashboardAdapter:
                             for weight_type in self.weight_list],
                 value=self.const_cols["opt_weight"]
             ),
+            html.P(),
             dcc.Checklist(
                 id='portfolio_constituents',
                 options=[{'label': asset, 'value': asset} \
@@ -526,13 +527,14 @@ class DashboardAdapter:
             Output("long_positions", "data")
             ],
             [
-            Input("portfolio_constituents", "value"),
-            Input("time_range_slider_port", "value"),
-            Input('portfolio_checklist', 'value'),
-            Input("portfolio_dropdown", "value")
+                Input("weight_filter", "value"),
+                Input("portfolio_constituents", "value"),
+                Input("time_range_slider_port", "value"),
+                Input('portfolio_checklist', 'value'),
+                Input("portfolio_dropdown", "value")
             ]
         )
-        def _checklist_charts(constituents_filter, slider_array, selected_columns, port_filter):
+        def _checklist_charts(weight_filter, constituents_filter, slider_array, selected_columns, port_filter):
             """Function defines all graphs on
             which the ticker dropdown should be applied
 
@@ -572,6 +574,8 @@ class DashboardAdapter:
                 pass
             
             optimal_weights = {}
+            actual_weights = {}
+            total_weights = {}
             optimal_weights[self.port_types["MAX_SHARPE"]] = max_sharpe_weights
             optimal_weights[self.port_types["MIN_VAR"]] = min_var_weights
             optimal_weights[self.port_types["EQUAL"]] = equal_weights
@@ -579,11 +583,22 @@ class DashboardAdapter:
                 optimal_weights[self.port_types["CUSTOM"]] = custom_weights
             else:
                 pass
+            actual_long_pos = {}
+            for port_type, weights in optimal_weights.items():
+                weight_dict, long_pos_dict = PortfolioGenerator(self.stock_rets).get_actual_invest(weights, self.actual_quotes)
+                actual_weights[port_type] = weight_dict
+                actual_long_pos[port_type] = long_pos_dict
+            total_weights[self.const_cols["opt_weight"]] = optimal_weights
+            total_weights[self.const_cols["act_weight"]] = actual_weights
 
+            weight_cat = self._filter_dict(
+                dict=total_weights,
+                filter=weight_filter
+            )
             hist_port_list = []
             future_post_list = []
             port_types = []
-            for key, weights in optimal_weights.items():
+            for key, weights in weight_cat.items():
                 hist_port_rets = PortfolioGenerator(hist_rets_filtered).get_returns(weights)
                 future_port_rets = PortfolioGenerator(future_rets_filtered).get_returns(weights)
                 hist_port_rets.name = key
@@ -652,12 +667,6 @@ class DashboardAdapter:
                 yaxis_title="Cumulative returns",
                 template="plotly"
             )
-            actual_weights = {}
-            actual_long_pos = {}
-            for port_type, weights in optimal_weights.items():
-                weight_dict, long_pos_dict = PortfolioGenerator(self.stock_rets).get_actual_invest(weights, self.actual_quotes)
-                actual_weights[port_type] = weight_dict
-                actual_long_pos[port_type] = long_pos_dict
 
             opt_dict_keys = list(optimal_weights.keys())
             act_dict_keys = list(actual_weights.keys())
