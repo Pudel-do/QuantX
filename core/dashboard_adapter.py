@@ -576,11 +576,11 @@ class DashboardAdapter:
             optimal_weights = {}
             actual_weights = {}
             total_weights = {}
-            optimal_weights[self.port_types["MAX_SHARPE"]] = max_sharpe_weights
-            optimal_weights[self.port_types["MIN_VAR"]] = min_var_weights
-            optimal_weights[self.port_types["EQUAL"]] = equal_weights
+            optimal_weights[self.port_types["max_sharpe"]] = max_sharpe_weights
+            optimal_weights[self.port_types["min_var"]] = min_var_weights
+            optimal_weights[self.port_types["equal"]] = equal_weights
             if self.params["use_custom_weights"]:
-                optimal_weights[self.port_types["CUSTOM"]] = custom_weights
+                optimal_weights[self.port_types["custom"]] = custom_weights
             else:
                 pass
             actual_long_pos = {}
@@ -633,10 +633,16 @@ class DashboardAdapter:
                 port_performance.loc[port_type, self.const_cols["ann_vola"]] = ann_mean_vol
                 port_performance.loc[port_type, self.const_cols["sharpe_ratio"]] = sharpe_ratio
                 port_performance.loc[port_type, self.const_cols["bench_corr"]] = bench_corr
-
+            ann_mean_ret_bench, ann_mean_vol_bench, sharpe_ratio_bench, bench_corr_bench = PortfolioGenerator(bench_rets_filtered).get_portfolio_performance(bench_rets_filtered)
+            ann_mean_ret_bench = ann_mean_ret_bench * 100
+            port_performance.loc[self.const_cols["benchmark"], self.const_cols["ann_mean_ret"]] = ann_mean_ret_bench
+            port_performance.loc[self.const_cols["benchmark"], self.const_cols["ann_vola"]] = ann_mean_vol_bench
+            port_performance.loc[self.const_cols["benchmark"], self.const_cols["sharpe_ratio"]] = sharpe_ratio_bench
+            port_performance.loc[self.const_cols["benchmark"], self.const_cols["bench_corr"]] = bench_corr_bench
             port_performance = port_performance.round(2)
             port_performance.index.name = self.const_cols["port_types"]
             port_performance.reset_index(inplace=True)
+            
             table = port_performance.to_dict('records')
             fig = go.Figure()
             for col in selected_columns:
