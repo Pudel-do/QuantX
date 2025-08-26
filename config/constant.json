@@ -79,12 +79,13 @@
         "act_weight": "ACTUAL_WEIGHT",
         "long_pos": "LONG_POSITION",
         "amount": "AMOUNT",
-        "asset": "ASSET"
+        "asset": "ASSET",
+        "benchmark": "BENCHMARK"
     },
     "port_keys": {
-        "MIN_VAR": "MinimumVariance",
-        "MAX_SHARPE": "MaximumSharpeRatio",
-        "CUSTOM": "CustomWeights",
-        "EQUAL": "EqualWeights"
+        "min_var": "MINIMUM VARIANCE",
+        "max_sharpe": "MAXIMUM SHARPE RATIO",
+        "custom": "CUSTOM WEIGHTS",
+        "equal": "EQUAL WEIGHTS"
     }
 }
