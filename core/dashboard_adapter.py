@@ -456,24 +456,27 @@ class DashboardAdapter:
                 dict=self.model_backtest,
                 filter=tick_filter
             )
-            traces = []
-            traces.append(
-                go.Scatter(
-                    x=backtest_data.index,
-                    y=backtest_data[self.const_cols["quote"]],
-                    mode="lines",
-                    name=self.const_cols["quote"]
-                )
-            )
-            for model in selected_models:
+            try:
+                traces = []
                 traces.append(
                     go.Scatter(
                         x=backtest_data.index,
-                        y=backtest_data[model],
+                        y=backtest_data[self.const_cols["quote"]],
                         mode="lines",
-                        name=model
+                        name=self.const_cols["quote"]
                     )
                 )
+                for model in selected_models:
+                    traces.append(
+                        go.Scatter(
+                            x=backtest_data.index,
+                            y=backtest_data[model],
+                            mode="lines",
+                            name=model
+                        )
+                    )
+            except:
+                traces = []
             layout = go.Layout(
                 title=f"Out-of-Sample Prediction for {tick_filter}",
                 xaxis={"title": "Date"},
