@@ -522,9 +522,9 @@ class DashboardAdapter:
         )
         @self.app.callback(
             [
-            Output('portfolio_performances', 'figure'),
-            Output('performance_table', 'data'),
-            Output("long_positions", "data")
+                Output('portfolio_performances', 'figure'),
+                Output('performance_table', 'data'),
+                Output("long_positions", "data")
             ],
             [
                 Input("weight_filter", "value"),
