@@ -6,7 +6,6 @@ import logging
 import io
 import tensorflow as tf
 import matplotlib
-matplotlib.use('Agg') 
 import matplotlib.pyplot as plt
 from core import logging_config
 from datetime import datetime
@@ -52,6 +51,62 @@ def calculate_returns(quotes):
     rets = np.log(quotes / quotes.shift(1))
     rets = rets.iloc[1:]
     return rets
+
+def cumulate_returns(returns):
+    """Function calculates the cumulative and
+    exponential portfolio returns
+
+    :param returns: Daily portfolio returns
+    :type returns: Dataframe
+    :return: Cumulative portfolio returns
+    :rtype: Dataframe
+    """
+    cum_returns = pd.DataFrame()
+    for name, values in returns.items():
+        try:
+            cum_rets = values.cumsum().apply(np.exp)
+            cum_rets = cum_rets * 1000
+            cum_returns[name] = cum_rets
+        except:
+            logging.error(f"Return cumulation failed for column {name}")
+            cum_returns[name] = values
+    return cum_returns
+
+def rename_dataframe(df, tick_map):
+    const_cols = read_json("constant.json")["columns"]
+    df_cols = df.columns
+    try:
+        if const_cols["ticker"] in df_cols:
+            df_adj = df.replace(
+                {const_cols["ticker"]: tick_map}
+            )
+        else:
+            df_adj = df.rename(mapper=tick_map, axis=0)
+            df_adj = df_adj.rename(mapper=tick_map, axis=1)
+        return df_adj
+    except:
+        return pd.DataFrame()
+    
+
+def rename_dictionary(dict, tick_map):
+    dict_adj = {}
+    try:
+        for key, value in dict.items():
+            if key in list(tick_map.keys()):
+                key_adj = tick_map[key]
+            else:
+                key_adj = key
+            if isinstance(value, pd.DataFrame):
+                value_adj = rename_dataframe(
+                    df=value,
+                    tick_map=tick_map
+                )
+            else:
+                value_adj = value
+            dict_adj[key_adj] = value_adj
+        return dict_adj
+    except:
+        return {}
     
 def rename_yfcolumns(data):
     """Function renames dataframe columns
@@ -110,13 +165,49 @@ def get_last_business_day():
     last_bday = last_bday.strftime(format="%Y-%m-%d")
     return last_bday
 
+def calc_annualized_mean_return(returns):
+    """Function calculates annualized mean return for daily 
+    return series
+
+    :param returns: Daily stock returns
+    :type returns: Series
+    :return: Annualized mean return
+    :rtype: Float
+    """
+    ann_mean_ret = returns.mean() * 252
+    return ann_mean_ret
+
+def calc_total_return(returns):
+    """Function calculates total return for daily return series
+
+    :param returns: Daily stock returns
+    :type returns: Series
+    :return: Total stock return
+    :rtype: Float
+    """
+    total_ret = (np.exp(returns.sum()) - 1)
+    return total_ret
+
+def calc_annualized_vola(returns):
+    """Function calculates annualized volatility for daily
+    return series
+
+    :param returns: Daily stock returns
+    :type returns: Series
+    :return: Annualized volatililty
+    :rtype: Float
+    """
+    ann_vola = np.sqrt(returns.std() * 252)
+    return ann_vola
+
+
 def harmonize_tickers(object):
     """Functions harmonizes ticker symbols in input object
     with base tickers in parameter.json for dataframes and
     dictionary. If input object is different type, the 
     function returns the raw input object
 
-    :param object: Quotes or fundamental data
+    :param object: Data to harmonize
     :type object: Dataframe, Dictionary
     :return: Input object adjusted for base tickers
     :rtype: Dataframe, Dictionary
@@ -203,7 +294,6 @@ def get_latest_modelid(tick, model_type):
             latest_date = max(value)
             model_id = f"{latest_date}_{key_split}"
             model_ids.append(model_id)
-            return model_ids
         else:
             if model_type in key_split:
                 latest_date = max(value)
@@ -212,6 +302,42 @@ def get_latest_modelid(tick, model_type):
             else:
                 logging.warning(f"Model type {model_type} not in model folder")
                 return None
+    return model_ids
+            
+def get_future_returns(tickers, rets):
+    """Function loads trained models for given tickers and 
+    defined model type in parameter file and calculates and
+    concats daily future portfolio returns for given weights
+
+    :param tickers: Tickers for future return calculation
+    :type tickers: List
+    :return: Future portfolio returns 
+    :rtype: Dataframe
+    """
+    from core.file_adapter import FileAdapter
+    params = read_json("parameter.json")
+    return_list = []
+    for tick in tickers:
+        model_id = get_latest_modelid(
+            tick=tick, 
+            model_type=params["model"]
+        )
+        model = FileAdapter().load_model(
+            ticker=tick,
+            model_id=model_id
+        )
+        if model_id is None:
+            model.init_data(
+                data=rets,
+                ticker=tick
+            )
+        quote_prediction = model.predict()
+        returns = calculate_returns(quotes=quote_prediction)
+        returns.name = tick
+        return_list.append(returns)
+
+    future_returns = pd.concat(return_list, axis=1)
+    return future_returns
 
 def get_log_path(ticker, model_id, log_key):
     """Function builds path for saving model logs.

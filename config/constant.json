@@ -11,6 +11,7 @@
         "quotes_file": "closing_quotes",
         "stock_returns_file": "stock_returns",
         "benchmark_returns_file": "benchmark_returns",
+        "future_stock_returns_file": "future_stock_returns",
         "fundamentals_file": "fundamentals",
         "stock_infos": "stock_infos",
         "moving_averages_file": "moving_averages",
@@ -68,20 +69,23 @@
         "ret_id": "RETURN_ID",
         "hist_rets": "HISTORICAL_RETURNS",
         "future_rets": "FUTURE_RETURNS",
-        "sharpe_ratio": "SHARPE_RATIO",
-        "ann_mean_ret": "ANNUALIZED_MEAN_RETURN",
-        "ann_vola": "ANNUALIZED_VOLA",
+        "sharpe_ratio": "SHARPE RATIO",
+        "ann_mean_ret": "ANNUALIZED MEAN RETURN (%)",
+        "total_ret": "TOTAL RETURN (%)",
+        "ann_vola": "ANNUALIZED VOLA",
         "bench_corr": "BENCHMARK_CORRELATION",
-        "port_types": "PORTFOLIO_TYPES",
+        "port_types": "PORTFOLIO TYPES",
         "opt_weight": "OPTIMAL_WEIGHT",
         "act_weight": "ACTUAL_WEIGHT",
         "long_pos": "LONG_POSITION",
-        "amount": "AMOUNT"
+        "amount": "AMOUNT",
+        "asset": "ASSET",
+        "benchmark": "BENCHMARK"
     },
-    "keys": {
-        "MIN_VAR": "MinimumVariance",
-        "MAX_SHARPE": "MaximumSharpeRatio",
-        "CUSTOM": "CustomWeights",
-        "EQUAL": "EqualWeights"
+    "port_keys": {
+        "min_var": "MINIMUM VARIANCE",
+        "max_sharpe": "MAXIMUM SHARPE RATIO",
+        "custom": "CUSTOM WEIGHTS",
+        "equal": "EQUAL WEIGHTS"
     }
 }

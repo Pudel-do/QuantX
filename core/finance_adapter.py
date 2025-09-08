@@ -8,7 +8,7 @@ from core import logging_config
 from alpha_vantage.fundamentaldata import FundamentalData
 from datetime import datetime
 from bs4 import BeautifulSoup
-from misc.misc import *
+from misc.utils import *
 
 class FinanceAdapter:
     def __init__(self, tick):
@@ -111,6 +111,7 @@ class FinanceAdapter:
         """
         tick_info = yf.Ticker(self.tick).info
         name = tick_info["shortName"]
+        name = " ".join(name.split())
         return name
 
     def _establish_fmb_connection(self, fd_kpi):
@@ -123,8 +124,9 @@ class FinanceAdapter:
         :rtype: Json file
         """
         api_key = os.getenv("API_KEY_FMP")
-        url = f"https://financialmodelingprep.com/api/v3/{fd_kpi}/{self.tick}?period=annual&apikey={api_key}"
+        url = f"https://financialmodelingprep.com/stable/{fd_kpi}?symbol={self.tick}&apikey={api_key}"
         response = requests.get(url)
+        #fd_list = response.json()
         if response.status_code == 200:
             fd_list = response.json()
             return fd_list

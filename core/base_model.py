@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime
 from abc import ABC, abstractmethod
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from misc.misc import *
+from misc.utils import *
 
 class BaseModel(ABC):
     def __init__(self, model_name):

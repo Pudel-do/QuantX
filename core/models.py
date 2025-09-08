@@ -11,7 +11,7 @@ from pmdarima import auto_arima, ARIMA
 from keras import layers
 from keras import optimizers
 from core.base_model import BaseModel
-from misc.misc import *
+from misc.utils import *
 import warnings
 warnings.filterwarnings('ignore') 
 
