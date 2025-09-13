@@ -216,6 +216,7 @@ class OneStepLSTM(BaseModel):
                 plot_to_image(figure), 
                 step=0
             )
+        self.rmse = rmse
         return None
     
     def predict(self):
