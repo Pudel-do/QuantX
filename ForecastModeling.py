@@ -198,7 +198,7 @@ def model_backtesting(tickers):
         closing_quotes = trade_data[PARAMETER["quote_id"]]
         closing_quotes.name = CONST_COLS["quote"]
         closing_quotes = pd.DataFrame(closing_quotes)
-        model_ids = get_latest_modelid(
+        model_ids = get_best_modelid(
             tick=tick, 
             model_type=None
         )
@@ -270,8 +270,7 @@ if __name__ == "__main__":
         file_name=CONST_DATA["model_data_file"]
     )
     models = [
-        OneStepLSTM(),
-        ArimaModel(),
+        OneStepLSTM()
     ]
     if PARAMETER["use_model_training"]:
         model_building(
