@@ -364,7 +364,7 @@ def get_future_returns(tickers, rets):
     params = read_json("parameter.json")
     return_list = []
     for tick in tickers:
-        model_id = get_latest_modelid(
+        model_id = get_best_modelid(
             tick=tick, 
             model_type=params["model"]
         )
