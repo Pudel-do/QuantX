@@ -50,6 +50,9 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
+        exog_features = self.data.drop(columns=self.params["target_col"])
+        exog_features = list(exog_features.columns)
+        last_model_obs = self.data.index[-1]
         seq_length = self.params["sequence_length"]
         train_set, val_set, test_set = self._data_split(
             data=self.scaled_data,
@@ -101,6 +104,8 @@ class OneStepLSTM(BaseModel):
         self.model = model
         self.seq_length = seq_length
         self.n_features = n_features
+        self.exog_features = exog_features
+        self.last_model_obs = last_model_obs
         return None
     
     def hyperparameter_tuning(self):
@@ -121,8 +126,9 @@ class OneStepLSTM(BaseModel):
         )
         best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
         best_model = tuner.hypermodel.build(best_hps)
-        self.seq_length = best_hps.get('seq_length')
+        self.best_hps = best_hps
         self.model = best_model
+        self.seq_length = best_hps.get('seq_length')
         
     def train(self):
         """Function trains LSTM model and saves callbacks
@@ -229,6 +235,10 @@ class OneStepLSTM(BaseModel):
         :return: Out-of-sample prediction
         :rtype: Series
         """
+        last_obs = self.data.index[-1]
+        if last_obs > self.last_model_obs and self.data is not None:
+            self._refit_model()
+        print("break")
         prediction_list = self._predict(
             base_data=self.scaled_data,
             forecast_horizon=self.pred_days
@@ -368,6 +378,30 @@ class OneStepLSTM(BaseModel):
             endog.append(data[i, :])
 
         return np.array(exog), np.array(endog)
+    
+    def _refit_model(self):
+        logging.info("Refitting model with new data")
+        #ToDO: Build error handling when self.data columns is less than self.exog_features
+        self.data = self.data[self.exog_features]
+        self.preprocess_data()
+        train_set, val_set, _ = self._data_split(
+            data=self.scaled_data,
+            seq_length=self.seq_length,
+        use_val_set=True
+        )
+        x_train, y_train = self._create_sequences(train_set, self.seq_length)
+        x_val, y_val = self._create_sequences(val_set, self.seq_length)
+
+        self.model.fit(
+            x_train,
+            y_train,
+            epochs=self.params["refit_epochs"],
+            batch_size=32,
+            validation_data=(x_val, y_val),
+            callbacks=[self.earlystop_cb]
+        )
+        logging.info("Refitting finished")
+        pass
 
 class MultiStepLSTM(BaseModel):
     def __init__(self):
