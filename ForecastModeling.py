@@ -171,7 +171,7 @@ def model_building(model_data, models):
             del model
     return None
 
-def model_backtesting(tickers):
+def model_backtesting(tickers, model_data):
     """Function merges closing quotes up to the current last
     business day for given tickers with the prediction values 
     of the last current prediction models separated by model types.
@@ -213,7 +213,8 @@ def model_backtesting(tickers):
             model_type = model_type.split(".")[0]
             if model_type not in model_list:
                 model_list.append(model_type)
-            prediction = model.predict()
+            tick_model_data = model_data[tick]
+            prediction = model.predict(tick_model_data)
             prediction.name = model_type
             backtest = backtest.join(
                 prediction,
@@ -278,7 +279,8 @@ if __name__ == "__main__":
             models=models
         )
     backtest, validation, models = model_backtesting(
-        tickers=tickers
+        tickers=tickers,
+        model_data=model_data_dict
     )
     FileAdapter().save_object(
         obj=backtest,

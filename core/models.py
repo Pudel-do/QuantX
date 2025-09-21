@@ -225,7 +225,7 @@ class OneStepLSTM(BaseModel):
         self.rmse = rmse
         return None
     
-    def predict(self):
+    def predict(self, actual_data=None):
         """Function performs one step ahead out-of-sample prediction 
         for defined prediction period in parameter.json based on the
         last sequence. Prediction values are inverse transformed
@@ -235,10 +235,10 @@ class OneStepLSTM(BaseModel):
         :return: Out-of-sample prediction
         :rtype: Series
         """
-        last_obs = self.data.index[-1]
-        if last_obs > self.last_model_obs and self.data is not None:
-            self._refit_model()
-        print("break")
+        #ToDO: Extend function arguments by new data for refitting
+        last_obs = actual_data.index[-1]
+        if last_obs > self.last_model_obs and actual_data is not None:
+            self._refit_model(actual_data=actual_data)
         prediction_list = self._predict(
             base_data=self.scaled_data,
             forecast_horizon=self.pred_days
@@ -379,10 +379,10 @@ class OneStepLSTM(BaseModel):
 
         return np.array(exog), np.array(endog)
     
-    def _refit_model(self):
+    def _refit_model(self, actual_data):
         logging.info("Refitting model with new data")
         #ToDO: Build error handling when self.data columns is less than self.exog_features
-        self.data = self.data[self.exog_features]
+        self.data = actual_data[self.exog_features]
         self.preprocess_data()
         train_set, val_set, _ = self._data_split(
             data=self.scaled_data,
@@ -401,7 +401,7 @@ class OneStepLSTM(BaseModel):
             callbacks=[self.earlystop_cb]
         )
         logging.info("Refitting finished")
-        pass
+        return None
 
 class MultiStepLSTM(BaseModel):
     def __init__(self):
