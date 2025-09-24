@@ -50,8 +50,7 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
-        exog_features = self.data.drop(columns=self.params["target_col"])
-        exog_features = list(exog_features.columns)
+        exog_features = list(self.data.columns)
         last_model_obs = self.data.index[-1]
         seq_length = self.params["sequence_length"]
         train_set, val_set, test_set = self._data_split(
