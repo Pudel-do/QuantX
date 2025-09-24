@@ -350,7 +350,7 @@ def get_best_modelid(tick, model_type):
     best_models_list = [id for id, _ in best_models.values()]
     return best_models_list
             
-def get_future_returns(tickers, rets):
+def get_future_returns(tickers, rets, model_data):
     """Function loads trained models for given tickers and 
     defined model type in parameter file and calculates and
     concats daily future portfolio returns for given weights
@@ -367,7 +367,7 @@ def get_future_returns(tickers, rets):
         model_id = get_best_modelid(
             tick=tick, 
             model_type=params["model"]
-        )
+        )[0]
         model = FileAdapter().load_model(
             ticker=tick,
             model_id=model_id
@@ -377,7 +377,8 @@ def get_future_returns(tickers, rets):
                 data=rets,
                 ticker=tick
             )
-        quote_prediction = model.predict()
+        tick_model_data = model_data[tick]
+        quote_prediction = model.predict(actual_data=tick_model_data)
         returns = calculate_returns(quotes=quote_prediction)
         returns.name = tick
         return_list.append(returns)
