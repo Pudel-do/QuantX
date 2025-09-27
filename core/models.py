@@ -234,10 +234,10 @@ class OneStepLSTM(BaseModel):
         :return: Out-of-sample prediction
         :rtype: Series
         """
-        #ToDO: Extend function arguments by new data for refitting
-        last_obs = actual_data.index[-1]
-        if last_obs > self.last_model_obs and actual_data is not None:
-            self._refit_model(actual_data=actual_data)
+        if self._new_data_check(new_data=actual_data):
+            pass
+
+        self._refit_model(actual_data=actual_data)
         prediction_list = self._predict(
             base_data=self.scaled_data,
             forecast_horizon=self.pred_days
@@ -377,6 +377,15 @@ class OneStepLSTM(BaseModel):
             endog.append(data[i, :])
 
         return np.array(exog), np.array(endog)
+    
+    def _new_data_check(self, new_data):
+        if new_data is None:
+            return False
+        try:
+            return new_data.index[-1] > self.data.index[-1]
+        except Exception as e:
+            logging.error(f"Error while comparing refit data: {e}")
+            return False
     
     def _refit_model(self, actual_data):
         logging.info("Refitting model with new data")
