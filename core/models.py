@@ -4,6 +4,7 @@ import keras
 import tensorflow as tf
 import kerastuner as kt
 import io
+import copy
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_absolute_percentage_error
@@ -19,6 +20,8 @@ class OneStepLSTM(BaseModel):
     def __init__(self):
         super().__init__(model_name="OneStepLSTM")
         self._create_model_id()
+        self.new_data_flag = False
+        self.refit_flag = False
         self.earlystop_cb = keras.callbacks.EarlyStopping(
             patience=self.params["patience"],
             restore_best_weights=True
@@ -50,7 +53,7 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
-        exog_features = list(self.data.columns)
+        feature_list = list(self.data.columns)
         last_model_obs = self.data.index[-1]
         seq_length = self.params["sequence_length"]
         train_set, val_set, test_set = self._data_split(
@@ -103,7 +106,7 @@ class OneStepLSTM(BaseModel):
         self.model = model
         self.seq_length = seq_length
         self.n_features = n_features
-        self.exog_features = exog_features
+        self.feature_list = feature_list
         self.last_model_obs = last_model_obs
         return None
     
@@ -235,9 +238,13 @@ class OneStepLSTM(BaseModel):
         :rtype: Series
         """
         if self._new_data_check(new_data=actual_data):
-            pass
+            self.data = actual_data[self.feature_list]
+            self.new_data_flag = True
+            self.refit_flag = False
 
-        self._refit_model(actual_data=actual_data)
+        if not self.refit_flag and self.new_data_flag:
+            self._refit_model(actual_data=actual_data)
+
         prediction_list = self._predict(
             base_data=self.scaled_data,
             forecast_horizon=self.pred_days
@@ -384,13 +391,13 @@ class OneStepLSTM(BaseModel):
         try:
             return new_data.index[-1] > self.data.index[-1]
         except Exception as e:
-            logging.error(f"Error while comparing refit data: {e}")
+            logging.error(f"Error while comparing data for refitting: {e}")
             return False
     
     def _refit_model(self, actual_data):
+        from core.file_adapter import FileAdapter
         logging.info("Refitting model with new data")
-        #ToDO: Build error handling when self.data columns is less than self.exog_features
-        self.data = actual_data[self.exog_features]
+
         self.preprocess_data()
         train_set, val_set, _ = self._data_split(
             data=self.scaled_data,
@@ -408,6 +415,11 @@ class OneStepLSTM(BaseModel):
             validation_data=(x_val, y_val),
             callbacks=[self.earlystop_cb]
         )
+        self.refit_flag = True
+        self.new_data_flag = False
+
+        class_copy = copy.deepcopy(self)
+        FileAdapter().save_model(model=class_copy)
         logging.info("Refitting finished")
         return None
 
