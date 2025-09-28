@@ -396,7 +396,7 @@ class OneStepLSTM(BaseModel):
     
     def _refit_model(self, actual_data):
         from core.file_adapter import FileAdapter
-        logging.info("Refitting model with new data")
+        logging.info(f"Refitting model for ticker {self.ticker}")
 
         self.preprocess_data()
         train_set, val_set, _ = self._data_split(
@@ -417,10 +417,10 @@ class OneStepLSTM(BaseModel):
         )
         self.refit_flag = True
         self.new_data_flag = False
-
         class_copy = copy.deepcopy(self)
+
         FileAdapter().save_model(model=class_copy)
-        logging.info("Refitting finished")
+        logging.info(f"Finishing refitting and model persisting for ticker {self.ticker}")
         return None
 
 class MultiStepLSTM(BaseModel):
