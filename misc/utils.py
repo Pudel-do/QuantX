@@ -348,6 +348,7 @@ def get_best_modelid(tick, model_type):
             best_models[model_class] = (id, performance)
 
     best_models_list = [id for id, _ in best_models.values()]
+    logging.info(f"Best model for ticker {tick}: {id}")
     return best_models_list
             
 def get_future_returns(tickers, rets, model_data):
