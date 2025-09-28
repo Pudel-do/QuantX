@@ -146,6 +146,8 @@ class OneStepLSTM(BaseModel):
             log_key="training_logs"
         )
         tensorboard_cb = keras.callbacks.TensorBoard(log_dir)
+
+        logging.info(f"Start model training for ticker {self.ticker}")
         self.model.fit(
             self.x_train,
             self.y_train,
@@ -154,6 +156,8 @@ class OneStepLSTM(BaseModel):
             validation_data=(self.x_val, self.y_val),
             callbacks=[tensorboard_cb, self.earlystop_cb],
         )
+        logging.info(f"Finishing model training for ticker {self.ticker}")
+        
         features = self.params["feature_cols"]
         lr = self.model.optimizer.learning_rate.value.name
         length_seq = self.model.input_shape[1]
