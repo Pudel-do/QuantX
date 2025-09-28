@@ -132,7 +132,6 @@ def feature_engineering(stock_dict):
             axis=1,
             join="outer"
         )
-        features = features[PARAMETER["feature_cols"]]
         data = target.join(
             features,
             how="inner"
@@ -140,6 +139,17 @@ def feature_engineering(stock_dict):
         data = data.dropna()
         model_data[tick] = data
     return model_data
+
+def filter_model_featuers(model_data):
+    model_data_filtered = {}
+    for tick, data in model_data.items():
+        endog_col = PARAMETER["target_col"]
+        exog_cols = PARAMETER["feature_cols"]
+        feature_cols = exog_cols + [endog_col]
+        data_filtered = data[feature_cols]
+        model_data_filtered[tick] = data_filtered
+
+    return model_data_filtered
         
 def model_building(model_data, models):
     """Function builds, train and evaluates given
@@ -270,17 +280,18 @@ if __name__ == "__main__":
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["model_data_file"]
     )
+    model_data_dict_filtered = filter_model_featuers(model_data_dict)
     models = [
         OneStepLSTM()
     ]
     if PARAMETER["use_model_training"]:
         model_building(
-            model_data=model_data_dict, 
+            model_data=model_data_dict_filtered, 
             models=models
         )
     backtest, validation, models = model_backtesting(
         tickers=tickers,
-        model_data=model_data_dict
+        model_data=model_data_dict_filtered
     )
     FileAdapter().save_object(
         obj=backtest,
