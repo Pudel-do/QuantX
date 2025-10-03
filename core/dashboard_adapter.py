@@ -16,13 +16,15 @@ class DashboardAdapter:
             self, assets, ticks, tick_mapping,
             moving_avg, opt_moving_avg, port_types,
             stock_rets, bench_rets, stock_infos, fundamentals,
-            model_backtest, model_validation, models, actual_quotes
+            model_backtest, model_validation, models, model_data, 
+            actual_quotes
         ):
         self.app = Dash(__name__)
         self.assets = assets
         self.ticks = ticks
         self.tick_mapping = tick_mapping
         self.models = models
+        self.model_data = model_data
         self.params = read_json("parameter.json")
         self.const_cols = read_json("constant.json")["columns"]
         self.fundamental_cols = read_json("constant.json")["fundamentals"]["measures"]
@@ -516,7 +518,8 @@ class DashboardAdapter:
 
         future_rets = get_future_returns(
             tickers=self.ticks,
-            rets=self.stock_rets
+            rets=self.stock_rets,
+            model_data=self.model_data
         )
         weights_custom = self.params["custom_weights"]
         weights_custom = rename_dictionary(

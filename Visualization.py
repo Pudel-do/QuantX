@@ -125,6 +125,10 @@ if __name__ == "__main__":
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["model_list"]
     )
+    model_data = FileAdapter().load_object(
+        path=CONST_DATA["processed_data_dir"],
+        file_name=CONST_DATA["model_data_file"]
+    )
     stock_rets_clean, _ = harmonize_tickers(stock_rets)
     stock_infos, _ = harmonize_tickers(stock_infos)
     actual_quotes = get_actual_quotes(ticks=ticks)
@@ -151,6 +155,7 @@ if __name__ == "__main__":
         model_backtest=model_backtest,
         model_validation=model_validation,
         models=models,
+        model_data=model_data,
         actual_quotes=actual_quotes
     )
     dashboard.run(debug=True)

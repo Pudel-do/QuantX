@@ -132,7 +132,6 @@ def feature_engineering(stock_dict):
             axis=1,
             join="outer"
         )
-        features = features[PARAMETER["feature_cols"]]
         data = target.join(
             features,
             how="inner"
@@ -140,6 +139,17 @@ def feature_engineering(stock_dict):
         data = data.dropna()
         model_data[tick] = data
     return model_data
+
+def filter_model_featuers(model_data):
+    model_data_filtered = {}
+    for tick, data in model_data.items():
+        endog_col = PARAMETER["target_col"]
+        exog_cols = PARAMETER["feature_cols"]
+        feature_cols = exog_cols + [endog_col]
+        data_filtered = data[feature_cols]
+        model_data_filtered[tick] = data_filtered
+
+    return model_data_filtered
         
 def model_building(model_data, models):
     """Function builds, train and evaluates given
@@ -171,7 +181,7 @@ def model_building(model_data, models):
             del model
     return None
 
-def model_backtesting(tickers):
+def model_backtesting(tickers, model_data):
     """Function merges closing quotes up to the current last
     business day for given tickers with the prediction values 
     of the last current prediction models separated by model types.
@@ -198,7 +208,7 @@ def model_backtesting(tickers):
         closing_quotes = trade_data[PARAMETER["quote_id"]]
         closing_quotes.name = CONST_COLS["quote"]
         closing_quotes = pd.DataFrame(closing_quotes)
-        model_ids = get_latest_modelid(
+        model_ids = get_best_modelid(
             tick=tick, 
             model_type=None
         )
@@ -213,7 +223,8 @@ def model_backtesting(tickers):
             model_type = model_type.split(".")[0]
             if model_type not in model_list:
                 model_list.append(model_type)
-            prediction = model.predict()
+            tick_model_data = model_data[tick]
+            prediction = model.predict(tick_model_data)
             prediction.name = model_type
             backtest = backtest.join(
                 prediction,
@@ -269,17 +280,18 @@ if __name__ == "__main__":
         path=CONST_DATA["processed_data_dir"],
         file_name=CONST_DATA["model_data_file"]
     )
+    model_data_dict_filtered = filter_model_featuers(model_data_dict)
     models = [
-        OneStepLSTM(),
-        ArimaModel(),
+        OneStepLSTM()
     ]
     if PARAMETER["use_model_training"]:
         model_building(
-            model_data=model_data_dict, 
+            model_data=model_data_dict_filtered, 
             models=models
         )
     backtest, validation, models = model_backtesting(
-        tickers=tickers
+        tickers=tickers,
+        model_data=model_data_dict_filtered
     )
     FileAdapter().save_object(
         obj=backtest,

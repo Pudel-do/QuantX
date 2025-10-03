@@ -303,8 +303,55 @@ def get_latest_modelid(tick, model_type):
                 logging.warning(f"Model type {model_type} not in model folder")
                 return None
     return model_ids
+
+def get_best_modelid(tick, model_type):
+    """Function filters in model directory for the most actual 
+    forecas model separated by the respective ticker symbol and
+    forecast model type. If model_type is not None, the model
+    of model_type is directly selected and the most actual model ID
+    is returned
+
+    :param tick: Ticker to search model for
+    :type tick: String
+    :param model_type: Type of forecast model (e.g. ARIMA, LSTM)
+    for direct selection
+    :type model_type: String
+    :return: Most actual model ID for respective ticker and model tyoe
+    :rtype: List
+    """
+    from core.file_adapter import FileAdapter
+    datamodel = read_json("constant.json")["datamodel"]
+    models_dir = datamodel["models_dir"]
+    model_dir = datamodel["model"]
+    models_path = os.path.join(models_dir, tick, model_dir)
+    if not os.path.exists(models_path):
+        logging.warning(f"Model for ticker {tick} does not exist")
+        return None
+    else:
+        model_list = os.listdir(models_path)
+    model_ids = []
+    insample_performance = []
+    for model_id in model_list:
+        model_id = model_id.split(".")[0]
+        model = FileAdapter().load_model(
+            ticker=tick,
+            model_id=model_id
+        )
+        model_ids.append(model_id)
+        insample_performance.append(model.rmse)
+    models = list(zip(model_ids, insample_performance))
+
+    best_models = {}
+    for id, performance in models:
+        model_class = id.split("_")[1]
+        if model_class not in best_models or performance < best_models[model_class][1]:
+            best_models[model_class] = (id, performance)
+
+    best_models_list = [model_id for model_id, _ in best_models.values()]
+    logging.info(f"Best model for ticker {tick}: {", ".join(best_models_list)}")
+    return best_models_list
             
-def get_future_returns(tickers, rets):
+def get_future_returns(tickers, rets, model_data):
     """Function loads trained models for given tickers and 
     defined model type in parameter file and calculates and
     concats daily future portfolio returns for given weights
@@ -318,10 +365,10 @@ def get_future_returns(tickers, rets):
     params = read_json("parameter.json")
     return_list = []
     for tick in tickers:
-        model_id = get_latest_modelid(
+        model_id = get_best_modelid(
             tick=tick, 
             model_type=params["model"]
-        )
+        )[0]
         model = FileAdapter().load_model(
             ticker=tick,
             model_id=model_id
@@ -331,7 +378,8 @@ def get_future_returns(tickers, rets):
                 data=rets,
                 ticker=tick
             )
-        quote_prediction = model.predict()
+        tick_model_data = model_data[tick]
+        quote_prediction = model.predict(actual_data=tick_model_data)
         returns = calculate_returns(quotes=quote_prediction)
         returns.name = tick
         return_list.append(returns)

@@ -4,6 +4,7 @@ import keras
 import tensorflow as tf
 import kerastuner as kt
 import io
+import copy
 from datetime import datetime
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_absolute_percentage_error
@@ -19,7 +20,10 @@ class OneStepLSTM(BaseModel):
     def __init__(self):
         super().__init__(model_name="OneStepLSTM")
         self._create_model_id()
+        self.new_data_flag = False
+        self.refit_flag = False
         self.earlystop_cb = keras.callbacks.EarlyStopping(
+            monitor="val_loss",
             patience=self.params["patience"],
             restore_best_weights=True
         )
@@ -50,7 +54,10 @@ class OneStepLSTM(BaseModel):
         :return: None
         :rtype: None
         """
+        feature_list = list(self.data.columns)
+        last_model_obs = self.data.index[-1]
         seq_length = self.params["sequence_length"]
+        batch_size = self.params["batch_size"]
         train_set, val_set, test_set = self._data_split(
             data=self.scaled_data,
             seq_length=seq_length,
@@ -100,10 +107,14 @@ class OneStepLSTM(BaseModel):
         )
         self.model = model
         self.seq_length = seq_length
+        self.batch_size = batch_size
         self.n_features = n_features
+        self.feature_list = feature_list
+        self.last_model_obs = last_model_obs
         return None
     
     def hyperparameter_tuning(self):
+        logging.info(f"Start hyperparameter tuning for ticker {self.ticker}")
         tuner = kt.Hyperband(
             self._build_model_hp,
             objective='val_loss',
@@ -115,15 +126,18 @@ class OneStepLSTM(BaseModel):
             self.x_train, 
             self.y_train, 
             epochs=self.params["epochs"], 
-            validation_data=(self.x_val, self.y_val), 
-            batch_size=32,
+            validation_data=(self.x_val, self.y_val),
             callbacks=[self.earlystop_cb]
         )
+        logging.info(f"Finishing hyperparameter tuning for ticker {self.ticker}")
+
         best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
         best_model = tuner.hypermodel.build(best_hps)
-        self.seq_length = best_hps.get('seq_length')
+        self.best_hps = best_hps
         self.model = best_model
-        
+        self.seq_length = best_hps.get("seq_length")
+        self.batch_size = best_hps.get("batch_size")
+
     def train(self):
         """Function trains LSTM model and saves callbacks
         in model logs for evaluation in tensorboard. 
@@ -138,43 +152,61 @@ class OneStepLSTM(BaseModel):
             log_key="training_logs"
         )
         tensorboard_cb = keras.callbacks.TensorBoard(log_dir)
+
+        logging.info(f"Start model training for ticker {self.ticker}")
         self.model.fit(
             self.x_train,
             self.y_train,
             epochs=self.params["epochs"],
-            batch_size=32,
+            batch_size=self.batch_size,
             validation_data=(self.x_val, self.y_val),
             callbacks=[tensorboard_cb, self.earlystop_cb],
         )
+        logging.info(f"Finishing model training for ticker {self.ticker}")
+        
         features = self.params["feature_cols"]
         lr = self.model.optimizer.learning_rate.value.name
+        dense_activation = self.best_hps.values["dense_activation"]
         length_seq = self.model.input_shape[1]
+        batch_size = self.best_hps.values["batch_size"]
         hidden_layers = 0
         neuron_list = []
         dropout_list = []
+        dropout_list_standalone = []
+        recurrent_droput_list = []
         for layer in self.model.layers:
             if isinstance(layer, layers.LSTM):
                 hidden_layers += 1
                 neuron_list.append(layer.units)
+                dropout_list.append(layer.dropout)
+                recurrent_droput_list.append(layer.recurrent_dropout)
             elif isinstance(layer, layers.Dropout):
-                dropout_list.append(layer.rate)
+                dropout_list_standalone.append(layer.rate)
             else:
                 pass
         model_facts = """
         Model Characteristics:
         - Exogenous features: {}
         - Sequence length: {}
+        - Batch size: {}
         - Number of hidden layers: {}
         - Neurons: {}
         - Dropout rates: {}
+        - Dropout rates standalone: {}
+        - Recurrent drop out rates: {}
         - Learning rate: {}
+        - Dense activatiob: {}
         """.format(
             list(features),
             length_seq,
+            batch_size,
             hidden_layers,
             neuron_list,
             dropout_list,
-            lr
+            dropout_list_standalone,
+            recurrent_droput_list,
+            lr,
+            dense_activation
         )
         self.model_facts = model_facts
         return None
@@ -216,9 +248,10 @@ class OneStepLSTM(BaseModel):
                 plot_to_image(figure), 
                 step=0
             )
+        self.rmse = rmse
         return None
     
-    def predict(self):
+    def predict(self, actual_data=None):
         """Function performs one step ahead out-of-sample prediction 
         for defined prediction period in parameter.json based on the
         last sequence. Prediction values are inverse transformed
@@ -228,6 +261,14 @@ class OneStepLSTM(BaseModel):
         :return: Out-of-sample prediction
         :rtype: Series
         """
+        if self._new_data_check(new_data=actual_data):
+            self.data = actual_data[self.feature_list]
+            self.new_data_flag = True
+            self.refit_flag = False
+
+        if not self.refit_flag and self.new_data_flag:
+            self._refit_model(actual_data=actual_data)
+
         prediction_list = self._predict(
             base_data=self.scaled_data,
             forecast_horizon=self.pred_days
@@ -287,6 +328,10 @@ class OneStepLSTM(BaseModel):
             min_value=10, 
             max_value=90, 
             step=10)
+        batch_size = hp.Choice(
+            'batch_size', 
+            [16, 32, 64, 128]
+        )
         train_set, val_set, test_set = self._data_split(
             data=self.scaled_data,
             seq_length=seq_length,
@@ -315,7 +360,7 @@ class OneStepLSTM(BaseModel):
                 f'units_{i+1}', 
                 min_value=32, 
                 max_value=256, 
-                step=32
+                sampling="log"
             )
             dropout_rate = hp.Float(
                 f'dropout_rate_{i+1}', 
@@ -323,22 +368,51 @@ class OneStepLSTM(BaseModel):
                 max_value=0.5, 
                 step=0.1
             )
+            recurrent_dropout_rate = hp.Float(
+                f'recurrent_dropout_rate_{i+1}',
+                min_value=0.0, 
+                max_value=0.3, 
+                step=0.1
+            )
             return_sequences = i < (num_layers - 1)
             model.add(layers.LSTM(
                 units=units, 
                 return_sequences=return_sequences,
-                dropout=dropout_rate
+                dropout=dropout_rate,
+                recurrent_dropout=recurrent_dropout_rate
                 )
             )
-        model.add(layers.Dense(units=n_features))
-        optimizer = optimizers.Adam(
-            learning_rate=hp.Float(
-                'lr', 
-                min_value=1e-4, 
-                max_value=1e-2, 
-                sampling='LOG'
+        dense_activation = hp.Choice(
+            'dense_activation', 
+            ['linear', 'relu', 'tanh']
+        )
+        model.add(
+            layers.Dense(
+                units=n_features, 
+                activation=dense_activation
             )
         )
+        optimizer_choice = hp.Choice(
+            'optimizer', 
+            ['adam', 'rmsprop', 'nadam']
+        )
+        learning_rate = hp.Float(
+            'lr', 1e-4, 1e-2, 
+            sampling='log'
+        )
+        if optimizer_choice == 'adam':
+            optimizer = optimizers.Adam(
+                learning_rate=learning_rate
+            )
+        elif optimizer_choice == 'rmsprop':
+            optimizer = optimizers.RMSprop(
+                learning_rate=learning_rate
+            )
+        else:
+            optimizer = optimizers.Nadam(
+                learning_rate=learning_rate
+            )
+
         model.compile(
             optimizer=optimizer, 
             loss='mean_squared_error',
@@ -367,6 +441,44 @@ class OneStepLSTM(BaseModel):
             endog.append(data[i, :])
 
         return np.array(exog), np.array(endog)
+    
+    def _new_data_check(self, new_data):
+        if new_data is None:
+            return False
+        try:
+            return new_data.index[-1] > self.data.index[-1]
+        except Exception as e:
+            logging.error(f"Error while comparing data for refitting: {e}")
+            return False
+    
+    def _refit_model(self, actual_data):
+        from core.file_adapter import FileAdapter
+        logging.info(f"Refitting model for ticker {self.ticker}")
+
+        self.preprocess_data()
+        train_set, val_set, _ = self._data_split(
+            data=self.scaled_data,
+            seq_length=self.seq_length,
+        use_val_set=True
+        )
+        x_train, y_train = self._create_sequences(train_set, self.seq_length)
+        x_val, y_val = self._create_sequences(val_set, self.seq_length)
+
+        self.model.fit(
+            x_train,
+            y_train,
+            epochs=self.params["refit_epochs"],
+            batch_size=self.batch_size,
+            validation_data=(x_val, y_val),
+            callbacks=[self.earlystop_cb]
+        )
+        self.refit_flag = True
+        self.new_data_flag = False
+        class_copy = copy.deepcopy(self)
+
+        FileAdapter().save_model(model=class_copy)
+        logging.info(f"Finishing refitting and model persisting for ticker {self.ticker}")
+        return None
 
 class MultiStepLSTM(BaseModel):
     def __init__(self):
