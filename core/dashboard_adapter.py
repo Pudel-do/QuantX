@@ -97,7 +97,7 @@ class DashboardAdapter:
                 id='checklist_stock_infos',
                 options=[{'label': col, 'value': col} \
                             for col in self.stock_infos.columns],
-                value=[self.stock_infos.columns[0]],
+                value=[self.params["stock_infos"][0]],
                 labelStyle={'display': 'inline-block'}
             ),
             dcc.Graph(id='stock_infos_bar'),

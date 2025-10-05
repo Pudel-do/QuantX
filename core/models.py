@@ -58,6 +58,7 @@ class OneStepLSTM(BaseModel):
         last_model_obs = self.data.index[-1]
         seq_length = self.params["sequence_length"]
         batch_size = self.params["batch_size"]
+        dense_activation = self.params["dense_activation"]
         train_set, val_set, test_set = self._data_split(
             data=self.scaled_data,
             seq_length=seq_length,
@@ -88,9 +89,11 @@ class OneStepLSTM(BaseModel):
                 units = 50
             try:
                 drop_rate = self.params["drop_rates"][i]
+                drop_rate_recurrent = self.params["drop_rates_recurrent"][i]
             except IndexError as e:
                 logging.warning("Number of layers greater than list entries for drop rates")
                 drop_rate = 0
+                drop_rate_recurrent = 0
             
             return_sequences = i < (self.params["n_layers"] - 1)
             model.add(layers.LSTM(units=units, return_sequences=return_sequences))
@@ -108,6 +111,7 @@ class OneStepLSTM(BaseModel):
         self.model = model
         self.seq_length = seq_length
         self.batch_size = batch_size
+        self.dense_activation = dense_activation
         self.n_features = n_features
         self.feature_list = feature_list
         self.last_model_obs = last_model_obs
@@ -137,6 +141,7 @@ class OneStepLSTM(BaseModel):
         self.model = best_model
         self.seq_length = best_hps.get("seq_length")
         self.batch_size = best_hps.get("batch_size")
+        self.dense_activation = best_hps.get("dense_activation")
 
     def train(self):
         """Function trains LSTM model and saves callbacks
@@ -166,13 +171,12 @@ class OneStepLSTM(BaseModel):
         
         features = self.params["feature_cols"]
         lr = self.model.optimizer.learning_rate.value.name
-        dense_activation = self.best_hps.values["dense_activation"]
         length_seq = self.model.input_shape[1]
-        batch_size = self.best_hps.values["batch_size"]
+        batch_size = self.batch_size
+        dense_activation = self.dense_activation
         hidden_layers = 0
         neuron_list = []
         dropout_list = []
-        dropout_list_standalone = []
         recurrent_droput_list = []
         for layer in self.model.layers:
             if isinstance(layer, layers.LSTM):
@@ -180,8 +184,6 @@ class OneStepLSTM(BaseModel):
                 neuron_list.append(layer.units)
                 dropout_list.append(layer.dropout)
                 recurrent_droput_list.append(layer.recurrent_dropout)
-            elif isinstance(layer, layers.Dropout):
-                dropout_list_standalone.append(layer.rate)
             else:
                 pass
         model_facts = """
@@ -192,10 +194,9 @@ class OneStepLSTM(BaseModel):
         - Number of hidden layers: {}
         - Neurons: {}
         - Dropout rates: {}
-        - Dropout rates standalone: {}
         - Recurrent drop out rates: {}
         - Learning rate: {}
-        - Dense activatiob: {}
+        - Dense activation: {}
         """.format(
             list(features),
             length_seq,
@@ -203,7 +204,6 @@ class OneStepLSTM(BaseModel):
             hidden_layers,
             neuron_list,
             dropout_list,
-            dropout_list_standalone,
             recurrent_droput_list,
             lr,
             dense_activation
