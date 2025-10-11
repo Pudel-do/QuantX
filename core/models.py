@@ -6,7 +6,7 @@ import kerastuner as kt
 import io
 import copy
 from datetime import datetime
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error, mean_absolute_percentage_error
 from pmdarima import auto_arima, ARIMA
 from keras import layers
