@@ -599,6 +599,7 @@ class MultiStepLSTM(BaseModel):
             validation_data=(self.x_val, self.y_val),
             callbacks=[tensorboard_cb, self.earlystop_cb],
         )
+        scaler = self.scaler
         features = self.params["feature_cols"]
         lr = self.model.optimizer.learning_rate.value.name
         length_seq = self.model.input_shape[1]
@@ -615,6 +616,7 @@ class MultiStepLSTM(BaseModel):
                 pass
         model_facts = """
         Model Characteristics:
+        - Scaler: {}
         - Exogenous features: {}
         - Sequence length: {}
         - Number of hidden layers: {}
@@ -622,6 +624,7 @@ class MultiStepLSTM(BaseModel):
         - Dropout rates: {}
         - Learning rate: {}
         """.format(
+            scaler,
             list(features),
             length_seq,
             hidden_layers,

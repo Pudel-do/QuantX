@@ -6,8 +6,20 @@ from core.file_adapter import FileAdapter
 from misc.utils import *
 from core.models import OneStepLSTM, MultiStepLSTM, ArimaModel
 from core.finance_adapter import FinanceAdapter
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, root_mean_squared_error
 warnings.filterwarnings('ignore')
+
+def get_feature_scaler(scaler_id):
+    scaler_dict = {
+        "StandardScaler": StandardScaler(),
+        "MinMaxScaler": MinMaxScaler()
+        }
+    scaler = scaler_dict.get(scaler_id)
+    if scaler is None:
+        logging.warning("Given scaler not valid for scaler dictionary")
+        scaler = StandardScaler()
+    return scaler
 
 def merge_features(quotes, features):
     """Function merges daily quote data with
@@ -151,7 +163,7 @@ def filter_model_featuers(model_data):
 
     return model_data_filtered
         
-def model_building(model_data, models):
+def model_building(model_data, models, scaler):
     """Function builds, train and evaluates given
     forecast model. Finally the model is saved to 
     model and ticker directory
@@ -167,7 +179,8 @@ def model_building(model_data, models):
         for model in models:
             model.init_data(
                 data=data,
-                ticker=tick
+                ticker=tick,
+                scaler=scaler
             )
             model.preprocess_data()
             model.build_model()
@@ -262,6 +275,9 @@ if __name__ == "__main__":
         path=CONST_DATA["feature_dir"],
         file_name=CONST_DATA["daily_trading_data_file"]
     )
+    scaler = get_feature_scaler(
+        scaler_id=PARAMETER["scaler"]
+    )
     raw_tick_dict = merge_features(
         quotes=closing_quotes, 
         features=daily_trading_data
@@ -287,7 +303,8 @@ if __name__ == "__main__":
     if PARAMETER["use_model_training"]:
         model_building(
             model_data=model_data_dict_filtered, 
-            models=models
+            models=models,
+            scaler=scaler
         )
     backtest, validation, models = model_backtesting(
         tickers=tickers,

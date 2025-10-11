@@ -12,7 +12,7 @@ class BaseModel(ABC):
         self.params = read_json("parameter.json")
         self.pred_days = self.params["prediction_days"]
 
-    def init_data(self, data, ticker):
+    def init_data(self, data, ticker, scaler):
         """Function initializes model data and respective ticker
 
         :param data: Full time series of endogenous and
@@ -23,6 +23,7 @@ class BaseModel(ABC):
         """
         self.data = data
         self.ticker = ticker
+        self.scaler = scaler
 
     def _data_split(self, data, seq_length, use_val_set):
         """Function splits data set into train, test
@@ -66,8 +67,8 @@ class BaseModel(ABC):
         :return: Scaled model data
         :rtype: Array
         """
-        target_scaler = MinMaxScaler(feature_range=(0,1))
-        scaler = MinMaxScaler(feature_range=(0,1))
+        target_scaler = self.scaler
+        scaler = self.scaler
         scaled_data_list = []
         for col, ser in data.items():
             arr = ser.values.reshape(-1, 1)
