@@ -1,5 +1,5 @@
 from dash import Dash, dcc, html, dash_table
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State, MATCH, ALL
 import plotly.express as px
 import plotly.graph_objects as go
 from core import logging_config
@@ -136,6 +136,7 @@ class DashboardAdapter:
                 inline=True
             ),
             html.P(),
+            html.Div(id="weights_container"),
             dcc.Checklist(
                 id='portfolio_checklist',
                 options=[{'label': col, 'value': col} \
@@ -506,6 +507,36 @@ class DashboardAdapter:
             data = validation_data.to_dict('records')
             return data
         
+        @self.app.callback(
+        Output("weights_container", "children"),
+        Input('portfolio_constituents', 'value')
+        )
+
+        def update_weight_inputs(constituents):
+            if not self.params["use_custom_weights"]:
+                return []
+
+            if not constituents:
+                return []
+
+            controls = []
+            for ticker in constituents:
+                controls.append(
+                    html.Div([
+                        html.Label(f"Weight for {ticker}:"),
+                        dcc.Input(
+                            id={"type": "weight_input", "ticker": ticker},
+                            type="number",
+                            placeholder="0.0",
+                            min=0,
+                            max=1,
+                            step=0.01,
+                            value=0.0
+                        )
+                    ], style={"margin-bottom": "5px"})
+                )
+            return controls
+        
     def _register_callbacks_portfolio(self):
         """Functions defines the app callbacks to adjust
         the graphs basend on the given selections and filters.
@@ -521,11 +552,8 @@ class DashboardAdapter:
             rets=self.stock_rets,
             model_data=self.model_data
         )
-        weights_custom = self.params["custom_weights"]
-        weights_custom = rename_dictionary(
-            dict=weights_custom,
-            tick_map=self.tick_mapping
-        )
+        future_rets = rename_dataframe(future_rets, tick_map=self.tick_mapping)
+
         @self.app.callback(
             [
                 Output('portfolio_performances', 'figure'),
@@ -537,9 +565,80 @@ class DashboardAdapter:
                 Input("portfolio_constituents", "value"),
                 Input("time_range_slider_port", "value"),
                 Input('portfolio_checklist', 'value'),
-                Input("portfolio_dropdown", "value")
+                Input("portfolio_dropdown", "value"),
+                Input({"type": "weight_input", "ticker": ALL}, "value")
             ]
         )
+
+        def update_portfolio(
+            weight_filter,
+            constituents,
+            slider_array,
+            selected_port_types,
+            longpos_port_type,
+            custom_weight_values):
+
+            if not constituents:
+                return go.Figure(), [], []
+            
+            custom_weights = (
+                {ticker: w for ticker, w in zip(constituents, custom_weight_values)}
+                if self.params["use_custom_weights"]
+                else None
+            )
+
+            hist_rets, start, end = self._filter_time_range(
+                data=self.stock_rets,
+                slider_array=slider_array
+            )
+            bench_rets, _, _ = self._filter_time_range(
+                data=self.bench_rets,
+                slider_array=slider_array
+            )
+
+            hist_rets = self._return_cleaning(hist_rets, constituents)
+            bench_rets = self._return_cleaning(bench_rets, constituents)
+            future_rets_filtered = future_rets[constituents]
+
+            pg = PortfolioGenerator(hist_rets)
+            weights = {
+                self.port_types["max_sharpe"]: pg.get_max_sharpe_weights(),
+                self.port_types["min_var"]: pg.get_min_var_weights(),
+                self.port_types["equal"]: pg.get_equal_weights()
+            }
+
+            if self.params["use_custom_weights"]:
+                weights[self.port_types["custom"]] = pg.get_custom_weights(custom_weights)
+
+            #Dictionary enthält die optimalen Gewichte pro Portfoliotyp
+            weights_filtered = {
+                k: v for k, v in weights.items() if k in selected_port_types
+            }
+
+            hist_list = []
+            future_list = []
+
+            for port_type, wdict in weights_filtered.items():
+                hist_port = PortfolioGenerator(hist_rets).get_returns(wdict)
+                fut_port = PortfolioGenerator(future_rets_filtered).get_returns(wdict)
+                hist_port.name = port_type
+                fut_port.name = port_type
+                hist_list.append(hist_port)
+                future_list.append(fut_port)
+
+            hist_df = pd.concat(hist_list, axis=1)
+            future_df = pd.concat(future_list, axis=1)
+
+            future_df = future_df[~future_df.index.isin(hist_df.index)]
+
+            port_rets = pd.concat([hist_df, future_df], axis=0)
+            cum_rets = cumulate_returns(port_rets)
+            cum_hist = cum_rets.loc[hist_df.index]
+            cum_fut = cum_rets.loc[future_df.index]
+
+            bench_cum = cumulate_returns(bench_rets).squeeze()
+            pass
+
         def _checklist_charts(weight_filter, constituents_filter, slider_array, selected_columns, port_filter):
             """Function defines all graphs on
             which the ticker dropdown should be applied
@@ -549,27 +648,27 @@ class DashboardAdapter:
             :return: Line Chart and histogram
             :rtype: Plotly object
             """
-            hist_rets_filtered, start, end = self._filter_time_range(
-                data=self.stock_rets,
-                slider_array=slider_array
-            )
-            bench_rets_filtered, _, _ = self._filter_time_range(
-                data=self.bench_rets,
-                slider_array=slider_array
-            )
-            hist_rets_filtered = self._return_cleaning(
-                df=hist_rets_filtered,
-                col_filter=constituents_filter
-            )
-            bench_rets_filtered = self._return_cleaning(
-                df=bench_rets_filtered,
-                col_filter=constituents_filter
-            )
-            future_rets_renamed = rename_dataframe(
-                df=future_rets, 
-                tick_map=self.tick_mapping
-            ) 
-            future_rets_filtered = future_rets_renamed[constituents_filter]
+            # hist_rets_filtered, start, end = self._filter_time_range(
+            #     data=self.stock_rets,
+            #     slider_array=slider_array
+            # )
+            # bench_rets_filtered, _, _ = self._filter_time_range(
+            #     data=self.bench_rets,
+            #     slider_array=slider_array
+            # )
+            # hist_rets_filtered = self._return_cleaning(
+            #     df=hist_rets_filtered,
+            #     col_filter=constituents_filter
+            # )
+            # bench_rets_filtered = self._return_cleaning(
+            #     df=bench_rets_filtered,
+            #     col_filter=constituents_filter
+            # )
+            # future_rets_renamed = rename_dataframe(
+            #     df=future_rets, 
+            #     tick_map=self.tick_mapping
+            # ) 
+            # future_rets_filtered = future_rets_renamed[constituents_filter]
 
             max_sharpe_weights = PortfolioGenerator(hist_rets_filtered).get_max_sharpe_weights()
             min_var_weights = PortfolioGenerator(hist_rets_filtered).get_min_var_weights()
