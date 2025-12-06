@@ -137,6 +137,8 @@ class DashboardAdapter:
             ),
             html.P(),
             html.Div(id="weights_container"),
+            html.P(),
+            html.P(),
             dcc.Checklist(
                 id='portfolio_checklist',
                 options=[{'label': col, 'value': col} \
@@ -608,9 +610,8 @@ class DashboardAdapter:
             }
 
             if self.params["use_custom_weights"]:
-                weights[self.port_types["custom"]] = pg.get_custom_weights(custom_weights)
+                weights[self.port_types["custom"]] = custom_weights
 
-            #Dictionary enthält die optimalen Gewichte pro Portfoliotyp
             weights_filtered = {
                 k: v for k, v in weights.items() if k in selected_port_types
             }
@@ -635,181 +636,77 @@ class DashboardAdapter:
             cum_rets = cumulate_returns(port_rets)
             cum_hist = cum_rets.loc[hist_df.index]
             cum_fut = cum_rets.loc[future_df.index]
-
             bench_cum = cumulate_returns(bench_rets).squeeze()
-            pass
 
-        def _checklist_charts(weight_filter, constituents_filter, slider_array, selected_columns, port_filter):
-            """Function defines all graphs on
-            which the ticker dropdown should be applied
+            performance = pd.DataFrame()
+            for col in hist_df.columns:
+                ann_ret, ann_vol, sharpe, corr = \
+                    PortfolioGenerator(hist_df[col]).get_portfolio_performance(bench_rets.squeeze())
 
-            :param selected_ticker: Ticker from dropdown item
-            :type selected_ticker: String
-            :return: Line Chart and histogram
-            :rtype: Plotly object
-            """
-            # hist_rets_filtered, start, end = self._filter_time_range(
-            #     data=self.stock_rets,
-            #     slider_array=slider_array
-            # )
-            # bench_rets_filtered, _, _ = self._filter_time_range(
-            #     data=self.bench_rets,
-            #     slider_array=slider_array
-            # )
-            # hist_rets_filtered = self._return_cleaning(
-            #     df=hist_rets_filtered,
-            #     col_filter=constituents_filter
-            # )
-            # bench_rets_filtered = self._return_cleaning(
-            #     df=bench_rets_filtered,
-            #     col_filter=constituents_filter
-            # )
-            # future_rets_renamed = rename_dataframe(
-            #     df=future_rets, 
-            #     tick_map=self.tick_mapping
-            # ) 
-            # future_rets_filtered = future_rets_renamed[constituents_filter]
+                performance.loc[col, self.const_cols["ann_mean_ret"]] = ann_ret * 100
+                performance.loc[col, self.const_cols["ann_vola"]] = ann_vol
+                performance.loc[col, self.const_cols["sharpe_ratio"]] = sharpe
+                performance.loc[col, self.const_cols["bench_corr"]] = corr
 
-            max_sharpe_weights = PortfolioGenerator(hist_rets_filtered).get_max_sharpe_weights()
-            min_var_weights = PortfolioGenerator(hist_rets_filtered).get_min_var_weights()
-            equal_weights = PortfolioGenerator(hist_rets_filtered).get_equal_weights()
-            if self.params["use_custom_weights"]:
-                custom_weights = PortfolioGenerator(hist_rets_filtered).get_custom_weights(weights_custom)
-            else:
-                pass
-            
-            optimal_weights = {}
-            actual_weights = {}
-            total_weights = {}
-            optimal_weights[self.port_types["max_sharpe"]] = max_sharpe_weights
-            optimal_weights[self.port_types["min_var"]] = min_var_weights
-            optimal_weights[self.port_types["equal"]] = equal_weights
-            if self.params["use_custom_weights"]:
-                optimal_weights[self.port_types["custom"]] = custom_weights
-            else:
-                pass
-            actual_long_pos = {}
-            for port_type, weights in optimal_weights.items():
-                weight_dict, long_pos_dict = PortfolioGenerator(self.stock_rets).get_actual_invest(weights, self.actual_quotes)
-                actual_weights[port_type] = weight_dict
-                actual_long_pos[port_type] = long_pos_dict
-            total_weights[self.const_cols["opt_weight"]] = optimal_weights
-            total_weights[self.const_cols["act_weight"]] = actual_weights
+            ann_bret, ann_bvol, bsharpe, bcorr = \
+            PortfolioGenerator(bench_rets.squeeze()).get_portfolio_performance(bench_rets.squeeze())
 
-            weight_cat = self._filter_dict(
-                dict=total_weights,
-                filter=weight_filter
-            )
-            hist_port_list = []
-            future_post_list = []
-            port_types = []
-            for key, weights in weight_cat.items():
-                hist_port_rets = PortfolioGenerator(hist_rets_filtered).get_returns(weights)
-                future_port_rets = PortfolioGenerator(future_rets_filtered).get_returns(weights)
-                hist_port_rets.name = key
-                future_port_rets.name = key
-                hist_port_list.append(hist_port_rets)   
-                future_post_list.append(future_port_rets)
-                port_types.append(key)
+            performance.loc[self.const_cols["benchmark"], self.const_cols["ann_mean_ret"]] = ann_bret * 100
+            performance.loc[self.const_cols["benchmark"], self.const_cols["ann_vola"]] = ann_bvol
+            performance.loc[self.const_cols["benchmark"], self.const_cols["sharpe_ratio"]] = bsharpe
+            performance.loc[self.const_cols["benchmark"], self.const_cols["bench_corr"]] = bcorr
 
-            hist_port_rets = pd.concat(hist_port_list, axis=1)
-            future_port_rets = pd.concat(future_post_list, axis=1)
-            hist_idx = hist_port_rets.index
-            future_idx = future_port_rets.index
-            common_idx_mask = future_idx.isin(hist_idx)
-            future_port_rets = future_port_rets[~common_idx_mask]
-            port_rets = pd.concat(
-                [hist_port_rets, future_port_rets],
-                axis=0
-            )
-            cum_port_rets = cumulate_returns(port_rets)
-            hist_port_mask = cum_port_rets.index.isin(hist_idx)
-            cum_hist_port_rets = cum_port_rets[hist_port_mask]
-            cum_future_port_rets = cum_port_rets[~hist_port_mask]
-            cum_hist_bench_rets = cumulate_returns(bench_rets_filtered)
-            bench_rets_filtered = bench_rets_filtered.squeeze()
-            cum_hist_bench_rets = cum_hist_bench_rets.squeeze()
+            performance = performance.round(2)
+            performance.index.name = self.const_cols["port_types"]
+            performance_table = performance.reset_index().to_dict("records")
 
-            port_performance = pd.DataFrame()
-            for port_type, rets in hist_port_rets.items():
-                ann_mean_ret, ann_mean_vol, sharpe_ratio, bench_corr = PortfolioGenerator(rets).get_portfolio_performance(bench_rets_filtered)
-                ann_mean_ret = ann_mean_ret * 100
-                port_performance.loc[port_type, self.const_cols["ann_mean_ret"]] = ann_mean_ret
-                port_performance.loc[port_type, self.const_cols["ann_vola"]] = ann_mean_vol
-                port_performance.loc[port_type, self.const_cols["sharpe_ratio"]] = sharpe_ratio
-                port_performance.loc[port_type, self.const_cols["bench_corr"]] = bench_corr
-            ann_mean_ret_bench, ann_mean_vol_bench, sharpe_ratio_bench, bench_corr_bench = PortfolioGenerator(bench_rets_filtered).get_portfolio_performance(bench_rets_filtered)
-            ann_mean_ret_bench = ann_mean_ret_bench * 100
-            port_performance.loc[self.const_cols["benchmark"], self.const_cols["ann_mean_ret"]] = ann_mean_ret_bench
-            port_performance.loc[self.const_cols["benchmark"], self.const_cols["ann_vola"]] = ann_mean_vol_bench
-            port_performance.loc[self.const_cols["benchmark"], self.const_cols["sharpe_ratio"]] = sharpe_ratio_bench
-            port_performance.loc[self.const_cols["benchmark"], self.const_cols["bench_corr"]] = bench_corr_bench
-            port_performance = port_performance.round(2)
-            port_performance.index.name = self.const_cols["port_types"]
-            port_performance.reset_index(inplace=True)
-            
-            table = port_performance.to_dict('records')
             fig = go.Figure()
-            for col in selected_columns:
+            for col in hist_df.columns:
                 fig.add_trace(go.Scatter(
-                    x=cum_hist_port_rets.index,
-                    y=cum_hist_port_rets[col],
-                    mode="lines",
-                    name=col,
-                    line=dict(width=2, dash='solid')
-                ))
+                    x=cum_hist.index, y=cum_hist[col],
+                    mode="lines", name=col))
+
                 fig.add_trace(go.Scatter(
-                    x=cum_future_port_rets.index,
-                    y=cum_future_port_rets[col],
-                    mode="lines",
-                    name=col,
-                    line=dict(width=2, dash='dash')
-                ))
+                    x=cum_fut.index, y=cum_fut[col],
+                    mode="lines", name=col, line=dict(dash='dash')))
+
             fig.add_trace(go.Scatter(
-                x=cum_hist_bench_rets.index,
-                y=cum_hist_bench_rets,
-                mode="lines",
-                name=f"Benchmark {cum_hist_bench_rets.name}",
-                line=dict(width=1, dash='solid')
+                x=bench_cum.index, y=bench_cum,
+                mode="lines", name=f"Benchmark {bench_cum.name}",
+                line=dict(width=1)
             ))
+
             fig.update_layout(
-                title=f"Portfolio performance for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
+                title=f"Portfolio performance {start.date()} → {end.date()}",
                 xaxis_title="Date",
-                yaxis_title="Cumulative returns",
+                yaxis_title="Cumulative return",
                 template="plotly"
             )
 
-            opt_dict_keys = list(optimal_weights.keys())
-            act_dict_keys = list(actual_weights.keys())
-            long_pos_keys = list(actual_long_pos.keys())
-            common_keys = get_list_intersection(
-                opt_dict_keys,
-                act_dict_keys,
-                long_pos_keys
-            )
-            result_dict = {}
-            for type in common_keys:
-                long_pos_results = pd.DataFrame(index=constituents_filter)
-                long_pos_results.index.name = self.const_cols["asset"]
-                for constituent in constituents_filter:
-                    opt_weight = optimal_weights[type].get(constituent)
-                    act_weight = actual_weights[type].get(constituent)
-                    n_shares = actual_long_pos[type].get(constituent)[0]
-                    invest = actual_long_pos[type].get(constituent)[1]
-                    long_pos_results.loc[constituent, self.const_cols["opt_weight"]] = opt_weight
-                    long_pos_results.loc[constituent, self.const_cols["act_weight"]] = act_weight
-                    long_pos_results.loc[constituent, self.const_cols["long_pos"]] = n_shares
-                    long_pos_results.loc[constituent, self.const_cols["amount"]] = invest
-                result_dict[type] = long_pos_results
+            longpos_df = pd.DataFrame()
 
-            port_long_pos = self._filter_dict(
-                dict=result_dict,
-                filter=port_filter
-            )
-            port_long_pos = port_long_pos.round(2)
-            port_long_pos.reset_index(inplace=True)
-            data = port_long_pos.to_dict('records')
-            return fig, table, data
+            for ptype, weights_dict in weights.items():
+                if ptype != longpos_port_type:
+                    continue
+
+                act_w, act_pos = PortfolioGenerator(self.stock_rets).get_actual_invest(
+                    weights_dict, self.actual_quotes
+                )
+
+                df = pd.DataFrame(index=constituents)
+                df.index.name = self.const_cols["asset"]
+
+                for tick in constituents:
+                    df.loc[tick, self.const_cols["opt_weight"]] = weights_dict.get(tick, 0)
+                    df.loc[tick, self.const_cols["act_weight"]] = act_w.get(tick, 0)
+                    df.loc[tick, self.const_cols["long_pos"]] = act_pos.get(tick, [0])[0]
+                    df.loc[tick, self.const_cols["amount"]] = act_pos.get(tick, [0, 0])[1]
+
+                longpos_df = df.round(2).reset_index()
+
+            longpos_data = longpos_df.to_dict("records")
+
+            return fig, performance_table, longpos_data
 
     def run(self, debug=True):
 
