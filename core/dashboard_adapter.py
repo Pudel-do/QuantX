@@ -535,14 +535,12 @@ class DashboardAdapter:
             s = sum(weights.values())
             delta = 1.0 - s
 
-            # If sum is zero -> keep zeros (user hasn't entered anything).
             if abs(s) < 1e-12:
                 return {t: 0.0 for t in tickers}
 
             delta_per = delta / n
             updated = {t: float(weights.get(t, 0.0)) + delta_per for t in tickers}
 
-            # if any negative, clamp to zero and renormalize additively again
             if any(v < 0 for v in updated.values()):
                 for k in list(updated.keys()):
                     if updated[k] < 0:
@@ -554,9 +552,6 @@ class DashboardAdapter:
                     updated = {t: float(updated[t]) + delta2_per for t in tickers}
             return updated
 
-        # --------------------
-        # 1) Render inputs from store (single writer to weights_container)
-        # --------------------
         @self.app.callback(
             Output("weights_container", "children"),
             Input("portfolio_constituents", "value"),
@@ -570,7 +565,6 @@ class DashboardAdapter:
             children = []
             for tick in constituents:
                 raw_val = stored_weights.get(tick, 0.0)
-                # show with two decimals in UI but do NOT change stored precision
                 display_val = f"{raw_val:.2f}"
                 children.append(
                     html.Div([
@@ -589,12 +583,6 @@ class DashboardAdapter:
                 )
             return children
 
-        # --------------------
-        # 2) Update store when inputs change OR constituents change.
-        #    - keeps previously stored values for tickers that remain
-        #    - adds new tickers with value 0.0
-        #    - when constituents reduced -> compute additive delta and distribute equally
-        # --------------------
         @self.app.callback(
             Output("previous_constituents_store", "data"),
             Input("portfolio_constituents", "value")
@@ -602,10 +590,6 @@ class DashboardAdapter:
         def update_previous_constituents(new_constituents):
             return new_constituents or []
 
-
-        # ----------------------------------------------------------
-        # Update custom_weights_store with correct removal detection
-        # ----------------------------------------------------------
         @self.app.callback(
             Output("custom_weights_store", "data"),
             Input("portfolio_constituents", "value"),
@@ -626,11 +610,9 @@ class DashboardAdapter:
             - If no removal, just persist raw values (new tickers get 0.0).
             """
 
-            # normalize inputs
-            stored_prev = (stored_weights or {}).copy()   # previous snapshot (before this call)
+            stored_prev = (stored_weights or {}).copy()
             new_constituents = new_constituents or []
 
-            # 1) Apply recent UI input values onto a working copy (but keep stored_prev for removal calc)
             working = stored_prev.copy()
             if input_values and input_ids:
                 for item, val in zip(input_ids, input_values):
@@ -642,61 +624,39 @@ class DashboardAdapter:
                     except Exception:
                         working[ticker] = 0.0
 
-            # 2) If no constituents selected -> clear
             if not new_constituents:
                 return {}
 
-            # 3) Detect removed tickers by comparing previous snapshot keys with new constituents
             prev_keys = set(stored_prev.keys())
             new_keys = set(new_constituents)
             removed = prev_keys - new_keys
-
-            # 4) Build filtered dict for the currently active constituents using the working copy
             filtered = {t: float(working.get(t, 0.0)) for t in new_constituents}
 
-            # 5) If removal detected -> compute removed weight from the previous snapshot
             if removed:
-                # compute weight that belonged to removed tickers in the *previous* snapshot
                 removed_weight = sum(stored_prev.get(r, 0.0) for r in removed)
-
-                # sum of remaining weights in previous snapshot (for info / sanity)
                 remaining_prev_sum = sum(stored_prev.get(t, 0.0) for t in new_constituents)
-
-                # If previous snapshot had all zeros (user never entered values), keep zeros
                 if abs(remaining_prev_sum) < 1e-12 and abs(removed_weight) < 1e-12:
-                    # fallback: keep zeros (user hasn't entered anything yet)
                     return {t: 0.0 for t in new_constituents}
 
-                # Distribute removed_weight additively equally among remaining tickers
                 n = len(new_constituents)
                 delta_per = removed_weight / n
 
                 adjusted = {t: float(filtered.get(t, 0.0)) + delta_per for t in new_constituents}
-
-                # guard: clamp negatives (shouldn't happen with additive distribution)
                 for k in adjusted:
                     if adjusted[k] < 0:
                         adjusted[k] = 0.0
 
-                # final normalization to remove tiny float errors -> force sum == 1 if possible
                 s = sum(adjusted.values())
                 if s <= 1e-12:
-                    # fallback equal weights
                     eq = 1.0 / n
                     return {t: eq for t in new_constituents}
                 else:
-                    # normalize to exact sum 1 to avoid accumulation of floating point drift
                     normalized = {t: adjusted[t] / s for t in new_constituents}
                     return normalized
 
-            # 6) No removal -> just return the working dict (persist raw / partial values)
-            # Ensure all constituents are present in the result (new ones get 0.0)
             result = {t: float(working.get(t, 0.0)) for t in new_constituents}
             return result
 
-        # --------------------
-        # 3) Validation message callback (always up-to-date, listens to store)
-        # --------------------
         @self.app.callback(
             Output("weights_validation_message", "children"),
             Output("weights_validation_message", "style"),
@@ -710,28 +670,23 @@ class DashboardAdapter:
             if not constituents:
                 return "", {"display": "none"}
 
-            # Validation uses stored (raw or adjusted) weights
             filtered = {t: float(store_data.get(t, 0.0)) for t in constituents}
             s = sum(filtered.values())
             deviation = 1.0 - s
 
             tol = 0.001
             if abs(deviation) <= tol:
-                msg = f"✔️ Custom Weights gültig. Summe = {s:.2f}"
+                msg = f"✔️ Valid Custom Weights"
                 style = {"color": "green", "fontWeight": "bold"}
             else:
-                # If user hasn't entered any values (s very small), be explicit
                 if s < 1e-9:
-                    msg = f"⚠️ Keine Custom Weights eingegeben. Summe = {s:.2f}"
+                    msg = f"⚠️ No Custom Weights given"
                 else:
-                    msg = f"⚠️ Summe = {s:.2f}. Abweichung zu 1: {deviation:+.2f}"
+                    msg = f"⚠️ Actual sum of Custom Weights: {s:.2f} \n Delta: {deviation:+.2f}"
                 style = {"color": "red", "fontWeight": "bold"}
 
             return msg, style
 
-        # --------------------
-        # Prepare future returns once (useful for portfolio calculations)
-        # --------------------
         future_rets = get_future_returns(
             tickers=self.ticks,
             rets=self.stock_rets,
@@ -739,10 +694,6 @@ class DashboardAdapter:
         )
         future_rets = rename_dataframe(future_rets, tick_map=self.tick_mapping)
 
-        # --------------------
-        # 4) Portfolio callback: listens to store and re-runs when weights change
-        #    Note: weights come from store (already additive-adjusted)
-        # --------------------
         @self.app.callback(
             [
                 Output('portfolio_performances', 'figure'),
@@ -755,7 +706,7 @@ class DashboardAdapter:
                 Input("time_range_slider_port", "value"),
                 Input('portfolio_checklist', 'value'),
                 Input("portfolio_dropdown", "value"),
-                Input("custom_weights_store", "data"),  # triggers when weights updated
+                Input("custom_weights_store", "data"),
             ]
         )
         def update_portfolio(
@@ -767,12 +718,10 @@ class DashboardAdapter:
             custom_weights_store
         ):
 
-            # guard
             if not constituents:
                 return go.Figure(), [], []
 
             custom_weights_store = custom_weights_store or {}
-            # take weights for selected constituents
             custom_weights = {tick: float(custom_weights_store.get(tick, 0.0)) for tick in constituents}
 
             hist_rets, start, end = self._filter_time_range(
@@ -794,10 +743,7 @@ class DashboardAdapter:
                 self.port_types["min_var"]: pg.get_min_var_weights(),
                 self.port_types["equal"]: pg.get_equal_weights()
             }
-
-            if self.params["use_custom_weights"]:
-                weights[self.port_types["custom"]] = custom_weights
-
+            weights[self.port_types["custom"]] = custom_weights
             weights_filtered = {
                 k: v for k, v in weights.items() if k in selected_port_types
             }
