@@ -137,6 +137,8 @@ class DashboardAdapter:
             ),
             html.P(),
             html.Div(id="weights_container"),
+            html.Div(id="weights_validation_message", style={"color": "red", "font-weight": "bold"}),
+            dcc.Store(id="custom_weights_store", data={}),
             html.P(),
             html.P(),
             dcc.Checklist(
@@ -509,35 +511,38 @@ class DashboardAdapter:
             data = validation_data.to_dict('records')
             return data
         
-        @self.app.callback(
-        Output("weights_container", "children"),
-        Input('portfolio_constituents', 'value')
-        )
+        # @self.app.callback(
+        # Output("weights_container", "children"),
+        # Input('portfolio_constituents', 'value'),
+        # State("custom_weights_store", "data")
+        # )
 
-        def update_weight_inputs(constituents):
-            if not self.params["use_custom_weights"]:
-                return []
+        # def render_weight_inputs(constituents, stored_weights):
 
-            if not constituents:
-                return []
+        #     stored_weights = stored_weights or {}
+        #     #weights = {tick: stored_weights.get(tick, 0.0) for tick in constituents}
 
-            controls = []
-            for ticker in constituents:
-                controls.append(
-                    html.Div([
-                        html.Label(f"Weight for {ticker}:"),
-                        dcc.Input(
-                            id={"type": "weight_input", "ticker": ticker},
-                            type="number",
-                            placeholder="0.0",
-                            min=0,
-                            max=1,
-                            step=0.01,
-                            value=0.0
-                        )
-                    ], style={"margin-bottom": "5px"})
-                )
-            return controls
+        #     if not constituents:
+        #         return []
+
+        #     inputs = []
+        #     for tick in constituents:
+        #         value = stored_weights.get(tick, 0.0)
+        #         inputs.append(
+        #             html.Div([
+        #                 html.Label(f"Weight for {tick}:"),
+        #                 dcc.Input(
+        #                     id={"type": "weight_input", "ticker": tick},
+        #                     type="number", 
+        #                     min=0, max=1, step=0.01,
+        #                     value=value,
+        #                     style={"width": "150px"}
+        #                 )
+        #             ], style={"marginBottom": "6px"})
+        #         )
+
+        #     # return html.Div(inputs)
+        #     return inputs
         
     def _register_callbacks_portfolio(self):
         """Functions defines the app callbacks to adjust
@@ -548,6 +553,64 @@ class DashboardAdapter:
         :return: None
         :rtype: None
         """
+    
+        @self.app.callback(
+        Output("weights_container", "children"),
+        Input("portfolio_constituents", "value"),
+        State("custom_weights_store", "data")
+        )
+
+        def render_weight_inputs(constituents, stored_weights):
+            stored_weights = stored_weights or {}
+            if not constituents:
+                return []
+            children = []
+            for tick in constituents:
+                value = stored_weights.get(tick, 0.0)
+                children.append(
+                    html.Div([
+                        html.Label(f"Weight for {tick}:"),
+                        dcc.Input(
+                            id={"type": "weight_input", "ticker": tick},
+                            type="number", min=0, max=1, step=0.01,
+                            value=value, style={"width": "120px"}
+                        )
+                    ], style={"marginBottom": "6px"})
+                )
+            return children
+        
+        @self.app.callback(
+        Output("custom_weights_store", "data"),
+        Input("portfolio_constituents", "value"),
+        Input({"type": "weight_input", "ticker": ALL}, "value"),
+        State({"type": "weight_input", "ticker": ALL}, "id"),
+        State("custom_weights_store", "data"),
+        )
+
+        def update_custom_weights_store(constituents, input_values, input_ids, stored_weights):
+            stored_weights = stored_weights or {}
+
+            if input_values and input_ids:
+                for item, val in zip(input_ids, input_values):
+                    ticker = item.get("ticker")
+                    if ticker is None:
+                        continue
+                    stored_weights[ticker] = float(val) if (val is not None) else 0.0
+
+            if not constituents:
+                return {}
+
+            filtered = {tick: stored_weights.get(tick, 0.0) for tick in constituents}
+            s = sum(filtered.values())
+
+            if s > 0:
+                scaled = {k: (v / s) for k, v in filtered.items()}
+            else:
+                n = len(filtered)
+                equal = 1.0 / n
+                scaled = {k: equal for k in filtered.keys()}
+
+            return scaled
 
         future_rets = get_future_returns(
             tickers=self.ticks,
@@ -560,7 +623,9 @@ class DashboardAdapter:
             [
                 Output('portfolio_performances', 'figure'),
                 Output('performance_table', 'data'),
-                Output("long_positions", "data")
+                Output("long_positions", "data"),
+                Output("weights_validation_message", "children"),
+                Output("weights_validation_message", "style")
             ],
             [
                 Input("weight_filter", "value"),
@@ -568,7 +633,9 @@ class DashboardAdapter:
                 Input("time_range_slider_port", "value"),
                 Input('portfolio_checklist', 'value'),
                 Input("portfolio_dropdown", "value"),
-                Input({"type": "weight_input", "ticker": ALL}, "value")
+            ],
+            [
+                State("custom_weights_store", "data")
             ]
         )
 
@@ -578,16 +645,22 @@ class DashboardAdapter:
             slider_array,
             selected_port_types,
             longpos_port_type,
-            custom_weight_values):
+            custom_weights_store):
 
+            custom_weights_store = custom_weights_store or {}
             if not constituents:
-                return go.Figure(), [], []
-            
-            custom_weights = (
-                {ticker: w for ticker, w in zip(constituents, custom_weight_values)}
-                if self.params["use_custom_weights"]
-                else None
-            )
+                empty_style = {"color": "white", "background": "transparent"}
+                return go.Figure(), [], [], "", empty_style
+
+            custom_weights = {tick: custom_weights_store.get(tick, 0.0) for tick in constituents}
+        
+            valid, deviation = self._validate_custom_weights(custom_weights)
+            if not valid:
+                message = f"⚠️ Die Summe der Custom Weights ist nicht gültig: Abweichung beträgt {deviation:+.2f}"
+                message_style = {"color": "red", "fontWeight": "bold"}
+            else:
+                message = "✔️ Custom Weights sind gültig."
+                message_style = {"color": "green"}
 
             hist_rets, start, end = self._filter_time_range(
                 data=self.stock_rets,
@@ -706,7 +779,7 @@ class DashboardAdapter:
 
             longpos_data = longpos_df.to_dict("records")
 
-            return fig, performance_table, longpos_data
+            return fig, performance_table, longpos_data, message, message_style
 
     def run(self, debug=True):
 
@@ -798,3 +871,36 @@ class DashboardAdapter:
         matching_keys = [key for key, value in mapping_dict.items() \
                          if value in base_list]
         return matching_keys
+    
+    def _normalize_custom_weights(self, custom_weights, constituents):
+        """
+        Takes the current custom weights, keeps only the ones belonging
+        to the selected constituents, and rescales them so total = 1.
+
+        Keeps user input when constituents shrink or expand.
+        """
+
+        if not custom_weights:
+            return {c: 0 for c in constituents}
+
+        filtered = {k: custom_weights.get(k, 0) for k in constituents}
+        s = sum(filtered.values())
+
+        if s == 0:
+            return filtered
+
+        return {k: v / s for k, v in filtered.items()}
+    
+    def _validate_custom_weights(self, custom_weights):
+        """
+        Returns: (is_valid, deviation_float)
+        """
+
+        s = sum(custom_weights.values())
+        deviation = round(1 - s, 3)
+        if s == 0:
+            valid = False
+        else:
+            valid = abs(deviation) < 0.0001
+
+        return valid, deviation
