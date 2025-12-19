@@ -738,12 +738,41 @@ class DashboardAdapter:
             future_rets_filtered = future_rets[constituents]
 
             pg = PortfolioGenerator(hist_rets)
-            weights = {
+            cat_w = {}
+            opt_w = {
                 self.port_types["max_sharpe"]: pg.get_max_sharpe_weights(),
                 self.port_types["min_var"]: pg.get_min_var_weights(),
                 self.port_types["equal"]: pg.get_equal_weights()
             }
-            weights[self.port_types["custom"]] = custom_weights
+            opt_w[self.port_types["custom"]] = custom_weights
+
+            longpos_dict = {}
+            longpos_df = pd.DataFrame()
+            act_w = {}
+            for ptype, weights_dict in opt_w.items():
+                
+                w, act_pos = PortfolioGenerator(self.stock_rets).get_actual_invest(
+                    weights_dict, self.actual_quotes
+                )
+                act_w[ptype] = w
+                df = pd.DataFrame(index=constituents)
+                df.index.name = self.const_cols["asset"]
+
+                for tick in constituents:
+                    df.loc[tick, self.const_cols["opt_weight"]] = weights_dict.get(tick, 0)
+                    df.loc[tick, self.const_cols["act_weight"]] = w.get(tick, 0)
+                    df.loc[tick, self.const_cols["long_pos"]] = act_pos.get(tick, [0])[0]
+                    df.loc[tick, self.const_cols["amount"]] = act_pos.get(tick, [0, 0])[1]
+
+                longpos_df = df.round(2).reset_index()
+                longpos_dict[ptype] = longpos_df
+
+            cat_w[self.const_cols["opt_weight"]] = opt_w
+            cat_w[self.const_cols["act_weight"]] = act_w
+            weights = self._filter_dict(
+                cat_w, weight_filter
+            )
+
             weights_filtered = {
                 k: v for k, v in weights.items() if k in selected_port_types
             }
@@ -815,28 +844,11 @@ class DashboardAdapter:
                 template="plotly"
             )
 
-            longpos_df = pd.DataFrame()
-
-            for ptype, weights_dict in weights.items():
-                if ptype != longpos_port_type:
-                    continue
-
-                act_w, act_pos = PortfolioGenerator(self.stock_rets).get_actual_invest(
-                    weights_dict, self.actual_quotes
-                )
-
-                df = pd.DataFrame(index=constituents)
-                df.index.name = self.const_cols["asset"]
-
-                for tick in constituents:
-                    df.loc[tick, self.const_cols["opt_weight"]] = weights_dict.get(tick, 0)
-                    df.loc[tick, self.const_cols["act_weight"]] = act_w.get(tick, 0)
-                    df.loc[tick, self.const_cols["long_pos"]] = act_pos.get(tick, [0])[0]
-                    df.loc[tick, self.const_cols["amount"]] = act_pos.get(tick, [0, 0])[1]
-
-                longpos_df = df.round(2).reset_index()
-
-            longpos_data = longpos_df.to_dict("records")
+            longpos_data = self._filter_dict(
+                dict=longpos_dict,
+                filter=longpos_port_type
+            )
+            longpos_data = longpos_data.to_dict("records")
 
             return fig, performance_table, longpos_data
 
