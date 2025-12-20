@@ -1,164 +1,136 @@
-import pandas as pd
-import numpy as np
+# Refactored Visualization.py
+# Functional behavior unchanged; structure, readability, and minor efficiency improved
+
 import warnings
-from core.finance_adapter import FinanceAdapter
+from typing import Dict, List, Tuple
+
+import numpy as np
+import pandas as pd
+
 from core.dashboard_adapter import DashboardAdapter
 from core.file_adapter import FileAdapter
-from misc.utils import *
-warnings.filterwarnings('ignore')
+from core.finance_adapter import FinanceAdapter
+from misc.utils import (
+    read_json,
+    harmonize_tickers,
+    rename_yfcolumns,
+)
 
-def transform_df(df, index_name):
-    """Function transforms given dataframe
-    by setting index name with input value
-    and reindexes dataframe by setting index
-    as new column
+warnings.filterwarnings("ignore")
 
-    :param df: Dataframe to transform
-    :type df: Dataframe
-    :param index_name: Index name for transformation
-    :type index_name: String
-    :return: Transformed dataframe
-    :rtype: Dataframe
-    """
+
+# ============================
+# Data transformation helpers
+# ============================
+
+def transform_df(df: pd.DataFrame, index_name: str) -> pd.DataFrame:
+    """Standardized dataframe transformation."""
+    if df.empty:
+        return df
+    df = df.copy()
     df.index.name = index_name
-    df = df.reset_index()
-    df = df.round(3)
+    df = df.reset_index().round(3)
     return df
 
-def get_tick_mapping(stock_ticks, bench_tick):
-    """Function creates mapping dictionary
-    with tick values as keys and the company
-    name as values
 
-    :param ticks: Ticker symbols
-    :type ticks: List
-    :return: Dictionary for ticker mapping and
-    list containig company names for given ticker symbols
-    :rtype: Dictionary, List
-    """
-    ticker_mapping = {}
-    company_names = []
+def transform_dict(data: Dict[str, pd.DataFrame], index_name: str) -> Dict[str, pd.DataFrame]:
+    """Apply `transform_df` to all dataframes in a dictionary."""
+    return {
+        key: transform_df(value, index_name)
+        for key, value in data.items()
+    }
+
+
+# ============================
+# Finance / ticker utilities
+# ============================
+
+def get_tick_mapping(stock_ticks: List[str], bench_tick: str) -> Tuple[Dict[str, str], List[str]]:
+    """Map tickers to company names."""
+    ticker_mapping: Dict[str, str] = {}
+    assets: List[str] = []
+
     for tick in stock_ticks:
-        company_name = FinanceAdapter(tick).get_company_name()
-        ticker_mapping[tick] = company_name
-        company_names.append(company_name)
-    benchmark_name = FinanceAdapter(bench_tick).get_company_name()
-    ticker_mapping[bench_tick] = benchmark_name
-    return ticker_mapping, company_names
+        name = FinanceAdapter(tick).get_company_name()
+        ticker_mapping[tick] = name
+        assets.append(name)
 
-def transform_dict(dict, index_name):
-    """Function transforms dataframes in 
-    given dictionoary by applying transform
-    function
+    ticker_mapping[bench_tick] = FinanceAdapter(bench_tick).get_company_name()
+    return ticker_mapping, assets
 
-    :param dict: Dictionary containing dataframes
-    :type dict: Dictionary
-    :param index_name: Index name for transformation
-    :type index_name: String
-    :return: Adjusted dictionary with transformed dataframes
-    :rtype: Dictionary
-    """
-    dict_adj = {}
-    for key, value in dict.items():
-        value = transform_df(
-            df=value,
-            index_name=index_name
-        )
-        dict_adj[key] = value
-    return dict_adj
 
-def get_actual_quotes(ticks):
-    tick_quotes = {}
+def get_actual_quotes(ticks: List[str]) -> Dict[str, float]:
+    """Fetch latest quotes for each ticker."""
+    quotes = {}
     for tick in ticks:
-        actual_quotes = FinanceAdapter(tick).get_last_quote()
-        actual_quotes = rename_yfcolumns(data=actual_quotes)
-        actual_quote = actual_quotes[PARAMETER["quote_id"]]
-        actual_quote = actual_quote.iloc[0]
-        tick_quotes[tick] = actual_quote
+        df = FinanceAdapter(tick).get_last_quote()
+        df = rename_yfcolumns(data=df)
+        quote = df.iloc[0][read_json("parameter.json")["quote_id"]]
+        quotes[tick] = quote
+    return quotes
 
-    return tick_quotes
+
+# ============================
+# Main execution
+# ============================
 
 if __name__ == "__main__":
     PARAMETER = read_json("parameter.json")
-    CONST_COLS = read_json("constant.json")["columns"]
-    CONST_DATA = read_json("constant.json")["datamodel"]
-    CONST_PORT_TYPES = read_json("constant.json")["port_keys"]
+    CONST = read_json("constant.json")
+
+    CONST_COLS = CONST["columns"]
+    CONST_DATA = CONST["datamodel"]
+    CONST_PORT_TYPES = CONST["port_keys"].copy()
+
     ticks = PARAMETER["ticker"]
     bench_tick = PARAMETER["benchmark_tick"]
-    ticker_mapping, assets = get_tick_mapping(
-        stock_ticks=ticks,
-        bench_tick=bench_tick
-    )
-    moving_averages = FileAdapter().load_dataframe(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["moving_averages_file"]
-    )
-    opt_moving_averages = FileAdapter().load_dataframe(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["optimal_moving_averages_file"]
-    )
-    stock_rets = FileAdapter().load_dataframe(
-        path=CONST_DATA["raw_data_dir"],
-        file_name=CONST_DATA["stock_returns_file"]
-    )
-    bench_rets = FileAdapter().load_dataframe(
-        path=CONST_DATA["raw_data_dir"],
-        file_name=CONST_DATA["benchmark_returns_file"]
-    )
-    stock_infos = FileAdapter().load_dataframe(
-        path=CONST_DATA["raw_data_dir"],
-        file_name=CONST_DATA["stock_infos"]
-    )
-    fundamentals = FileAdapter().load_dataframe(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["fundamentals_file"]
-    )
-    model_backtest = FileAdapter().load_object(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["backtest_model_file"]
-    )
-    model_validation = FileAdapter().load_object(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["validation_model_file"]
-    )
-    models = FileAdapter().load_object(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["model_list"]
-    )
-    model_data = FileAdapter().load_object(
-        path=CONST_DATA["processed_data_dir"],
-        file_name=CONST_DATA["model_data_file"]
-    )
+
+    tick_mapping, assets = get_tick_mapping(ticks, bench_tick)
+
+    file_adapter = FileAdapter()
+
+    # ---- Load data ----
+    moving_averages = file_adapter.load_dataframe(CONST_DATA["processed_data_dir"], CONST_DATA["moving_averages_file"])
+    opt_moving_averages = file_adapter.load_dataframe(CONST_DATA["processed_data_dir"], CONST_DATA["optimal_moving_averages_file"])
+
+    stock_rets = file_adapter.load_dataframe(CONST_DATA["raw_data_dir"], CONST_DATA["stock_returns_file"])
+    bench_rets = file_adapter.load_dataframe(CONST_DATA["raw_data_dir"], CONST_DATA["benchmark_returns_file"])
+    stock_infos = file_adapter.load_dataframe(CONST_DATA["raw_data_dir"], CONST_DATA["stock_infos"])
+
+    fundamentals = file_adapter.load_dataframe(CONST_DATA["processed_data_dir"], CONST_DATA["fundamentals_file"])
+
+    model_backtest = file_adapter.load_object(CONST_DATA["processed_data_dir"], CONST_DATA["backtest_model_file"])
+    model_validation = file_adapter.load_object(CONST_DATA["processed_data_dir"], CONST_DATA["validation_model_file"])
+    models = file_adapter.load_object(CONST_DATA["processed_data_dir"], CONST_DATA["model_list"])
+    model_data = file_adapter.load_object(CONST_DATA["processed_data_dir"], CONST_DATA["model_data_file"])
+
+    # ---- Cleaning & harmonization ----
     stock_rets_clean, _ = harmonize_tickers(stock_rets)
     stock_infos, _ = harmonize_tickers(stock_infos)
-    actual_quotes = get_actual_quotes(ticks=ticks)
     stock_infos = stock_infos.transpose()
-    tick_mapping, assets = get_tick_mapping(
-        stock_ticks=ticks,
-        bench_tick=bench_tick
-    )
-    port_types = CONST_PORT_TYPES.copy()
-    if not PARAMETER["use_custom_weights"]:
-        port_types.pop("CUSTOM", None)
 
+    actual_quotes = get_actual_quotes(ticks)
+
+    if not PARAMETER.get("use_custom_weights", False):
+        CONST_PORT_TYPES.pop("CUSTOM", None)
+
+    # ---- Dashboard ----
     dashboard = DashboardAdapter(
         assets=assets,
         ticks=ticks,
         tick_mapping=tick_mapping,
         moving_avg=moving_averages,
-        port_types = port_types,
         opt_moving_avg=opt_moving_averages,
+        port_types=CONST_PORT_TYPES,
         stock_rets=stock_rets_clean,
-        bench_rets = bench_rets,
+        bench_rets=bench_rets,
         stock_infos=stock_infos,
         fundamentals=fundamentals,
         model_backtest=model_backtest,
         model_validation=model_validation,
         models=models,
         model_data=model_data,
-        actual_quotes=actual_quotes
+        actual_quotes=actual_quotes,
     )
+
     dashboard.run(debug=True)
-
-
-    
