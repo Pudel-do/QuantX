@@ -161,6 +161,9 @@ class DashboardAdapter:
             ),
             dcc.Graph(id="portfolio_performances"),
             dash_table.DataTable(id="performance_table"),
+            html.P(),
+            dash_table.DataTable(id="weight_table"),
+            html.P(),
             html.H3("Select portfolio for long positions"),
             dcc.Dropdown(
                 id="portfolio_dropdown",
@@ -698,6 +701,7 @@ class DashboardAdapter:
             [
                 Output('portfolio_performances', 'figure'),
                 Output('performance_table', 'data'),
+                Output("weight_table", "data"),
                 Output("long_positions", "data")
             ],
             [
@@ -777,6 +781,12 @@ class DashboardAdapter:
                 k: v for k, v in weights.items() if k in selected_port_types
             }
 
+            weights_df = pd.DataFrame(weights_filtered)
+            weights_df = weights_df.loc[constituents]
+            weights_df = weights_df.round(2)
+            weights_df.index.name = self.const_cols["asset"]
+            weights_table = weights_df.reset_index().to_dict("records")
+
             hist_list = []
             future_list = []
 
@@ -850,7 +860,7 @@ class DashboardAdapter:
             )
             longpos_data = longpos_data.to_dict("records")
 
-            return fig, performance_table, longpos_data
+            return fig, performance_table, weights_table, longpos_data
 
     def run(self, debug=True):
 
