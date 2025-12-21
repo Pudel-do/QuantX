@@ -98,26 +98,33 @@ class DashboardAdapter:
 
     def _build_layout(self):
         self.app.layout = html.Div(
-            style={"maxWidth": "1600px", "margin": "auto"},
+            #style={"maxWidth": "1600px", "margin": "auto"},
             children=[
                 html.H1("📊 Financial Dashboard", style={"textAlign": "center"}),
 
+                html.P(),
+                self.market_section(),
+                html.Hr(),
+
+                html.P(),
                 self._portfolio_section(),
                 html.Hr(),
 
-                self._analysis_section(),
+                html.P(),
+                self._model_section(),
                 html.Hr(),
 
-                self._model_section(),
+                html.P(),
+                self._stock_section(),
             ],
         )
-
-    def _analysis_section(self):
+    
+    def market_section(self):
         return html.Div(
             [
-                html.H2("Technical Analysis"),
+                html.H2("Market Analysis"),
+                html.P(),
 
-                html.H3("Market Overview"),
                 dcc.RangeSlider(
                     id="time_range_slider_returns",
                     min=0,
@@ -126,17 +133,118 @@ class DashboardAdapter:
                     marks=self.rets_marks,
                     allowCross=False,
                 ),
-                dcc.Graph(id="cumulated_stock_returns"),
-                dash_table.DataTable(id="stock_performance_table"),
-                html.H3("Correlatin Matrix"),
-                dcc.Graph(id="corr_heatmap"),
 
+                dcc.Graph(id="cumulated_stock_returns"),
+                self._styled_table(id="stock_performance_table"),
+                html.H3("Correlatin Matrix"),
+                dcc.Graph(id="corr_heatmap"),                
+            ]
+        )
+
+    def _portfolio_section(self):
+        return html.Div(
+            [
+                html.H2("Portfolio Analysis"),                
+                html.P(),
+
+                html.H3("Select weight category"),
+                dcc.Dropdown(
+                    id="weight_filter",
+                    options=[{"label": w, "value": w} for w in self.weight_list],
+                    value=self.const_cols["opt_weight"],
+                ),
+                html.P(),
+                dcc.Checklist(
+                    id="portfolio_constituents",
+                    options=[{"label": a, "value": a} for a in self.assets],
+                    value=self.assets,
+                    inline=True,
+                ),
+                html.P(),
+                html.Div(id="weights_container"),
+                html.Div(id="weights_validation_message"),
+
+                dcc.Store(id="custom_weights_store", data={}),
+                dcc.Store(id="previous_constituents_store", data=[]),
+                html.P(),
+                html.P(),
+                html.H3("Select portfolio type"),
+                dcc.Checklist(
+                    id="portfolio_checklist",
+                    options=[{"label": v, "value": v} for v in self.port_types.values()],
+                    value=[list(self.port_types.values())[0]],
+                    inline=True,
+                ),
+                html.P(),
+                dcc.RangeSlider(
+                    id="time_range_slider_port",
+                    min=0,
+                    max=len(self.rets_range) - 1,
+                    value=[0, len(self.rets_range) - 1],
+                    marks=self.rets_marks,
+                    allowCross=False,
+                ),
+                dcc.Graph(id="portfolio_performances"),
+                html.P(),
+                html.H3("Portfolio performance"),
+                dash_table.DataTable(id="performance_table"),
+
+                html.H3("Weight store for selected portfolios"),
+                dash_table.DataTable(id="weight_table"),
+
+                html.H3("Long Positions"),
+                dcc.Dropdown(
+                    id="portfolio_dropdown",
+                    options=[{"label": v, "value": v} for v in self.port_types.values()],
+                    value=list(self.port_types.values())[0],
+                ),
+                html.P(),
+                dash_table.DataTable(id="long_positions")
+            ]
+        )
+
+    def _model_section(self):
+        return html.Div(
+            [
+                html.H2("Backtesting of Forecast Models"),
+                html.P(),
+
+                html.H3("Select stock for forecast performace"),
+                dcc.Dropdown(
+                    id="tick_dropdown_models",
+                    options=[{"label": a, "value": a} for a in self.assets],
+                    value=self.assets[0],
+                ),
+                html.P(),
+
+                dcc.Checklist(
+                    id="checklist_models",
+                    options=[{"label": m, "value": m} for m in self.models],
+                    value=[self.models[0]],
+                    inline=True,
+                ),
+                html.P(),
+
+                html.H3("Forecast performance"),
+                dcc.Graph(id="quote_backtest_line"),
+                dash_table.DataTable(id="validation_table"),
+            ]
+        )
+
+    def _stock_section(self):
+        return html.Div(
+            [
+                html.H2("Technical Stock Analysis"),
+                html.P(),
+
+                html.H3("Select stock for individual analysis"),
                 dcc.Dropdown(
                     id="tick_dropdown_analysis",
                     options=[{"label": a, "value": a} for a in self.assets],
                     value=self.assets[0],
                     clearable=False,
                 ),
+                html.P(),
 
                 dcc.RangeSlider(
                     id="time_range_slider_quote",
@@ -169,86 +277,6 @@ class DashboardAdapter:
                 ),
                 dcc.Graph(id="stock_infos_bar")
                 
-            ]
-        )
-
-    def _model_section(self):
-        return html.Div(
-            [
-                html.H2("Backtesting of Forecast Models"),
-
-                dcc.Dropdown(
-                    id="tick_dropdown_models",
-                    options=[{"label": a, "value": a} for a in self.assets],
-                    value=self.assets[0],
-                ),
-
-                dcc.Checklist(
-                    id="checklist_models",
-                    options=[{"label": m, "value": m} for m in self.models],
-                    value=[self.models[0]],
-                    inline=True,
-                ),
-
-                dcc.Graph(id="quote_backtest_line"),
-                dash_table.DataTable(id="validation_table"),
-            ]
-        )
-
-    def _portfolio_section(self):
-        return html.Div(
-            [
-                html.H2("Portfolio Analysis"),
-
-                dcc.Dropdown(
-                    id="weight_filter",
-                    options=[{"label": w, "value": w} for w in self.weight_list],
-                    value=self.const_cols["opt_weight"],
-                ),
-                html.P(),
-                dcc.Checklist(
-                    id="portfolio_constituents",
-                    options=[{"label": a, "value": a} for a in self.assets],
-                    value=self.assets,
-                    inline=True,
-                ),
-                html.P(),
-                html.Div(id="weights_container"),
-                html.Div(id="weights_validation_message"),
-
-                dcc.Store(id="custom_weights_store", data={}),
-                dcc.Store(id="previous_constituents_store", data=[]),
-                html.P(),
-                dcc.Checklist(
-                    id="portfolio_checklist",
-                    options=[{"label": v, "value": v} for v in self.port_types.values()],
-                    value=[list(self.port_types.values())[0]],
-                    inline=True,
-                ),
-                html.P(),
-                dcc.RangeSlider(
-                    id="time_range_slider_port",
-                    min=0,
-                    max=len(self.rets_range) - 1,
-                    value=[0, len(self.rets_range) - 1],
-                    marks=self.rets_marks,
-                    allowCross=False,
-                ),
-                dcc.Graph(id="portfolio_performances"),
-                html.P(),
-                html.H3("Portfolio performance"),
-                dash_table.DataTable(id="performance_table"),
-
-                html.H3("Weight store for selected portfolios"),
-                dash_table.DataTable(id="weight_table"),
-
-                html.H3("Long Positions"),
-                dcc.Dropdown(
-                    id="portfolio_dropdown",
-                    options=[{"label": v, "value": v} for v in self.port_types.values()],
-                    value=list(self.port_types.values())[0],
-                ),
-                dash_table.DataTable(id="long_positions"),
             ]
         )
 
@@ -347,7 +375,7 @@ class DashboardAdapter:
                     },
                 ],
                 "layout": {
-                    "title": f"Annualized mean return for {tick_filter} of {ann_mean_ret: .2f}% and total return of {total_ret: .2f}% for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
+                    "title": f"Annualized mean return for {tick_filter} of {ann_mean_ret: .2f}% and total return of {total_ret: .2f}% for period {start.strftime('%Y-%m-%d')} → {end.strftime('%Y-%m-%d')}",
                     "xaxis": {"title": "Date"},
                     "yaxis": {"title": "Values"},
                     "legend": {
@@ -499,7 +527,7 @@ class DashboardAdapter:
                 cum_returns, 
                 x=cum_returns.index, 
                 y=cum_returns.columns,
-                title=f"Cumulative stock returns for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
+                title=f"Cumulative stock returns for period {start.strftime('%Y-%m-%d')} → {end.strftime('%Y-%m-%d')}",
                 labels={"value": "Cumulative Returns", "variable": self.const_cols["asset"]}
             )
 
@@ -509,7 +537,7 @@ class DashboardAdapter:
                                 aspect="auto", 
                                 color_continuous_scale="RdBu_r"
                                 )
-            title = f"Return correlation for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
+            title = f"Return correlation for period {start.strftime('%Y-%m-%d')} → {end.strftime('%Y-%m-%d')}"
             corr_heatmap.update_layout(title=title)
 
             performance_table = pd.DataFrame(index=self.assets)
@@ -1065,3 +1093,64 @@ class DashboardAdapter:
             valid = abs(deviation) < 0.0001
 
         return valid, deviation
+    
+
+
+    def _styled_table(self, id, page_size=10):
+        """
+        Einheitlich gestylte Dash DataTable.
+
+        Styling-Bereiche:
+        - style_header:
+            Gestaltung der Tabellenüberschriften (fett, Hintergrund, Trennlinie)
+        - style_cell:
+            Basis-Styling aller Zellen (Font, Padding, Ausrichtung)
+        - style_cell_conditional:
+            Spaltenspezifische Anpassungen (z. B. Asset-Spalte links & fett)
+        - style_data_conditional:
+            Zebra-Streifen + Hover-Effekt
+        - page_size:
+            Anzahl Zeilen pro Seite
+        """
+        return dash_table.DataTable(
+            id=id,
+            page_size=page_size,
+
+            style_header={
+                "fontWeight": "bold",
+                "backgroundColor": "#f2f4f8",
+                "borderBottom": "2px solid #b0b0b0",
+                "textAlign": "center",
+                "fontSize": "14px"
+            },
+
+            style_cell={
+                "padding": "8px",
+                "fontSize": "13px",
+                "fontFamily": "Segoe UI, Arial",
+                "border": "1px solid #e1e1e1",
+                "textAlign": "right",
+                "whiteSpace": "normal",
+                "height": "auto"
+            },
+
+            style_cell_conditional=[
+                {
+                    "if": {"column_id": "Asset"},
+                    "textAlign": "left",
+                    "fontWeight": "bold"
+                }
+            ],
+
+            style_data_conditional=[
+                {
+                    "if": {"row_index": "odd"},
+                    "backgroundColor": "#fafafa"
+                },
+                {
+                    "if": {"state": "active"},
+                    "backgroundColor": "#e6f2ff",
+                    "border": "1px solid #3399ff"
+                }
+            ],
+        )
