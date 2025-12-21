@@ -135,7 +135,14 @@ class DashboardAdapter:
                 ),
 
                 dcc.Graph(id="cumulated_stock_returns"),
-                self._styled_table(id="stock_performance_table"),
+                self._styled_table(id="stock_performance_table",
+                                   performance_cols=[
+                                       self.const_cols["total_ret"],
+                                       self.const_cols["ann_mean_ret"],
+                                       self.const_cols["ann_vola"]
+                                        ]
+                                    ),
+                html.P(),
                 html.H3("Correlatin Matrix"),
                 dcc.Graph(id="corr_heatmap"),                
             ]
@@ -147,7 +154,7 @@ class DashboardAdapter:
                 html.H2("Portfolio Analysis"),                
                 html.P(),
 
-                html.H3("Select weight category"),
+                html.H3("Select weight category, portfolio constituents and custom weights"),
                 dcc.Dropdown(
                     id="weight_filter",
                     options=[{"label": w, "value": w} for w in self.weight_list],
@@ -166,6 +173,7 @@ class DashboardAdapter:
 
                 dcc.Store(id="custom_weights_store", data={}),
                 dcc.Store(id="previous_constituents_store", data=[]),
+                html.P(),
                 html.P(),
                 html.P(),
                 html.H3("Select portfolio type"),
@@ -187,10 +195,10 @@ class DashboardAdapter:
                 dcc.Graph(id="portfolio_performances"),
                 html.P(),
                 html.H3("Portfolio performance"),
-                dash_table.DataTable(id="performance_table"),
+                self._styled_table(id="performance_table"),
 
                 html.H3("Weight store for selected portfolios"),
-                dash_table.DataTable(id="weight_table"),
+                self._styled_table(id="weight_table", heatbar_cols=self.port_types),
 
                 html.H3("Long Positions"),
                 dcc.Dropdown(
@@ -199,7 +207,11 @@ class DashboardAdapter:
                     value=list(self.port_types.values())[0],
                 ),
                 html.P(),
-                dash_table.DataTable(id="long_positions")
+                self._styled_table(id="long_positions",
+                                   heatbar_cols=[
+                                       self.const_cols["opt_weight"],
+                                       self.const_cols["act_weight"]
+                                   ])
             ]
         )
 
@@ -227,7 +239,7 @@ class DashboardAdapter:
 
                 html.H3("Forecast performance"),
                 dcc.Graph(id="quote_backtest_line"),
-                dash_table.DataTable(id="validation_table"),
+                self._styled_table(id="validation_table")
             ]
         )
 
@@ -951,7 +963,7 @@ class DashboardAdapter:
 
             fig.add_trace(go.Scatter(
                 x=bench_cum.index, y=bench_cum,
-                mode="lines", name=f"Benchmark {bench_cum.name}",
+                mode="lines", name="Benchmark",
                 line=dict(width=1)
             ))
 
@@ -1096,22 +1108,88 @@ class DashboardAdapter:
     
 
 
-    def _styled_table(self, id, page_size=10):
+    def _styled_table(
+        self,
+        id,
+        page_size=10,
+        performance_cols=None,
+        heatbar_cols=None,
+    ):
         """
-        Einheitlich gestylte Dash DataTable.
+        Einheitlich gestylte Dash DataTable mit Performance-Farben & Heatbars.
 
-        Styling-Bereiche:
-        - style_header:
-            Gestaltung der Tabellenüberschriften (fett, Hintergrund, Trennlinie)
-        - style_cell:
-            Basis-Styling aller Zellen (Font, Padding, Ausrichtung)
-        - style_cell_conditional:
-            Spaltenspezifische Anpassungen (z. B. Asset-Spalte links & fett)
-        - style_data_conditional:
-            Zebra-Streifen + Hover-Effekt
-        - page_size:
-            Anzahl Zeilen pro Seite
+        Parameter
+        ----------
+        id : str
+            ID der Dash DataTable
+        page_size : int
+            Zeilen pro Seite
+        performance_cols : list[str]
+            Spalten mit Performance-Werten (z. B. Returns, Sharpe)
+            -> grün bei >0, rot bei <0
+        heatbar_cols : list[str]
+            Numerische Spalten mit Heatbars (z. B. Weights, Contributions)
         """
+
+        performance_cols = performance_cols or []
+        heatbar_cols = heatbar_cols or []
+
+        style_data_conditional = [
+            # Zebra-Streifen
+            {
+                "if": {"row_index": "odd"},
+                "backgroundColor": "#fafafa"
+            },
+
+            # Hover / Active
+            {
+                "if": {"state": "active"},
+                "backgroundColor": "#e6f2ff",
+                "border": "1px solid #3399ff"
+            },
+        ]
+
+        # ==========================
+        # Performance Farbcodierung
+        # ==========================
+        for col in performance_cols:
+            style_data_conditional.extend([
+                {
+                    "if": {
+                        "filter_query": f"{{{col}}} > 0",
+                        "column_id": col,
+                    },
+                    "color": "#1a7f37",  # grün
+                    "fontWeight": "bold",
+                },
+                {
+                    "if": {
+                        "filter_query": f"{{{col}}} < 0",
+                        "column_id": col,
+                    },
+                    "color": "#b02a37",  # rot
+                    "fontWeight": "bold",
+                },
+            ])
+
+        # ==========================
+        # Heatbars
+        # ==========================
+        for col in heatbar_cols:
+            style_data_conditional.append(
+                {
+                    "if": {"column_id": col},
+                    "background": (
+                        f"linear-gradient(90deg", 
+                        f"#d6e9f8 0%",
+                        f"#5dade2 calc(50% + ({{{col}}} * 50%))",
+                        f"transparent calc(50% + ({{{col}}} * 50%)))"
+                    ),
+                    "paddingBottom": 2,
+                    "paddingTop": 2,
+                }
+            )
+
         return dash_table.DataTable(
             id=id,
             page_size=page_size,
@@ -1142,15 +1220,6 @@ class DashboardAdapter:
                 }
             ],
 
-            style_data_conditional=[
-                {
-                    "if": {"row_index": "odd"},
-                    "backgroundColor": "#fafafa"
-                },
-                {
-                    "if": {"state": "active"},
-                    "backgroundColor": "#e6f2ff",
-                    "border": "1px solid #3399ff"
-                }
-            ],
+            style_data_conditional=style_data_conditional,
         )
+    
