@@ -36,7 +36,6 @@ class DashboardAdapter:
         tick_mapping,
         moving_avg,
         opt_moving_avg,
-        port_types,
         stock_rets,
         bench_rets,
         stock_infos,
@@ -51,14 +50,6 @@ class DashboardAdapter:
         self.app = Dash(__name__)
         self.app.title = "Financial Dashboard"
 
-        # ---------------- Static Inputs ----------------
-        self.assets = assets
-        self.ticks = ticks
-        self.tick_mapping = tick_mapping
-        self.models = models
-        self.model_data = model_data
-        self.port_types = port_types
-
         # ---------------- Config ----------------
         self.params = read_json("parameter.json")
         const = read_json("constant.json")
@@ -69,6 +60,13 @@ class DashboardAdapter:
             self.const_cols["opt_weight"],
             self.const_cols["act_weight"],
         ]
+        # ---------------- Static Inputs ----------------
+        self.assets = assets
+        self.ticks = ticks
+        self.tick_mapping = tick_mapping
+        self.models = models
+        self.model_data = model_data
+        self.port_types = const["port_keys"]
 
         # ---------------- Data Preparation ----------------
         self.moving_avg = rename_dataframe(moving_avg, tick_mapping)
@@ -138,8 +136,7 @@ class DashboardAdapter:
                 self._styled_table(id="stock_performance_table",
                                    performance_cols=[
                                        self.const_cols["total_ret"],
-                                       self.const_cols["ann_mean_ret"],
-                                       self.const_cols["ann_vola"]
+                                       self.const_cols["ann_mean_ret"]
                                         ]
                                     ),
                 html.P(),
@@ -195,7 +192,11 @@ class DashboardAdapter:
                 dcc.Graph(id="portfolio_performances"),
                 html.P(),
                 html.H3("Portfolio performance"),
-                self._styled_table(id="performance_table"),
+                self._styled_table(id="performance_table",
+                                    performance_cols=[
+                                       self.const_cols["ann_mean_ret"],
+                                        ]
+                                    ),
 
                 html.H3("Weight store for selected portfolios"),
                 self._styled_table(id="weight_table", heatbar_cols=self.port_types),
