@@ -68,6 +68,50 @@ class DashboardAdapter:
         self.model_data = model_data
         self.port_types = const["port_keys"]
 
+        # ---------------- Table style ----------------
+        self.table_styling_config = {
+            "performance_table": {
+                "performance_cols": [
+                    self.const_cols["ann_mean_ret"],
+                    self.const_cols["sharpe_ratio"],
+                    self.const_cols["bench_corr"],
+                ],
+                "heatbar_cols": [],
+                "volatility_cols": [
+                    self.const_cols["ann_vola"]
+                ]
+            },
+
+            "stock_performance_table": {
+                "performance_cols": [
+                    self.const_cols["total_ret"],
+                    self.const_cols["ann_mean_ret"],
+                ],
+                "heatbar_cols": [],
+                "volatility_cols": [
+                    self.const_cols["ann_vola"]
+                ]
+            },
+
+            "weight_table": {
+                "performance_cols": [],
+                "heatbar_cols": [
+                    "MINIMUM VARIANCE",
+                    "MAXIMUM SHARPE RATIO",
+                    "CUSTOM WEIGHTS",
+                    "EQUAL WEIGHTS",
+                ],
+            },
+
+            "long_positions": {
+                "performance_cols": [],
+                "heatbar_cols": [
+                    self.const_cols["opt_weight"],
+                    self.const_cols["act_weight"],
+                ],
+            },
+        }
+
         # ---------------- Data Preparation ----------------
         self.moving_avg = rename_dataframe(moving_avg, tick_mapping)
         self.opt_moving_avg = rename_dataframe(opt_moving_avg, tick_mapping)
@@ -89,6 +133,8 @@ class DashboardAdapter:
         self._register_callbacks_analysis()
         self._register_callbacks_backtesting()
         self._register_callbacks_portfolio()
+        self._register_callbacks_table_styling()
+
 
     # ==================================================================================
     # LAYOUT
@@ -104,15 +150,15 @@ class DashboardAdapter:
                 self.market_section(),
                 html.Hr(),
 
-                html.P(),
+                html.P(" ", style={'margin': '40px 0'}),
                 self._portfolio_section(),
                 html.Hr(),
 
-                html.P(),
+                html.P(" ", style={'margin': '40px 0'}),
                 self._model_section(),
                 html.Hr(),
 
-                html.P(),
+                html.P(" ", style={'margin': '40px 0'}),
                 self._stock_section(),
             ],
         )
@@ -133,13 +179,8 @@ class DashboardAdapter:
                 ),
 
                 dcc.Graph(id="cumulated_stock_returns"),
-                self._styled_table(id="stock_performance_table",
-                                   performance_cols=[
-                                       self.const_cols["total_ret"],
-                                       self.const_cols["ann_mean_ret"]
-                                        ]
-                                    ),
-                html.P(),
+                self._styled_table(id="stock_performance_table"),
+                html.P(" ", style={'margin': '20px 0'}),
                 html.H3("Correlatin Matrix"),
                 dcc.Graph(id="corr_heatmap"),                
             ]
@@ -192,15 +233,13 @@ class DashboardAdapter:
                 dcc.Graph(id="portfolio_performances"),
                 html.P(),
                 html.H3("Portfolio performance"),
-                self._styled_table(id="performance_table",
-                                    performance_cols=[
-                                       self.const_cols["ann_mean_ret"],
-                                        ]
-                                    ),
+                self._styled_table(id="performance_table"),
 
+                html.P(" ", style={'margin': '20px 0'}),
                 html.H3("Weight store for selected portfolios"),
-                self._styled_table(id="weight_table", heatbar_cols=self.port_types),
+                self._styled_table(id="weight_table"),
 
+                html.P(" ", style={'margin': '20px 0'}),
                 html.H3("Long Positions"),
                 dcc.Dropdown(
                     id="portfolio_dropdown",
@@ -208,11 +247,7 @@ class DashboardAdapter:
                     value=list(self.port_types.values())[0],
                 ),
                 html.P(),
-                self._styled_table(id="long_positions",
-                                   heatbar_cols=[
-                                       self.const_cols["opt_weight"],
-                                       self.const_cols["act_weight"]
-                                   ])
+                self._styled_table(id="long_positions")
             ]
         )
 
@@ -505,11 +540,15 @@ class DashboardAdapter:
             :return: _description_
             :rtype: _type_
             """
-            data = self.stock_infos[stock_info_filter]
-            fig = px.bar(data, 
-                         barmode="group",
-                         )
-            return fig
+
+            if self.stock_infos.empty:
+                return pd.DataFrame()
+            else:
+                data = self.stock_infos[stock_info_filter]
+                fig = px.bar(data, 
+                            barmode="group",
+                            )
+                return fig
 
         @self.app.callback(
             [
@@ -983,6 +1022,52 @@ class DashboardAdapter:
 
             return fig, performance_table, weights_table, longpos_data
 
+    def _register_callbacks_table_styling(self):
+
+        outputs = []
+        inputs = []
+
+        for table_id in self.table_styling_config:
+            outputs.append(Output(table_id, "style_data_conditional"))
+            inputs.append(Input(table_id, "derived_virtual_data"))
+
+        @self.app.callback(outputs, inputs)
+        def _update_all_table_styles(*all_rows):
+
+            all_styles = []
+
+            for (table_id, rows) in zip(self.table_styling_config.keys(), all_rows):
+
+                if not rows:
+                    all_styles.append([])
+                    continue
+
+                df = pd.DataFrame(rows)
+                cfg = self.table_styling_config[table_id]
+
+                styles = []
+
+                # Divergierende Performance-Skala
+                for col in cfg.get("performance_cols", []):
+                    if col in df.columns:
+                        styles.extend(self._auto_diverging_styles(df, col))
+
+                # Heatbars
+                for col in cfg.get("heatbar_cols", []):
+                    if col in df.columns:
+                        styles.extend(self._heatbar_styles(df, col))
+
+                # Volatilität
+                for col in cfg.get("volatility_cols", []):
+                    if col in df.columns:
+                        styles.extend(self._volatility_styles(df, col))
+
+                all_styles.append(styles)
+
+            return all_styles
+
+
+
     def run(self, debug=True):
 
         def run_dash():
@@ -1106,90 +1191,32 @@ class DashboardAdapter:
             valid = abs(deviation) < 0.0001
 
         return valid, deviation
-    
 
 
     def _styled_table(
         self,
         id,
         page_size=10,
-        performance_cols=None,
-        heatbar_cols=None,
     ):
         """
-        Einheitlich gestylte Dash DataTable mit Performance-Farben & Heatbars.
-
-        Parameter
-        ----------
-        id : str
-            ID der Dash DataTable
-        page_size : int
-            Zeilen pro Seite
-        performance_cols : list[str]
-            Spalten mit Performance-Werten (z. B. Returns, Sharpe)
-            -> grün bei >0, rot bei <0
-        heatbar_cols : list[str]
-            Numerische Spalten mit Heatbars (z. B. Weights, Contributions)
+        Einheitlich gestylte Dash DataTable (nur statisches Styling).
+        Dynamische Färbung erfolgt vollständig über Callbacks.
         """
-
-        performance_cols = performance_cols or []
-        heatbar_cols = heatbar_cols or []
 
         style_data_conditional = [
             # Zebra-Streifen
             {
                 "if": {"row_index": "odd"},
-                "backgroundColor": "#fafafa"
+                "backgroundColor": "#fafafa",
             },
 
             # Hover / Active
             {
                 "if": {"state": "active"},
                 "backgroundColor": "#e6f2ff",
-                "border": "1px solid #3399ff"
+                "border": "1px solid #3399ff",
             },
         ]
-
-        # ==========================
-        # Performance Farbcodierung
-        # ==========================
-        for col in performance_cols:
-            style_data_conditional.extend([
-                {
-                    "if": {
-                        "filter_query": f"{{{col}}} > 0",
-                        "column_id": col,
-                    },
-                    "color": "#1a7f37",  # grün
-                    "fontWeight": "bold",
-                },
-                {
-                    "if": {
-                        "filter_query": f"{{{col}}} < 0",
-                        "column_id": col,
-                    },
-                    "color": "#b02a37",  # rot
-                    "fontWeight": "bold",
-                },
-            ])
-
-        # ==========================
-        # Heatbars
-        # ==========================
-        for col in heatbar_cols:
-            style_data_conditional.append(
-                {
-                    "if": {"column_id": col},
-                    "background": (
-                        f"linear-gradient(90deg", 
-                        f"#d6e9f8 0%",
-                        f"#5dade2 calc(50% + ({{{col}}} * 50%))",
-                        f"transparent calc(50% + ({{{col}}} * 50%)))"
-                    ),
-                    "paddingBottom": 2,
-                    "paddingTop": 2,
-                }
-            )
 
         return dash_table.DataTable(
             id=id,
@@ -1200,7 +1227,7 @@ class DashboardAdapter:
                 "backgroundColor": "#f2f4f8",
                 "borderBottom": "2px solid #b0b0b0",
                 "textAlign": "center",
-                "fontSize": "14px"
+                "fontSize": "14px",
             },
 
             style_cell={
@@ -1210,17 +1237,202 @@ class DashboardAdapter:
                 "border": "1px solid #e1e1e1",
                 "textAlign": "right",
                 "whiteSpace": "normal",
-                "height": "auto"
+                "height": "auto",
             },
 
             style_cell_conditional=[
                 {
-                    "if": {"column_id": "Asset"},
+                    "if": {"column_id": self.const_cols["asset"]},
                     "textAlign": "left",
-                    "fontWeight": "bold"
+                    "fontWeight": "bold",
                 }
             ],
 
             style_data_conditional=style_data_conditional,
         )
+
+    def _auto_diverging_styles(self, df, column, steps=7):
+        styles = []
+
+        series = pd.to_numeric(df[column], errors="coerce").dropna()
+        if series.empty:
+            return styles
+
+        max_abs = max(abs(series.min()), abs(series.max()))
+        if max_abs < 1e-12:
+            return styles
+
+        step = max_abs / steps
+
+        red = [
+            "#fdecea", "#f9c5c0", "#f19c99",
+            "#ea7a73", "#e05d55", "#d64541", "#c0392b"
+        ]
+
+        green = [
+            "#eafaf1", "#d4f4e2", "#b8eccc",
+            "#8fd9a8", "#5cc98a", "#2eb872", "#27ae60"
+        ]
+
+        text_color = "#1c2833"
+
+        # Negative Werte
+        for i in range(steps):
+            lower = -max_abs + i * step
+            upper = -max_abs + (i + 1) * step
+
+            styles.append({
+                "if": {
+                    "filter_query": (
+                        f"{{{column}}} >= {lower} && {{{column}}} <= {upper}"
+                    ),
+                    "column_id": column,
+                },
+                "backgroundColor": red[steps - i - 1],
+                "color": text_color,
+                "fontWeight": "bold",
+            })
+
+        # Positive Werte
+        for i in range(steps):  
+            lower = i * step
+            upper = (i + 1) * step
+
+            styles.append({
+                "if": {
+                    "filter_query": (
+                        f"{{{column}}} >= {lower} && {{{column}}} <= {upper}"
+                    ),
+                    "column_id": column,
+                },
+                "backgroundColor": green[i],
+                "color": text_color,
+                "fontWeight": "bold",
+            })
+
+        return styles
+
     
+    def _heatbar_styles(
+        self,
+        df,
+        column,
+        min_fill_pct=12,
+        equal_fill_pct=80,
+    ):
+        """
+        Robuste Heatbars für Dash DataTables.
+
+        Eigenschaften:
+        - 0.0 → KEIN Balken
+        - kleinster positiver Wert → min_fill_pct
+        - größter Wert → 100 %
+        - alle Werte gleich → equal_fill_pct
+        """
+
+        styles = []
+
+        series = pd.to_numeric(df[column], errors="coerce")
+        if series.isna().all():
+            return styles
+
+        min_v = series.min()
+        max_v = series.max()
+        span = max_v - min_v
+
+        # ==========================
+        # Spezialfall: alle Werte gleich (≠ 0)
+        # ==========================
+        if span < 1e-12 and max_v != 0:
+            for i, value in series.items():
+                if value == 0 or pd.isna(value):
+                    continue
+
+                styles.append({
+                    "if": {
+                        "row_index": i,
+                        "column_id": column,
+                    },
+                    "background": (
+                        f"linear-gradient(90deg, "
+                        f"#d6e9f8 {equal_fill_pct}%, "
+                        f"transparent {equal_fill_pct}%)"
+                    ),
+                    "paddingBottom": 2,
+                    "paddingTop": 2,
+                })
+            return styles
+
+        # ==========================
+        # Normalfall
+        # ==========================
+        for i, value in series.items():
+            if pd.isna(value) or value == 0:
+                continue
+
+            norm = (value - min_v) / span if span > 0 else 0
+            pct = min_fill_pct + norm * (100 - min_fill_pct)
+
+            styles.append({
+                "if": {
+                    "row_index": i,
+                    "column_id": column,
+                },
+                "background": (
+                    f"linear-gradient(90deg, "
+                    f"#d6e9f8 {pct:.1f}%, "
+                    f"transparent {pct:.1f}%)"
+                ),
+                "paddingBottom": 2,
+                "paddingTop": 2,
+            })
+
+        return styles
+
+
+
+    def _volatility_styles(self, df, column, steps=7):
+        styles = []
+
+        series = pd.to_numeric(df[column], errors="coerce").dropna()
+        if series.empty:
+            return styles
+
+        min_v = series.min()
+        max_v = series.max()
+
+        if max_v - min_v < 1e-12:
+            return styles
+
+        step = (max_v - min_v) / steps
+
+        colors = [
+            "#eafaf1",
+            "#d4f4e2",
+            "#b8eccc",
+            "#f9f3cf",
+            "#fde2b8",
+            "#f5b183",
+            "#e67e22",
+        ]
+
+        text_color = "#1c2833"
+
+        for i in range(steps):
+            lower = min_v + i * step
+            upper = min_v + (i + 1) * step
+
+            styles.append({
+                "if": {
+                    "filter_query": (
+                        f"{{{column}}} >= {lower} && {{{column}}} <= {upper}"
+                    ),
+                    "column_id": column,
+                },
+                "backgroundColor": colors[i],
+                "color": text_color,
+                "fontWeight": "bold",
+            })
+
+        return styles
+
