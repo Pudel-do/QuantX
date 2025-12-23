@@ -172,6 +172,7 @@ class DashboardAdapter:
                     max=len(self.rets_range) - 1,
                     value=[0, len(self.rets_range) - 1],
                     marks=self.rets_marks,
+                    step=1,
                     allowCross=False,
                 ),
 
@@ -225,6 +226,7 @@ class DashboardAdapter:
                     max=len(self.rets_range) - 1,
                     value=[0, len(self.rets_range) - 1],
                     marks=self.rets_marks,
+                    step=1,
                     allowCross=False,
                 ),
                 dcc.Graph(id="portfolio_performances"),
@@ -297,6 +299,7 @@ class DashboardAdapter:
                     max=len(self.quote_range) - 1,
                     value=[0, len(self.quote_range) - 1],
                     marks=self.quote_marks,
+                    step=1,
                     allowCross=False,
                 ),
 
