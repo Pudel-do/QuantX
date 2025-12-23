@@ -141,11 +141,12 @@ class PortfolioGenerator:
         return weight_dict, long_pos_dict
     
     def get_portfolio_performance(self, bench_rets):
+        total_ret = calc_total_return(self.rets)
         ann_mean_ret = calc_annualized_mean_return(self.rets)
         ann_mean_vol = calc_annualized_vola(self.rets)
         sharpe_ratio = ann_mean_ret / ann_mean_vol
         bench_corr = self.rets.corr(bench_rets)
-        return ann_mean_ret, ann_mean_vol, sharpe_ratio, bench_corr
+        return total_ret, ann_mean_ret, ann_mean_vol, sharpe_ratio, bench_corr
 
     def _annualized_volatility(self, weights):
         """Function calculates the annualized

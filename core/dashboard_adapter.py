@@ -1,180 +1,333 @@
 from dash import Dash, dcc, html, dash_table
-from dash.dependencies import Input, Output, State, MATCH, ALL
+from dash.dependencies import Input, Output, State, ALL
 import plotly.express as px
 import plotly.graph_objects as go
-from core import logging_config
-from misc.utils import *
-from core.portfolio_generator import PortfolioGenerator
+
 import pandas as pd
 import numpy as np
 import threading
 import webbrowser
 import logging
 
+from misc.utils import (
+    read_json,
+    rename_dataframe,
+    rename_dictionary,
+    calculate_returns,
+    calc_annualized_mean_return,
+    calc_total_return,
+    calc_annualized_vola,
+    cumulate_returns,
+    get_future_returns
+)
+
+from core.portfolio_generator import PortfolioGenerator
+
 class DashboardAdapter:
     def __init__(
-            self, assets, ticks, tick_mapping,
-            moving_avg, opt_moving_avg, port_types,
-            stock_rets, bench_rets, stock_infos, fundamentals,
-            model_backtest, model_validation, models, model_data, 
-            actual_quotes
-        ):
+        self,
+        assets,
+        ticks,
+        tick_mapping,
+        moving_avg,
+        opt_moving_avg,
+        stock_rets,
+        bench_rets,
+        stock_infos,
+        fundamentals,
+        model_backtest,
+        model_validation,
+        models,
+        model_data,
+        actual_quotes,
+    ):
+        # ---------------- Dash App ----------------
         self.app = Dash(__name__)
+        self.app.title = "Financial Dashboard"
+
+        # ---------------- Config ----------------
+        self.params = read_json("parameter.json")
+        const = read_json("constant.json")
+        self.const_cols = const["columns"]
+        self.fundamental_cols = const["fundamentals"]["measures"]
+
+        self.weight_list = [
+            self.const_cols["opt_weight"],
+            self.const_cols["act_weight"],
+        ]
+        # ---------------- Static Inputs ----------------
         self.assets = assets
         self.ticks = ticks
         self.tick_mapping = tick_mapping
         self.models = models
         self.model_data = model_data
-        self.params = read_json("parameter.json")
-        self.const_cols = read_json("constant.json")["columns"]
-        self.fundamental_cols = read_json("constant.json")["fundamentals"]["measures"]
-        self.weight_list = [self.const_cols["opt_weight"], self.const_cols["act_weight"]]
-        self.port_types = port_types
-        self.moving_avg = rename_dataframe(df=moving_avg, tick_map=tick_mapping)
-        self.opt_moving_avg = rename_dataframe(df=opt_moving_avg, tick_map=tick_mapping)
-        self.stock_rets = rename_dataframe(df=stock_rets, tick_map=tick_mapping)
-        self.bench_rets = rename_dataframe(df=bench_rets, tick_map=tick_mapping)
-        self.stock_infos = rename_dataframe(df=stock_infos, tick_map=tick_mapping)
-        self.fundamentals = rename_dataframe(df=fundamentals, tick_map=tick_mapping)
-        self.model_backtest = rename_dictionary(dict=model_backtest, tick_map=tick_mapping)
-        self.model_validation = rename_dictionary(dict=model_validation, tick_map=tick_mapping)
-        self.actual_quotes = rename_dictionary(dict=actual_quotes, tick_map=tick_mapping)
-        self.quote_marks, self.quote_date_range = self._init_time_range_values(self.moving_avg)
-        self.rets_marks, self.rets_date_range = self._init_time_range_values(self.stock_rets)
-        self._setup_layout()
+        self.port_types = const["port_keys"]
+
+        # ---------------- Table style ----------------
+        self.table_styling_config = {
+
+            "stock_performance_table": {
+                "performance_cols": [
+                    self.const_cols["total_ret"],
+                    self.const_cols["ann_mean_ret"],
+                ],
+                "heatbar_cols": [],
+                "volatility_cols": [
+                    self.const_cols["ann_vola"]
+                ]
+            },
+
+            "performance_table": {
+                "performance_cols": [
+                    self.const_cols["total_ret"],
+                    self.const_cols["ann_mean_ret"],
+                    self.const_cols["sharpe_ratio"],
+                    self.const_cols["bench_corr"]
+                ],
+                "heatbar_cols": [],
+                "volatility_cols": [
+                    self.const_cols["ann_vola"]
+                ]
+            },
+
+            "weight_table": {
+                "performance_cols": [],
+                "heatbar_cols": [
+                    "MINIMUM VARIANCE",
+                    "MAXIMUM SHARPE RATIO",
+                    "CUSTOM WEIGHTS",
+                    "EQUAL WEIGHTS",
+                ],
+            },
+
+            "long_positions": {
+                "performance_cols": [],
+                "heatbar_cols": [
+                    self.const_cols["opt_weight"],
+                    self.const_cols["act_weight"],
+                ],
+            },
+        }
+
+        # ---------------- Data Preparation ----------------
+        self.moving_avg = rename_dataframe(moving_avg, tick_mapping)
+        self.opt_moving_avg = rename_dataframe(opt_moving_avg, tick_mapping)
+        self.stock_rets = rename_dataframe(stock_rets, tick_mapping)
+        self.bench_rets = rename_dataframe(bench_rets, tick_mapping)
+        self.stock_infos = rename_dataframe(stock_infos, tick_mapping)
+        self.fundamentals = rename_dataframe(fundamentals, tick_mapping)
+
+        self.model_backtest = rename_dictionary(model_backtest, tick_mapping)
+        self.model_validation = rename_dictionary(model_validation, tick_mapping)
+        self.actual_quotes = rename_dictionary(actual_quotes, tick_mapping)
+
+        # ---------------- Cached Time Ranges ----------------
+        self.quote_marks, self.quote_range = self._init_time_range_values(self.moving_avg)
+        self.rets_marks, self.rets_range = self._init_time_range_values(self.stock_rets)
+
+        # ---------------- Layout & Callbacks ----------------
+        self._build_layout()
         self._register_callbacks_analysis()
         self._register_callbacks_backtesting()
         self._register_callbacks_portfolio()
-    
-    def _setup_layout(self):
+        self._register_callbacks_table_styling()
+
+
+    # ==================================================================================
+    # LAYOUT
+    # ==================================================================================
+
+    def _build_layout(self):
         self.app.layout = html.Div(
-        [   
-            html.H1("Technical analysis"),
-            html.Label("Adjust time period for return analysis"),
-            html.P(),
-            dcc.RangeSlider(
-                id="time_range_slider_returns",
-                min=0,
-                max=len(self.rets_date_range) - 1,
-                value=[0, len(self.rets_date_range) - 1],
-                marks=self.rets_marks,
-                step=1,
-                allowCross=False,
-            ),
-            dcc.Graph(id="cumulated_stock_returns"),
-            dash_table.DataTable(id="stock_performance_table"),
-            dcc.Graph(id="corr_heatmap"),
-            html.P(),
-            html.H1("Technical and fundamental analysis for selected asset"),
-            dcc.Dropdown(
-                id="tick_dropdown_analysis",
-                options=[{'label': asset, 'value': asset} \
-                            for asset in self.assets],
-                value=self.assets[0]
-            ),
-            html.P(),
-            dcc.RangeSlider(
-                id="time_range_slider_quote",
-                min=0,
-                max=len(self.quote_date_range) - 1,
-                value=[0, len(self.quote_date_range) - 1],
-                marks=self.quote_marks,
-                step=1,
-                allowCross=False,
-            ),
-            dcc.Graph(id="quote_ma_line"),
-            dcc.Graph(id="ma_performance_line"),
-            dcc.Graph(id="return_hist"),
-            dcc.Checklist(
-                id='checklist_fundamentals',
-                options=[{'label': col, 'value': col} \
-                            for col in self.fundamental_cols],
-                value=[self.fundamental_cols[0]],
-                labelStyle={'display': 'inline-block'}
-            ),
-            dcc.Graph(id='fundamentals_bar'),
-            dcc.Checklist(
-                id='checklist_stock_infos',
-                options=[{'label': col, 'value': col} \
-                            for col in self.stock_infos.columns],
-                value=[self.params["stock_infos"][0]],
-                labelStyle={'display': 'inline-block'}
-            ),
-            dcc.Graph(id='stock_infos_bar'),
-            dcc.Dropdown(
-                id="tick_dropdown_models",
-                options=[{'label': asset, 'value': asset} \
-                            for asset in self.assets],
-                value=self.assets[0]
-            ),
-            html.H1("Backtesting of forecast models"),
-            dcc.Checklist(
-                id='checklist_models',
-                options=[{'label': col, 'value': col} \
-                            for col in self.models],
-                value=[self.models[0]],
-                labelStyle={'display': 'inline-block'}
-            ),
-            dcc.Graph(id="quote_backtest_line"),
-            dash_table.DataTable(
-                id="validation_table",
-            ),
-            html.H1("Portfolio analysis"),
-            html.P(),
-            dcc.Dropdown(
-                id="weight_filter",
-                options=[{'label': weight_type, 'value': weight_type} \
-                            for weight_type in self.weight_list],
-                value=self.const_cols["opt_weight"]
-            ),
-            html.P(),
-            dcc.Checklist(
-                id='portfolio_constituents',
-                options=[{'label': asset, 'value': asset} \
-                            for asset in self.assets],
-                value=self.assets,
-                inline=True
-            ),
-            html.P(),
-            html.Div(id="weights_container"),
-            html.Div(id="weights_validation_message", style={"color": "red", "font-weight": "bold"}),
-            dcc.Store(id="custom_weights_store", data={}),
-            dcc.Store(id="previous_constituents_store", data=[]),
-            html.P(),
-            html.P(),
-            dcc.Checklist(
-                id='portfolio_checklist',
-                options=[{'label': col, 'value': col} \
-                         for col in list(self.port_types.values())],
-                value=[list(self.port_types.values())[0]],
-                inline=True
-            ),
-            html.P(),
-            dcc.RangeSlider(
-                id="time_range_slider_port",
-                min=0,
-                max=len(self.rets_date_range) - 1,
-                value=[0, len(self.rets_date_range) - 1],
-                marks=self.rets_marks,
-                step=1,
-                allowCross=False,
-            ),
-            dcc.Graph(id="portfolio_performances"),
-            dash_table.DataTable(id="performance_table"),
-            html.P(),
-            dash_table.DataTable(id="weight_table"),
-            html.P(),
-            html.H3("Select portfolio for long positions"),
-            dcc.Dropdown(
-                id="portfolio_dropdown",
-                options=[{'label': port_type, 'value': port_type} \
-                            for port_type in list(self.port_types.values())],
-                value=list(self.port_types.values())[0]
-            ),
-            html.P(),
-            dash_table.DataTable(id="long_positions")
-        ]
-    )
+            #style={"maxWidth": "1600px", "margin": "auto"},
+            children=[
+                html.H1("📊 Financial Dashboard", style={"textAlign": "center"}),
+
+                html.P(),
+                self.market_section(),
+                html.Hr(),
+
+                html.P(" ", style={'margin': '60px 0'}),
+                self._portfolio_section(),
+                html.Hr(),
+
+                html.P(" ", style={'margin': '60px 0'}),
+                self._model_section(),
+                html.Hr(),
+
+                html.P(" ", style={'margin': '60px 0'}),
+                self._stock_section(),
+            ],
+        )
+    
+    def market_section(self):
+        return html.Div(
+            [
+                html.H2("Market Analysis"),
+                html.P(),
+
+                dcc.RangeSlider(
+                    id="time_range_slider_returns",
+                    min=0,
+                    max=len(self.rets_range) - 1,
+                    value=[0, len(self.rets_range) - 1],
+                    marks=self.rets_marks,
+                    allowCross=False,
+                ),
+
+                dcc.Graph(id="cumulated_stock_returns"),
+                self._styled_table(id="stock_performance_table"),
+                html.P(" ", style={'margin': '40px 0'}),
+                html.H3("Correlatin Matrix"),
+                dcc.Graph(id="corr_heatmap"),                
+            ]
+        )
+
+    def _portfolio_section(self):
+        return html.Div(
+            [
+                html.H2("Portfolio Analysis"),                
+                html.P(),
+
+                html.H3("Select weight category, portfolio constituents and custom weights"),
+                dcc.Dropdown(
+                    id="weight_filter",
+                    options=[{"label": w, "value": w} for w in self.weight_list],
+                    value=self.const_cols["opt_weight"],
+                ),
+                html.P(),
+                dcc.Checklist(
+                    id="portfolio_constituents",
+                    options=[{"label": a, "value": a} for a in self.assets],
+                    value=self.assets,
+                    inline=True,
+                ),
+                html.P(),
+                html.Div(id="weights_container"),
+                html.Div(id="weights_validation_message"),
+
+                dcc.Store(id="custom_weights_store", data={}),
+                dcc.Store(id="previous_constituents_store", data=[]),
+                html.P(),
+                html.P(),
+                html.P(),
+                html.H3("Select portfolio type"),
+                dcc.Checklist(
+                    id="portfolio_checklist",
+                    options=[{"label": v, "value": v} for v in self.port_types.values()],
+                    value=[list(self.port_types.values())[0]],
+                    inline=True,
+                ),
+                html.P(),
+                dcc.RangeSlider(
+                    id="time_range_slider_port",
+                    min=0,
+                    max=len(self.rets_range) - 1,
+                    value=[0, len(self.rets_range) - 1],
+                    marks=self.rets_marks,
+                    allowCross=False,
+                ),
+                dcc.Graph(id="portfolio_performances"),
+                html.P(),
+                html.H3("Portfolio performance"),
+                self._styled_table(id="performance_table"),
+
+                html.P(" ", style={'margin': '40px 0'}),
+                html.H3("Weight store for selected portfolios"),
+                self._styled_table(id="weight_table"),
+
+                html.P(" ", style={'margin': '40px 0'}),
+                html.H3("Long Positions"),
+                dcc.Dropdown(
+                    id="portfolio_dropdown",
+                    options=[{"label": v, "value": v} for v in self.port_types.values()],
+                    value=list(self.port_types.values())[0],
+                ),
+                html.P(),
+                self._styled_table(id="long_positions")
+            ]
+        )
+
+    def _model_section(self):
+        return html.Div(
+            [
+                html.H2("Backtesting of Forecast Models"),
+                html.P(),
+
+                html.H3("Select stock for forecast performace"),
+                dcc.Dropdown(
+                    id="tick_dropdown_models",
+                    options=[{"label": a, "value": a} for a in self.assets],
+                    value=self.assets[0],
+                ),
+                html.P(),
+
+                dcc.Checklist(
+                    id="checklist_models",
+                    options=[{"label": m, "value": m} for m in self.models],
+                    value=[self.models[0]],
+                    inline=True,
+                ),
+                html.P(),
+
+                html.H3("Forecast performance"),
+                dcc.Graph(id="quote_backtest_line"),
+                self._styled_table(id="validation_table")
+            ]
+        )
+
+    def _stock_section(self):
+        return html.Div(
+            [
+                html.H2("Technical Stock Analysis"),
+                html.P(),
+
+                html.H3("Select stock for individual analysis"),
+                dcc.Dropdown(
+                    id="tick_dropdown_analysis",
+                    options=[{"label": a, "value": a} for a in self.assets],
+                    value=self.assets[0],
+                    clearable=False,
+                ),
+                html.P(),
+
+                dcc.RangeSlider(
+                    id="time_range_slider_quote",
+                    min=0,
+                    max=len(self.quote_range) - 1,
+                    value=[0, len(self.quote_range) - 1],
+                    marks=self.quote_marks,
+                    allowCross=False,
+                ),
+
+                dcc.Graph(id="quote_ma_line"),
+                dcc.Graph(id="ma_performance_line"),
+                dcc.Graph(id="return_hist"),
+
+                html.H3("Fundamentals"),
+                dcc.Checklist(
+                    id="checklist_fundamentals",
+                    options=[{"label": c, "value": c} for c in self.fundamental_cols],
+                    value=[self.fundamental_cols[0]],
+                    inline=True,
+                ),
+                dcc.Graph(id="fundamentals_bar"),
+
+                html.H3("Stock Infos"),
+                dcc.Checklist(
+                    id="checklist_stock_infos",
+                    options=[{"label": c, "value": c} for c in self.stock_infos.columns],
+                    value=[self.params["stock_infos"][0]],
+                    inline=True,
+                ),
+                dcc.Graph(id="stock_infos_bar")
+                
+            ]
+        )
+
+    # ==================================================================================
+    # CALLBACKS
+    # ==================================================================================
 
     def _register_callbacks_analysis(self):
         """Functions defines the app callbacks to adjust
@@ -267,7 +420,7 @@ class DashboardAdapter:
                     },
                 ],
                 "layout": {
-                    "title": f"Annualized mean return for {tick_filter} of {ann_mean_ret: .2f}% and total return of {total_ret: .2f}% for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
+                    "title": f"Annualized mean return for {tick_filter} of {ann_mean_ret: .2f}% and total return of {total_ret: .2f}% for period {start.strftime('%Y-%m-%d')} → {end.strftime('%Y-%m-%d')}",
                     "xaxis": {"title": "Date"},
                     "yaxis": {"title": "Values"},
                     "legend": {
@@ -384,11 +537,15 @@ class DashboardAdapter:
             :return: _description_
             :rtype: _type_
             """
-            data = self.stock_infos[stock_info_filter]
-            fig = px.bar(data, 
-                         barmode="group",
-                         )
-            return fig
+
+            if self.stock_infos.empty:
+                return None
+            else:
+                data = self.stock_infos[stock_info_filter]
+                fig = px.bar(data, 
+                            barmode="group",
+                            )
+                return fig
 
         @self.app.callback(
             [
@@ -419,17 +576,18 @@ class DashboardAdapter:
                 cum_returns, 
                 x=cum_returns.index, 
                 y=cum_returns.columns,
-                title=f"Cumulative stock returns for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}",
+                title=f"Cumulative stock returns for period {start.strftime('%Y-%m-%d')} → {end.strftime('%Y-%m-%d')}",
                 labels={"value": "Cumulative Returns", "variable": self.const_cols["asset"]}
             )
 
             corr_matrix = returns_filtered.corr()
+            corr_matrix = corr_matrix.round(2)
             corr_heatmap = px.imshow(corr_matrix, 
                                 text_auto=True, 
                                 aspect="auto", 
                                 color_continuous_scale="RdBu_r"
                                 )
-            title = f"Return correlation for period {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
+            title = f"Return correlation for period {start.strftime('%Y-%m-%d')} → {end.strftime('%Y-%m-%d')}"
             corr_heatmap.update_layout(title=title)
 
             performance_table = pd.DataFrame(index=self.assets)
@@ -811,24 +969,26 @@ class DashboardAdapter:
 
             performance = pd.DataFrame()
             for col in hist_df.columns:
-                ann_ret, ann_vol, sharpe, corr = \
+                total_ret, ann_ret, ann_vol, sharpe, corr = \
                     PortfolioGenerator(hist_df[col]).get_portfolio_performance(bench_rets.squeeze())
 
+                performance.loc[col, self.const_cols["total_ret"]] = total_ret * 100
                 performance.loc[col, self.const_cols["ann_mean_ret"]] = ann_ret * 100
                 performance.loc[col, self.const_cols["ann_vola"]] = ann_vol
                 performance.loc[col, self.const_cols["sharpe_ratio"]] = sharpe
                 performance.loc[col, self.const_cols["bench_corr"]] = corr
 
-            ann_bret, ann_bvol, bsharpe, bcorr = \
+            total_bret, ann_bret, ann_bvol, bsharpe, bcorr = \
             PortfolioGenerator(bench_rets.squeeze()).get_portfolio_performance(bench_rets.squeeze())
 
+            performance.loc[self.const_cols["benchmark"], self.const_cols["total_ret"]] = total_bret * 100
             performance.loc[self.const_cols["benchmark"], self.const_cols["ann_mean_ret"]] = ann_bret * 100
             performance.loc[self.const_cols["benchmark"], self.const_cols["ann_vola"]] = ann_bvol
             performance.loc[self.const_cols["benchmark"], self.const_cols["sharpe_ratio"]] = bsharpe
             performance.loc[self.const_cols["benchmark"], self.const_cols["bench_corr"]] = bcorr
 
             performance = performance.round(2)
-            performance.index.name = self.const_cols["port_types"]
+            performance.index.name = self.const_cols["asset"]
             performance_table = performance.reset_index().to_dict("records")
 
             fig = go.Figure()
@@ -843,7 +1003,7 @@ class DashboardAdapter:
 
             fig.add_trace(go.Scatter(
                 x=bench_cum.index, y=bench_cum,
-                mode="lines", name=f"Benchmark {bench_cum.name}",
+                mode="lines", name="Benchmark",
                 line=dict(width=1)
             ))
 
@@ -861,6 +1021,52 @@ class DashboardAdapter:
             longpos_data = longpos_data.to_dict("records")
 
             return fig, performance_table, weights_table, longpos_data
+
+    def _register_callbacks_table_styling(self):
+
+        outputs = []
+        inputs = []
+
+        for table_id in self.table_styling_config:
+            outputs.append(Output(table_id, "style_data_conditional"))
+            inputs.append(Input(table_id, "derived_virtual_data"))
+
+        @self.app.callback(outputs, inputs)
+        def _update_all_table_styles(*all_rows):
+
+            all_styles = []
+
+            for (table_id, rows) in zip(self.table_styling_config.keys(), all_rows):
+
+                if not rows:
+                    all_styles.append([])
+                    continue
+
+                df = pd.DataFrame(rows)
+                cfg = self.table_styling_config[table_id]
+
+                styles = []
+
+                # Divergierende Performance-Skala
+                for col in cfg.get("performance_cols", []):
+                    if col in df.columns:
+                        styles.extend(self._auto_diverging_styles(df, col))
+
+                # Heatbars
+                for col in cfg.get("heatbar_cols", []):
+                    if col in df.columns:
+                        styles.extend(self._heatbar_styles(df, col))
+
+                # Volatilität
+                for col in cfg.get("volatility_cols", []):
+                    if col in df.columns:
+                        styles.extend(self._volatility_styles(df, col))
+
+                all_styles.append(styles)
+
+            return all_styles
+
+
 
     def run(self, debug=True):
 
@@ -985,3 +1191,248 @@ class DashboardAdapter:
             valid = abs(deviation) < 0.0001
 
         return valid, deviation
+
+
+    def _styled_table(
+        self,
+        id,
+        page_size=10,
+    ):
+        """
+        Einheitlich gestylte Dash DataTable (nur statisches Styling).
+        Dynamische Färbung erfolgt vollständig über Callbacks.
+        """
+
+        style_data_conditional = [
+            # Zebra-Streifen
+            {
+                "if": {"row_index": "odd"},
+                "backgroundColor": "#fafafa",
+            },
+
+            # Hover / Active
+            {
+                "if": {"state": "active"},
+                "backgroundColor": "#e6f2ff",
+                "border": "1px solid #3399ff",
+            },
+        ]
+
+        return dash_table.DataTable(
+            id=id,
+            page_size=page_size,
+
+            style_header={
+                "fontWeight": "bold",
+                "backgroundColor": "#f2f4f8",
+                "borderBottom": "2px solid #b0b0b0",
+                "textAlign": "center",
+                "fontSize": "14px",
+            },
+
+            style_cell={
+                "padding": "8px",
+                "fontSize": "13px",
+                "fontFamily": "Segoe UI, Arial",
+                "border": "1px solid #e1e1e1",
+                "textAlign": "right",
+                "whiteSpace": "normal",
+                "height": "auto",
+            },
+
+            style_cell_conditional=[
+                {
+                    "if": {"column_id": self.const_cols["asset"]},
+                    "textAlign": "left",
+                    "fontWeight": "bold",
+                }
+            ],
+
+            style_data_conditional=style_data_conditional,
+        )
+
+    def _auto_diverging_styles(self, df, column, steps=7):
+        styles = []
+
+        series = pd.to_numeric(df[column], errors="coerce").dropna()
+        if series.empty:
+            return styles
+
+        max_abs = max(abs(series.min()), abs(series.max()))
+        if max_abs < 1e-12:
+            return styles
+
+        step = max_abs / steps
+
+        red = [
+            "#fdecea", "#f9c5c0", "#f19c99",
+            "#ea7a73", "#e05d55", "#d64541", "#c0392b"
+        ]
+
+        green = [
+            "#eafaf1", "#d4f4e2", "#b8eccc",
+            "#8fd9a8", "#5cc98a", "#2eb872", "#27ae60"
+        ]
+
+        text_color = "#1c2833"
+
+        # Negative Werte
+        for i in range(steps):
+            lower = -max_abs + i * step
+            upper = -max_abs + (i + 1) * step
+
+            styles.append({
+                "if": {
+                    "filter_query": (
+                        f"{{{column}}} >= {lower} && {{{column}}} <= {upper}"
+                    ),
+                    "column_id": column,
+                },
+                "backgroundColor": red[steps - i - 1],
+                "color": text_color,
+                "fontWeight": "bold",
+            })
+
+        # Positive Werte
+        for i in range(steps):  
+            lower = i * step
+            upper = (i + 1) * step
+
+            styles.append({
+                "if": {
+                    "filter_query": (
+                        f"{{{column}}} >= {lower} && {{{column}}} <= {upper}"
+                    ),
+                    "column_id": column,
+                },
+                "backgroundColor": green[i],
+                "color": text_color,
+                "fontWeight": "bold",
+            })
+
+        return styles
+
+    
+    def _heatbar_styles(
+        self,
+        df,
+        column,
+        min_fill_pct=12,
+        equal_fill_pct=80,
+    ):
+        """
+        Robuste Heatbars für Dash DataTables.
+
+        Eigenschaften:
+        - 0.0 → KEIN Balken
+        - kleinster positiver Wert → min_fill_pct
+        - größter Wert → 100 %
+        - alle Werte gleich → equal_fill_pct
+        """
+
+        styles = []
+
+        series = pd.to_numeric(df[column], errors="coerce")
+        if series.isna().all():
+            return styles
+
+        min_v = series.min()
+        max_v = series.max()
+        span = max_v - min_v
+
+        # ==========================
+        # Spezialfall: alle Werte gleich (≠ 0)
+        # ==========================
+        if span < 1e-12 and max_v != 0:
+            for i, value in series.items():
+                if value == 0 or pd.isna(value):
+                    continue
+
+                styles.append({
+                    "if": {
+                        "row_index": i,
+                        "column_id": column,
+                    },
+                    "background": (
+                        f"linear-gradient(90deg, "
+                        f"#d6e9f8 {equal_fill_pct}%, "
+                        f"transparent {equal_fill_pct}%)"
+                    ),
+                    "paddingBottom": 2,
+                    "paddingTop": 2,
+                })
+            return styles
+
+        # ==========================
+        # Normalfall
+        # ==========================
+        for i, value in series.items():
+            if pd.isna(value) or value == 0:
+                continue
+
+            norm = (value - min_v) / span if span > 0 else 0
+            pct = min_fill_pct + norm * (100 - min_fill_pct)
+
+            styles.append({
+                "if": {
+                    "row_index": i,
+                    "column_id": column,
+                },
+                "background": (
+                    f"linear-gradient(90deg, "
+                    f"#d6e9f8 {pct:.1f}%, "
+                    f"transparent {pct:.1f}%)"
+                ),
+                "paddingBottom": 2,
+                "paddingTop": 2,
+            })
+
+        return styles
+
+
+
+    def _volatility_styles(self, df, column, steps=7):
+        styles = []
+
+        series = pd.to_numeric(df[column], errors="coerce").dropna()
+        if series.empty:
+            return styles
+
+        min_v = series.min()
+        max_v = series.max()
+
+        if max_v - min_v < 1e-12:
+            return styles
+
+        step = (max_v - min_v) / steps
+
+        colors = [
+            "#eafaf1",
+            "#d4f4e2",
+            "#b8eccc",
+            "#f9f3cf",
+            "#fde2b8",
+            "#f5b183",
+            "#e67e22",
+        ]
+
+        text_color = "#1c2833"
+
+        for i in range(steps):
+            lower = min_v + i * step
+            upper = min_v + (i + 1) * step
+
+            styles.append({
+                "if": {
+                    "filter_query": (
+                        f"{{{column}}} >= {lower} && {{{column}}} <= {upper}"
+                    ),
+                    "column_id": column,
+                },
+                "backgroundColor": colors[i],
+                "color": text_color,
+                "fontWeight": "bold",
+            })
+
+        return styles
+

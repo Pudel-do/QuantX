@@ -137,16 +137,12 @@ if __name__ == "__main__":
         stock_ticks=ticks,
         bench_tick=bench_tick
     )
-    port_types = CONST_PORT_TYPES.copy()
-    if not PARAMETER["use_custom_weights"]:
-        port_types.pop("CUSTOM", None)
 
     dashboard = DashboardAdapter(
         assets=assets,
         ticks=ticks,
         tick_mapping=tick_mapping,
         moving_avg=moving_averages,
-        port_types = port_types,
         opt_moving_avg=opt_moving_averages,
         stock_rets=stock_rets_clean,
         bench_rets = bench_rets,
@@ -159,6 +155,3 @@ if __name__ == "__main__":
         actual_quotes=actual_quotes
     )
     dashboard.run(debug=True)
-
-
-    
