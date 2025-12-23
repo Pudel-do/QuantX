@@ -23,11 +23,6 @@ from misc.utils import (
 
 from core.portfolio_generator import PortfolioGenerator
 
-
-# ======================================================================================
-# DASHBOARD ADAPTER
-# ======================================================================================
-
 class DashboardAdapter:
     def __init__(
         self,
@@ -152,15 +147,15 @@ class DashboardAdapter:
                 self.market_section(),
                 html.Hr(),
 
-                html.P(" ", style={'margin': '40px 0'}),
+                html.P(" ", style={'margin': '60px 0'}),
                 self._portfolio_section(),
                 html.Hr(),
 
-                html.P(" ", style={'margin': '40px 0'}),
+                html.P(" ", style={'margin': '60px 0'}),
                 self._model_section(),
                 html.Hr(),
 
-                html.P(" ", style={'margin': '40px 0'}),
+                html.P(" ", style={'margin': '60px 0'}),
                 self._stock_section(),
             ],
         )
@@ -182,7 +177,7 @@ class DashboardAdapter:
 
                 dcc.Graph(id="cumulated_stock_returns"),
                 self._styled_table(id="stock_performance_table"),
-                html.P(" ", style={'margin': '20px 0'}),
+                html.P(" ", style={'margin': '40px 0'}),
                 html.H3("Correlatin Matrix"),
                 dcc.Graph(id="corr_heatmap"),                
             ]
@@ -237,11 +232,11 @@ class DashboardAdapter:
                 html.H3("Portfolio performance"),
                 self._styled_table(id="performance_table"),
 
-                html.P(" ", style={'margin': '20px 0'}),
+                html.P(" ", style={'margin': '40px 0'}),
                 html.H3("Weight store for selected portfolios"),
                 self._styled_table(id="weight_table"),
 
-                html.P(" ", style={'margin': '20px 0'}),
+                html.P(" ", style={'margin': '40px 0'}),
                 html.H3("Long Positions"),
                 dcc.Dropdown(
                     id="portfolio_dropdown",
@@ -586,6 +581,7 @@ class DashboardAdapter:
             )
 
             corr_matrix = returns_filtered.corr()
+            corr_matrix = corr_matrix.round(2)
             corr_heatmap = px.imshow(corr_matrix, 
                                 text_auto=True, 
                                 aspect="auto", 
