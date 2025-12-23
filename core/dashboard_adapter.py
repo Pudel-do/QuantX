@@ -70,11 +70,11 @@ class DashboardAdapter:
 
         # ---------------- Table style ----------------
         self.table_styling_config = {
-            "performance_table": {
+
+            "stock_performance_table": {
                 "performance_cols": [
+                    self.const_cols["total_ret"],
                     self.const_cols["ann_mean_ret"],
-                    self.const_cols["sharpe_ratio"],
-                    self.const_cols["bench_corr"],
                 ],
                 "heatbar_cols": [],
                 "volatility_cols": [
@@ -82,10 +82,12 @@ class DashboardAdapter:
                 ]
             },
 
-            "stock_performance_table": {
+            "performance_table": {
                 "performance_cols": [
                     self.const_cols["total_ret"],
                     self.const_cols["ann_mean_ret"],
+                    self.const_cols["sharpe_ratio"],
+                    self.const_cols["bench_corr"]
                 ],
                 "heatbar_cols": [],
                 "volatility_cols": [
@@ -542,7 +544,7 @@ class DashboardAdapter:
             """
 
             if self.stock_infos.empty:
-                return pd.DataFrame()
+                return None
             else:
                 data = self.stock_infos[stock_info_filter]
                 fig = px.bar(data, 
@@ -971,24 +973,26 @@ class DashboardAdapter:
 
             performance = pd.DataFrame()
             for col in hist_df.columns:
-                ann_ret, ann_vol, sharpe, corr = \
+                total_ret, ann_ret, ann_vol, sharpe, corr = \
                     PortfolioGenerator(hist_df[col]).get_portfolio_performance(bench_rets.squeeze())
 
+                performance.loc[col, self.const_cols["total_ret"]] = total_ret * 100
                 performance.loc[col, self.const_cols["ann_mean_ret"]] = ann_ret * 100
                 performance.loc[col, self.const_cols["ann_vola"]] = ann_vol
                 performance.loc[col, self.const_cols["sharpe_ratio"]] = sharpe
                 performance.loc[col, self.const_cols["bench_corr"]] = corr
 
-            ann_bret, ann_bvol, bsharpe, bcorr = \
+            total_bret, ann_bret, ann_bvol, bsharpe, bcorr = \
             PortfolioGenerator(bench_rets.squeeze()).get_portfolio_performance(bench_rets.squeeze())
 
+            performance.loc[self.const_cols["benchmark"], self.const_cols["total_ret"]] = total_bret * 100
             performance.loc[self.const_cols["benchmark"], self.const_cols["ann_mean_ret"]] = ann_bret * 100
             performance.loc[self.const_cols["benchmark"], self.const_cols["ann_vola"]] = ann_bvol
             performance.loc[self.const_cols["benchmark"], self.const_cols["sharpe_ratio"]] = bsharpe
             performance.loc[self.const_cols["benchmark"], self.const_cols["bench_corr"]] = bcorr
 
             performance = performance.round(2)
-            performance.index.name = self.const_cols["port_types"]
+            performance.index.name = self.const_cols["asset"]
             performance_table = performance.reset_index().to_dict("records")
 
             fig = go.Figure()
