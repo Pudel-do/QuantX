@@ -7,3 +7,4 @@ notebooks/
 parameter.json
 untitled_project/
 .vscode/
+db/data.db
