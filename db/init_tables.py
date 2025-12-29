@@ -1,15 +1,15 @@
 from pathlib import Path
 from sqlalchemy import text
 from engine import get_engine
+from misc.utils import read_json
+from misc.schema_utils import *
 
-engine = get_engine()
+ENGINE = get_engine()
+ENV = read_json("Parameter.json")["env"]
+RESET_SCHEMA = ENV == "dev"
 
-sql_dirs = [
-    "sql/schema"
-]
-
-with engine.begin() as conn:
-    for d in sql_dirs:
-        for sql_file in sorted(Path(d).glob("*.sql")):
-            sql = sql_file.read_text()
-            conn.execute(text(sql))
+init_schema(
+    engine=ENGINE,
+    schema_dir="sql/schema",
+    reset=RESET_SCHEMA,
+)
