@@ -1,3 +1,4 @@
+import pandas as pd
 from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
@@ -59,3 +60,16 @@ def init_schema(
         drop_all_tables(engine)
 
     create_schema_from_sql(engine, schema_dir)
+
+
+def get_ticker_id(
+        df: pd.DataFrame, 
+        engine: Engine
+) -> pd.DataFrame:
+    
+    ticker_map = pd.read_sql(
+        "SELECT TICKER_ID, TICKER FROM tickers",
+        engine
+    ).set_index("TICKER")["TICKER_ID"]
+    df["TICKER_ID"] = df["TICKER"].map(ticker_map)
+    return df
