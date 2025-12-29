@@ -8,8 +8,13 @@ ENGINE = get_engine()
 ENV = read_json("Parameter.json")["env"]
 RESET_SCHEMA = ENV == "dev"
 
-init_schema(
+def run():
+    init_schema(
     engine=ENGINE,
     schema_dir="sql/schema",
     reset=RESET_SCHEMA,
 )
+
+if __name__ == "__main__":
+    run()
+
