@@ -49,7 +49,7 @@ def create_schema_from_sql(
 
 def init_schema(
     engine: Engine,
-    schema_dir: str | Path,
+    sql_dir: list | Path,
     reset: bool = False,
 ) -> None:
     """
@@ -59,17 +59,18 @@ def init_schema(
     if reset:
         drop_all_tables(engine)
 
-    create_schema_from_sql(engine, schema_dir)
+    for dir in sql_dir:
+        create_schema_from_sql(engine, dir)
 
 
 def get_ticker_id(
-        df: pd.DataFrame, 
+        df: pd.DataFrame,
         engine: Engine
 ) -> pd.DataFrame:
     
     ticker_map = pd.read_sql(
-        "SELECT TICKER_ID, TICKER FROM tickers",
+        "SELECT ticker_id, ticker FROM tickers",
         engine
-    ).set_index("TICKER")["TICKER_ID"]
-    df["TICKER_ID"] = df["TICKER"].map(ticker_map)
+    ).set_index("ticker")["ticker_id"]
+    df["ticker_id"] = df["ticker"].map(ticker_map)
     return df
