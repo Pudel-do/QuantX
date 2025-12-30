@@ -3,10 +3,9 @@ import numpy as np
 from sqlalchemy import text
 from db.engine import get_engine
 from core.finance_adapter import FinanceAdapter
-from misc.utils import *
+from misc.utils import read_json
 
 PARAMETER = read_json("parameter.json")
-
 
 def run():
     rows = []
@@ -24,7 +23,7 @@ def run():
     with engine.begin() as conn:
         conn.execute(
             text("""
-            INSERT OR IGNORE INTO tickers (TICKER, NAME_LONG, NAME_SHORT, CURRENCY)
+            INSERT OR IGNORE INTO tickers (ticker, long_name, short_name, currency)
             VALUES (:ticker, :name_long, :name_short, :currency)
             """),
             df.to_dict(orient="records")
