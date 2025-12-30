@@ -1,11 +1,9 @@
 import pandas as pd
 import numpy as np
 import datetime as dt
-from sqlalchemy import text
-from db.engine import get_engine
 from core.finance_adapter import FinanceAdapter
 from misc.utils import read_json, get_last_business_day
-from misc.schema_utils import get_ticker_id
+from misc.schema_utils import get_ticker_id, write_sql
 
 PARAMETER = read_json("parameter.json")
 
@@ -22,23 +20,17 @@ def get_prices():
     return df_prices
 
 def ingest_raw_data(data):
-    engine = get_engine()
-    df = get_ticker_id(
-        df=data,
-        engine=engine
-    )
+    df = get_ticker_id(data)
 
     df.columns = [col.replace(" ", "") for col in df.columns]
     df["date"] = df["date"].dt.strftime("%Y-%m-%d")
 
-    with engine.begin() as conn:
-        conn.execute(
-            text("""
-            INSERT OR IGNORE INTO raw_prices (ticker_id, date, high, low, open, close, adj_close, volume)
+    sql = """
+            INSERT OR IGNORE INTO raw_prices 
+            (ticker_id, date, high, low, open, close, adj_close, volume)
             VALUES (:ticker_id, :date, :High, :Low, :Open, :Close, :AdjClose, :Volume)
-            """),
-            df.to_dict(orient="records")
-        )
+        """
+    write_sql(sql, df)
 
 def run():
     prices = get_prices()
