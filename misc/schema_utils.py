@@ -2,15 +2,17 @@ import pandas as pd
 from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+from db.engine import get_engine
 import logging
 
 log = logging.getLogger(__name__)
 
 
-def drop_all_tables(engine: Engine) -> None:
+def drop_all_tables() -> None:
     """
     Löscht ALLE Tabellen!
     """
+    engine = get_engine()
     with engine.begin() as conn:
         conn.execute(text("PRAGMA foreign_keys = OFF"))
 
@@ -29,13 +31,13 @@ def drop_all_tables(engine: Engine) -> None:
 
 
 def create_schema_from_sql(
-    engine: Engine,
     schema_dir: str | Path,
 ) -> None:
     """
     Erstellt alle Tabellen aus SQL-Dateien
     """
     schema_dir = Path(schema_dir)
+    engine = get_engine()
 
     if not schema_dir.exists():
         raise FileNotFoundError(f"Schema dir not found: {schema_dir}")
@@ -48,7 +50,6 @@ def create_schema_from_sql(
 
 
 def init_schema(
-    engine: Engine,
     sql_dir: list | Path,
     reset: bool = False,
 ) -> None:
@@ -57,20 +58,48 @@ def init_schema(
     reset=True → DROP ALL + CREATE
     """
     if reset:
-        drop_all_tables(engine)
+        drop_all_tables()
 
     for dir in sql_dir:
-        create_schema_from_sql(engine, dir)
+        create_schema_from_sql(dir)
 
 
 def get_ticker_id(
-        df: pd.DataFrame,
-        engine: Engine
+        df: pd.DataFrame
 ) -> pd.DataFrame:
     
+    engine = get_engine()
     ticker_map = pd.read_sql(
         "SELECT ticker_id, ticker FROM tickers",
         engine
     ).set_index("ticker")["ticker_id"]
     df["ticker_id"] = df["ticker"].map(ticker_map)
+    return df
+
+def write_sql(
+    sql: str, 
+    data
+) -> None:
+    
+    engine = get_engine()
+    with engine.begin() as conn:
+        conn.execute(
+            text(sql),
+            data.to_dict(orient="records")
+        )
+
+def read_sql_as_df(sql, params):
+    engine = get_engine()
+
+    if params is None:
+        df = pd.read_sql(
+            sql=sql,
+            con=engine
+        )
+    else:
+        df = pd.read_sql(
+            sql=sql,
+            con=engine,
+            params=params
+        )
     return df
