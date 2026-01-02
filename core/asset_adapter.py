@@ -79,7 +79,7 @@ class AssetRepository:
                     ORDER BY asset_id
                     """)).fetchall()
             
-        return [[x[0] for x in rows]]
+        return [x[0] for x in rows]
 
     def get_ids(self):
         with self.engine.begin() as conn:
@@ -90,8 +90,8 @@ class AssetRepository:
                     ORDER BY asset_id
                     """)).fetchall()
             
-        return [[x[0] for x in rows]]
-    
+        return [x[0] for x in rows]
+
     def get_tickers(self):
         with self.engine.begin() as conn:
             rows = conn.execute(
