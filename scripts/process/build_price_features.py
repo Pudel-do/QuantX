@@ -15,7 +15,7 @@ def read_prices(ticker_id):
         ORDER BY date
         """
     
-    df = read_sql_as_df(
+    df = read_sql(
         sql=sql,
         params={
             "ticker_id": ticker_id
@@ -28,7 +28,7 @@ def calculate_features():
     pass
 
 def run():
-    tickers = read_sql_as_df(
+    tickers = read_sql(
         sql= """
             SELECT ticker_id, ticker
             FROM tickers
