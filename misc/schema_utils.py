@@ -15,7 +15,6 @@ def drop_all_tables() -> None:
     engine = get_engine()
     with engine.begin() as conn:
         conn.execute(text("PRAGMA foreign_keys = OFF"))
-
         tables = conn.execute(text("""
             SELECT name
             FROM sqlite_master
@@ -64,9 +63,7 @@ def init_schema(
         create_schema_from_sql(dir)
 
 
-def get_ticker_id(
-        df: pd.DataFrame
-) -> pd.DataFrame:
+def get_ticker_id(df: pd.DataFrame) -> pd.DataFrame:
     
     engine = get_engine()
     ticker_map = pd.read_sql(
@@ -76,10 +73,7 @@ def get_ticker_id(
     df["ticker_id"] = df["ticker"].map(ticker_map)
     return df
 
-def write_sql(
-    sql: str, 
-    data
-) -> None:
+def write_sql(sql: str, data) -> None:
     
     engine = get_engine()
     with engine.begin() as conn:
@@ -88,7 +82,7 @@ def write_sql(
             data.to_dict(orient="records")
         )
 
-def read_sql_as_df(sql, params):
+def read_sql(sql, params):
     engine = get_engine()
 
     if params is None:
