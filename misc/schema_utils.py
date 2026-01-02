@@ -67,10 +67,10 @@ def get_ticker_id(df: pd.DataFrame) -> pd.DataFrame:
     
     engine = get_engine()
     ticker_map = pd.read_sql(
-        "SELECT ticker_id, ticker FROM tickers",
+        "SELECT asset_id, ticker FROM assets",
         engine
-    ).set_index("ticker")["ticker_id"]
-    df["ticker_id"] = df["ticker"].map(ticker_map)
+    ).set_index("ticker")["asset_id"]
+    df["asset_id"] = df["ticker"].map(ticker_map)
     return df
 
 def write_sql(sql: str, data) -> None:

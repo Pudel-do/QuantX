@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS raw_prices (
-    ticker_id NOT NULL,
+    asset_id NOT NULL,
     date DATE NOT NULL,
     high REAL,
     low REAL,
@@ -7,6 +7,6 @@ CREATE TABLE IF NOT EXISTS raw_prices (
     close REAL,
     adj_close REAL,
     volume INTEGER,
-    PRIMARY KEY (ticker_id, date),
-    FOREIGN KEY (ticker_id) REFERENCES tickers(ticker_id)
+    PRIMARY KEY (asset_id, date),
+    FOREIGN KEY (asset_id) REFERENCES assets(asset_id)
 )

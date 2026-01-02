@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import datetime as dt
 from core.finance_adapter import FinanceAdapter
+from core.asset_adapter import AssetRepository
 from misc.utils import read_json, get_last_business_day
 from misc.schema_utils import get_ticker_id, write_sql
 
@@ -9,8 +10,10 @@ PARAMETER = read_json("parameter.json")
 
 def get_prices():
     start = PARAMETER["base_start"]
+    ticker_list = AssetRepository().get_tickers()
+
     dfs = []
-    for ticker in PARAMETER["ticker"]:
+    for ticker in ticker_list:
         prices = FinanceAdapter(ticker).get_trade_data(start)
         prices["ticker"] = ticker
         prices.reset_index(names="date", inplace=True)
@@ -27,8 +30,8 @@ def ingest_raw_data(data):
 
     sql = """
             INSERT OR IGNORE INTO raw_prices 
-            (ticker_id, date, high, low, open, close, adj_close, volume)
-            VALUES (:ticker_id, :date, :High, :Low, :Open, :Close, :AdjClose, :Volume)
+            (asset_id, date, high, low, open, close, adj_close, volume)
+            VALUES (:asset_id, :date, :High, :Low, :Open, :Close, :AdjClose, :Volume)
         """
     write_sql(sql, df)
 
