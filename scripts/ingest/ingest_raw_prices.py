@@ -4,7 +4,7 @@ import datetime as dt
 from core.finance_adapter import FinanceAdapter
 from core.asset_adapter import AssetRepository
 from misc.utils import read_json, get_last_business_day
-from misc.schema_utils import get_ticker_id, write_sql
+from misc.schema_utils import write_sql
 
 PARAMETER = read_json("parameter.json")
 
@@ -22,9 +22,8 @@ def get_prices():
     df_prices = pd.concat(dfs, ignore_index=True)
     return df_prices
 
-def ingest_raw_data(data):
-    df = get_ticker_id(data)
-
+def ingest_data(data):
+    df = AssetRepository().get_ticker_id(data)
     df.columns = [col.replace(" ", "") for col in df.columns]
     df["date"] = df["date"].dt.strftime("%Y-%m-%d")
 
@@ -37,7 +36,7 @@ def ingest_raw_data(data):
 
 def run():
     prices = get_prices()
-    ingest_raw_data(prices)
+    ingest_data(prices)
 
 if __name__ == "__main__":
     run()
