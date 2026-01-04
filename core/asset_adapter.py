@@ -4,8 +4,10 @@ from db.engine import get_engine
 from core.finance_adapter import FinanceAdapter
 from misc.schema_utils import *
 from misc.utils import read_json
+import logging
 
 log = logging.getLogger(__name__)
+
 
 class AssetRepository:
 
