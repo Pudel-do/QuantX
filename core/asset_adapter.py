@@ -73,6 +73,31 @@ class AssetRepository:
             )
         
         return None
+    
+    def update_benchmark_flag(self, bench_tick):
+        with self.engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    UPDATE assets
+                    SET benchmark_flag = false
+                    """
+                )
+            )
+
+        with self.engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    UPDATE assets
+                    SET benchmark_flag = true
+                    WHERE ticker LIKE :bench_tick
+                    """
+                ),
+                {"bench_tick": bench_tick}
+            )
+            
+        return None
 
     def get_active_ids(self):
         with self.engine.begin() as conn:

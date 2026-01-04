@@ -4,5 +4,6 @@ CREATE TABLE IF NOT EXISTS assets (
     long_name TEXT,
     short_name TEXT,
     currency TEXT,
+    benchmark_flag BOOLEAN NOT NULL DEFAULT false,
     active_flag BOOLEAN NOT NULL DEFAULT true
 );
