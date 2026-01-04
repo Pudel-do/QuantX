@@ -32,9 +32,18 @@ def clean_data(df):
 
     return df
 
-def calculate_price_features(df):
+def build_price_features(df):
 
-    #RSI
+    sma_short = df["price"].rolling(PARAMETER["ma_short"]).mean()
+    sma_long = df["price"].rolling(PARAMETER["ma_long"]).mean()
+    df["sma_short"] = sma_short
+    df["sma_long"] = sma_long
+
+    ema_short = df["price"].ewm(PARAMETER["ma_short"]).mean()
+    ema_long = df["price"].ewm(PARAMETER["ma_long"]).mean()
+    df["ema_short"] = ema_short
+    df["ema_long"] = ema_long
+
     rsi_window = PARAMETER["rsi_window"]
     delta = df["price"].diff(1)
     gain = np.where(delta > 0, delta, 0)
@@ -45,17 +54,15 @@ def calculate_price_features(df):
     avg_loss = loss.rolling(window=rsi_window).mean()
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
-    rsi.name = "rsi"
+    df["rsi"] = rsi
 
-    #MACD
     ema_fast = df["price"].ewm(span=PARAMETER["macd_fast"])
     ema_slow = df["price"].ewm(span=PARAMETER["macd_slow"])
     ema_fast = ema_fast.mean()
     ema_slow = ema_slow.mean()
     macd = ema_fast - ema_slow
-    macd.name = "macd"
+    df["macd"] = macd
 
-    #ATR
     high = df["high"]
     low = df["low"]
     high_low = high - low
@@ -68,9 +75,8 @@ def calculate_price_features(df):
     true_range = true_range.max(axis=1)
     atr = true_range.rolling(window=PARAMETER["atr_window"])
     atr = atr.mean()
-    atr.name = "atr"
+    df["atr"] = atr
     
-    #OBV
     obv = np.where(
         df["price"] > df["price"].shift(1), 
         df["volume"], 
@@ -82,56 +88,76 @@ def calculate_price_features(df):
     )
     obv = pd.Series(obv, index=df.index)
     obv = obv.cumsum()
-    obv.name = "obv"
+    df["obv"] = obv
 
-    #ROLLING_VOLATILITY
-    rets = np.log(df["price"] / df["price"].shift(1))
+    features = df[
+        ["asset_id", "date", "price", 
+        "sma_short", "sma_long",
+        "ema_short", "ema_long",
+        "rsi", "macd", "atr", "obv"
+        ]
+    ]
+    return features
+
+def build_return_features(df):
+
+    rets = calculate_returns(df["price"])
+
     vola = rets.rolling(window=PARAMETER["vol_window"])
     vola = vola.std()
-    vola.name = "ret_vola"
+    
+    df["return"] = rets
+    df["return_vola"] = vola
 
-    features = pd.concat(
-        [rsi, macd, atr, obv, vola],
-        axis=1,
-        join="outer"
-    )
+    features = df[
+        ["asset_id", "date", 
+        "return", "return_vola"
+        ]
+    ]
 
     return features
 
-def calculate_moving_average(df):
-    sma_short = df["price"].rolling(PARAMETER["sma_short"]).mean()
-    sma_long = df["price"].rolling(PARAMETER["sma_long"]).mean()
-    df["sma_short"] = sma_short
-    df["sma_long"] = sma_long
-
-    return df
-
-def ingest_data(data):
+def ingest_price_features(data):
 
     sql = """
-            INSERT OR IGNORE INTO processed_prices
-            (asset_id, date, price, sma_short, sma_long, return, rsi, macd, atr, obv, ret_vola)
-            VALUES (:asset_id, :date, :price, :sma_short, :sma_long, :return, :rsi, :macd, :atr, :obv, :ret_vola)
+            INSERT OR IGNORE INTO price_features
+            (asset_id, date, price, sma_short, sma_long, 
+            ema_short, ema_long, rsi, macd, atr, obv)
+
+            VALUES (:asset_id, :date, :price, :sma_short, 
+            :sma_long, :ema_short, :ema_long, :rsi, :macd, :atr, :obv)
+        """
+    write_sql(sql, data)
+
+def ingest_return_features(data):
+
+    sql = """
+            INSERT OR IGNORE INTO return_features
+            (asset_id, date, return, return_vola)
+
+            VALUES (:asset_id, :date, :return, :return_vola)
         """
     write_sql(sql, data)
 
 def run():
     asset_ids = AssetRepository().get_ids()
-    df_list = []
+    price_list = []
+    return_list = []
     for id in asset_ids:
-        prices = read_prices(id)
-        prices["price"] = prices["adj_close"]
-        prices["return"] = calculate_returns(prices["price"])
-        prices = calculate_moving_average(prices)
-        features = calculate_price_features(prices)
-        prices = prices.join(
-            features,
-            how="left"
-        )
-        df_list.append(prices)
+        raw_prices = read_prices(id)
+        raw_prices["price"] = raw_prices["adj_close"]
+        price_features = build_price_features(raw_prices)
+        return_features = build_return_features(raw_prices)
 
-    df_prices = pd.concat(df_list, ignore_index=True)
-    ingest_data(df_prices)
+        price_list.append(price_features)
+        return_list.append(return_features)
+
+    df_price_features = pd.concat(price_list, ignore_index=True)
+    df_return_features = pd.concat(return_list, ignore_index=True)
+
+    ingest_price_features(df_price_features)
+    ingest_return_features(df_return_features)
+
 
 if __name__ == "__main__":
     run()
