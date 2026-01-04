@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS raw_prices (
-    asset_id NOT NULL,
+    asset_id INTEGER NOT NULL,
     date DATE NOT NULL,
     high REAL,
     low REAL,
