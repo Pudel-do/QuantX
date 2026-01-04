@@ -62,17 +62,6 @@ def init_schema(
     for dir in sql_dir:
         create_schema_from_sql(dir)
 
-
-def get_ticker_id(df: pd.DataFrame) -> pd.DataFrame:
-    
-    engine = get_engine()
-    ticker_map = pd.read_sql(
-        "SELECT asset_id, ticker FROM assets",
-        engine
-    ).set_index("ticker")["asset_id"]
-    df["asset_id"] = df["ticker"].map(ticker_map)
-    return df
-
 def write_sql(sql: str, data) -> None:
     
     engine = get_engine()
