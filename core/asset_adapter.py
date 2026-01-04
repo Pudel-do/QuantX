@@ -5,6 +5,8 @@ from core.finance_adapter import FinanceAdapter
 from misc.schema_utils import *
 from misc.utils import read_json
 
+log = logging.getLogger(__name__)
+
 class AssetRepository:
 
     def __init__(self):
@@ -32,12 +34,13 @@ class AssetRepository:
             with self.engine.begin() as conn:
                 conn.execute(
                     text("""
-                        INSERT OR IGNORE INTO assets (ticker, long_name, short_name, currency)
+                        INSERT INTO assets (ticker, long_name, short_name, currency)
                         VALUES (:ticker, :long_name, :short_name, :currency)
                         """
                     ),
                     metadata.to_dict(orient="records")
             )
+            log.info(f"Insert ticker {ticker} into asset repository")
                 
         else:
             pass
@@ -101,3 +104,11 @@ class AssetRepository:
                     ORDER BY ticker
                     """)).fetchall()
         return [x[0] for x in rows]
+    
+    def get_ticker_id(self, df: pd.DataFrame) -> pd.DataFrame:
+        ticker_map = pd.read_sql(
+            "SELECT asset_id, ticker FROM assets",
+            self.engine
+        ).set_index("ticker")["asset_id"]
+        df["asset_id"] = df["ticker"].map(ticker_map)
+        return df
