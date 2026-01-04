@@ -11,6 +11,7 @@ PARAMETER = read_json("parameter.json")
 
 def run():
     ticker_list = PARAMETER["ticker"]
+    ticker_list.append(PARAMETER["benchmark_tick"])
     for ticker in ticker_list:
         AssetRepository().add_asset(ticker)
     AssetRepository().update_active_flag(ticker_list)
