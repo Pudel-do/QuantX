@@ -2,7 +2,6 @@ CREATE TABLE IF NOT EXISTS price_features (
     asset_id INTEGER NOT NULL,
     date DATE NOT NULL,
     price REAL,
-    return REAL,
     sma_short REAL,
     sma_long REAL,
     ema_short REAL,
