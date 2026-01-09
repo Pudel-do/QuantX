@@ -11,7 +11,7 @@ PARAMETER = read_json("parameter.json")
 
 def read_prices(asset_id):
 
-    sql = """
+    query = """
         SELECT asset_id, date, adj_close, high, low, volume
         FROM raw_prices
         WHERE asset_id = :asset_id
@@ -19,7 +19,7 @@ def read_prices(asset_id):
         """
     
     df = read_sql(
-        sql=sql,
+        query=query,
         params={
             "asset_id": asset_id
         }

@@ -62,26 +62,26 @@ def init_schema(
     for dir in sql_dir:
         create_schema_from_sql(dir)
 
-def write_sql(sql: str, data) -> None:
+def write_sql(statement: str, data) -> None:
     
     engine = get_engine()
     with engine.begin() as conn:
         conn.execute(
-            text(sql),
+            text(statement),
             data.to_dict(orient="records")
         )
 
-def read_sql(sql, params):
+def read_sql(query, params):
     engine = get_engine()
 
     if params is None:
         df = pd.read_sql(
-            sql=sql,
+            sql=query,
             con=engine
         )
     else:
         df = pd.read_sql(
-            sql=sql,
+            sql=query,
             con=engine,
             params=params
         )
