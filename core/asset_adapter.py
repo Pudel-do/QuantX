@@ -36,8 +36,8 @@ class AssetRepository:
             with self.engine.begin() as conn:
                 conn.execute(
                     text("""
-                        INSERT INTO assets (ticker, long_name, short_name, currency)
-                        VALUES (:ticker, :long_name, :short_name, :currency)
+                        INSERT INTO assets (ticker, name, long_name, short_name, currency)
+                        VALUES (:ticker, :long_name, :long_name, :short_name, :currency)
                         """
                     ),
                     metadata.to_dict(orient="records")
