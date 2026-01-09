@@ -23,6 +23,7 @@ def load_active_assets():
 
 @lru_cache()
 def load_return_slider_values():
+
     query = """
     SELECT DISTINCT date
     FROM return_features
@@ -34,8 +35,16 @@ def load_return_slider_values():
         params=None
     )
 
-    # date_range = df["date"].to_list()
-    date_range = df["date"].unique()
+    date_index = pd.DatetimeIndex(df["date"])
+    marks, date_range = _load_slider_values(date_index)
+    
+    return marks, date_range
+
+
+
+
+def _load_slider_values(date_range):
+
     raw_marks = {
         i: str(date.year) \
             for i, date in enumerate(date_range)

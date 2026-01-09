@@ -1,7 +1,6 @@
 import pandas as pd
 from pathlib import Path
 from sqlalchemy import text
-from sqlalchemy.engine import Engine
 from db.engine import get_engine
 import logging
 
