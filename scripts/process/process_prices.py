@@ -3,7 +3,7 @@ import numpy as np
 import datetime as dt
 from core.finance_adapter import FinanceAdapter
 from core.asset_adapter import AssetRepository
-from misc.utils import read_json, get_last_business_day
+from misc.utils import read_json
 from misc.schema_utils import *
 from misc.utils import *
 
