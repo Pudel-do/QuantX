@@ -1,7 +1,7 @@
 from dash import html, dcc, dash_table
 from dashboard.layout_data import (
     load_active_assets,
-    load_return_slider_values
+    load_slider_values
 )
 
 def create_layout():
@@ -17,19 +17,21 @@ def create_layout():
     )
 
 def build_market_section():
-    marks, date_range = load_return_slider_values()
+    cfg = load_slider_values()
     
     return html.Div(
         [
             dcc.RangeSlider(
                 id="return_slider",
-                min=0,
-                max=len(date_range) - 1,
-                value=[0, len(date_range) - 1],
-                marks=marks,
-                step=1,
+                min=cfg.get("min"),
+                max=cfg.get("max"),
+                value=cfg.get("value"),
+                marks=cfg.get("marks"),
+                step=cfg.get("step"),
                 allowCross=False
             ),
+
+            dcc.Graph(id="cum_returns")
         ]
     )
 

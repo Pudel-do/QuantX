@@ -22,12 +22,13 @@ def load_active_assets():
     pass
 
 @lru_cache()
-def load_return_slider_values():
+def load_slider_values():
 
     query = """
-    SELECT DISTINCT date
+    SELECT
+    MIN(date) as min_date, 
+    MAX(date) as max_date
     FROM return_features
-    ORDER BY date
     """ 
 
     df = read_sql(
@@ -35,27 +36,25 @@ def load_return_slider_values():
         params=None
     )
 
-    date_index = pd.DatetimeIndex(df["date"])
-    marks, date_range = _load_slider_values(date_index)
-    
-    return marks, date_range
+    min_date = pd.to_datetime(df.loc[0, "min_date"])
+    max_date = pd.to_datetime(df.loc[0, "max_date"])
 
+    min_ts = int(min_date.timestamp())
+    max_ts = int(max_date.timestamp())
 
-
-
-def _load_slider_values(date_range):
-
-    raw_marks = {
-        i: str(date.year) \
-            for i, date in enumerate(date_range)
+    marks = {
+        int(pd.Timestamp(year=y, month=1, day=1).timestamp()): str(y)
+        for y in range(min_date.year, max_date.year + 1)
     }
-    seen_years = set()
-    marks = {}
-    for key, value in raw_marks.items():
-        if value not in seen_years:
-            marks[key] = value
-            seen_years.add(value)
-    
-    return marks, date_range
+
+    return {
+        "min": min_ts,
+        "max": max_ts,
+        "value": [min_ts, max_ts],
+        "step": 24 * 60 * 60,
+        "marks": marks
+    }
+
+
 
 

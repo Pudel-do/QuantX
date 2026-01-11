@@ -1,7 +1,12 @@
 from dash import Dash
 from dashboard.layout import create_layout
+from dashboard.callbacks import register_callbacks
+
+from core.dashboard_adapter import DashboardAdapter
+
 import webbrowser
 import threading
+
 
 def create_app():
     app = Dash(
@@ -9,8 +14,9 @@ def create_app():
         suppress_callback_exceptions=True
     )
     app.title = "Financial Dashboard"
-
     app.layout = create_layout()
+
+    register_callbacks(app, DashboardAdapter())
 
     return app
 
