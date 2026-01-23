@@ -62,10 +62,42 @@ class DashboardAdapter:
         )
 
         cum_rets = rets_pivot.cumsum().apply(np.exp)
+        cum_rets = cum_rets * 1000
         fig = px.line(
             cum_rets,
             x=cum_rets.index,
             y=cum_rets.columns
         )
 
+        fig.add_annotation(
+            text=f"<b>Zeitraum</b><br>{start} – {end}",
+            xref="paper",
+            yref="paper",
+            x=0.01,
+            y=0.99,
+            xanchor="left",
+            yanchor="top",
+            showarrow=False,
+            font=dict(
+                size=14,
+                color="black"
+            ),
+            bgcolor="rgba(255,255,255,0.6)",
+            bordercolor="rgba(0,0,0,0.15)",
+            borderwidth=0
+        )
+
+        fig.update_layout(
+            title="Kumulierte Renditen",
+            hovermode="x unified",
+            title_x=0.5,
+        )
+
+        fig.update_xaxes(title_text="Datum", tickformat="%Y-%m-%d")
+        fig.update_yaxes(title_text="Kumulierte Rendite", tickformat=".2f")
+
         return fig
+    
+    @lru_cache(maxsize=32)
+    def build_corr_heatmap(self, slider):
+        pass
