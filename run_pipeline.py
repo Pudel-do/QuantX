@@ -13,9 +13,9 @@ def run_step(name, fn):
 
 def main():
     from db import init_tables
-    from scripts.ingest import ingest_assets
-    from scripts.ingest import ingest_raw_prices
-    from scripts.process import process_prices
+    from pipeline import ingest_assets
+    from pipeline import ingest_raw_prices
+    from pipeline import process_prices
 
     run_step("INITIALIZE TABLES", init_tables.run)
     run_step("INGEST ASSETS", ingest_assets.run)
