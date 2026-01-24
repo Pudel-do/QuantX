@@ -8,6 +8,8 @@ from dashboard.styles.table_styles import PerformanceTableStyler
 import webbrowser
 import threading
 
+from dotenv import load_dotenv
+load_dotenv()
 
 def create_app():
     app = Dash(

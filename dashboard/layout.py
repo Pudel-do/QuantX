@@ -41,6 +41,9 @@ def build_market_section():
                     "fontSize": "14px"
                 }
             ),
+
+            html.P(" ", style={'margin': '60px 0'}),
+            
             dash_table.DataTable(
                 id="performance_table",
                 page_size=10,
