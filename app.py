@@ -1,8 +1,9 @@
 from dash import Dash
 from dashboard.layout import create_layout
-from dashboard.callbacks import register_callbacks
+from dashboard.callbacks import register_market_callbacks
 
 from core.dashboard_adapter import DashboardAdapter
+from dashboard.styles.table_styles import PerformanceTableStyler
 
 import webbrowser
 import threading
@@ -16,7 +17,11 @@ def create_app():
     app.title = "Financial Dashboard"
     app.layout = create_layout()
 
-    register_callbacks(app, DashboardAdapter())
+    register_market_callbacks(
+        app, 
+        DashboardAdapter(),
+        PerformanceTableStyler()
+    )
 
     return app
 
