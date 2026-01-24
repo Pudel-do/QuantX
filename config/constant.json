@@ -1,4 +1,9 @@
 {
+    "dashboard": {
+        "date": "Date",
+        "cum_ret": "Cumulated Return"
+    },
+
     "datamodel": {
         "raw_data_dir": "data\\raw",
         "processed_data_dir": "data\\processed",
