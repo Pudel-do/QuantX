@@ -35,7 +35,7 @@ class PerformanceTableStyler:
 
             styles.append({
                 "if": {"row_index": i, "column_id": col},
-                "color": "white",
+                "color": "black",
                 "backgroundColor": f"rgba(0, 128, 0, {opacity})"
                 if val > 0 else f"rgba(200, 0, 0, {opacity})"
             })
@@ -43,15 +43,20 @@ class PerformanceTableStyler:
         return styles
 
     def _heatbar(self, df, col):
+        min_val = df[col].min()
         max_val = df[col].max()
         styles = []
 
         for i, val in enumerate(df[col]):
-            opacity = val / max_val if max_val else 0
+
+            norm = (val - min_val) / (max_val - min_val) if max_val != min_val else 0
+
+            intensity = 1 - norm
+
             styles.append({
                 "if": {"row_index": i, "column_id": col},
-                "backgroundColor": f"rgba(0,0,150,{opacity})",
-                "color": "white"
+                "backgroundColor": f"rgba(0, 150, 0, {0.15 + 0.75 * intensity})",
+                "color": "black"
             })
 
         return styles
