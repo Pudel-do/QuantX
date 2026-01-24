@@ -31,7 +31,22 @@ def build_market_section():
                 allowCross=False
             ),
 
-            dcc.Graph(id="cum_returns")
+            dcc.Graph(id="cum_returns"),
+
+            html.Div(
+                id="performance_annotation",
+                style={
+                    "fontWeight": "bold",
+                    "marginBottom": "6px",
+                    "fontSize": "14px"
+                }
+            ),
+            dash_table.DataTable(
+                id="performance_table",
+                page_size=10,
+                style_cell={"textAlign": "left"},
+                style_header={"fontWeight": "bold"},
+            )
         ]
     )
 

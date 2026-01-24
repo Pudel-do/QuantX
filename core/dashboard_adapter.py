@@ -20,7 +20,10 @@ from misc.utils import (
     get_future_returns
 )
 from misc.schema_utils import read_sql
-from dashboard.visuals.annotations import build_plotly_annotation
+from dashboard.visuals.annotations import (
+    build_dash_annotation,
+    build_plotly_annotation
+)
 
 from core.portfolio_generator import PortfolioGenerator
 
@@ -40,7 +43,7 @@ class DashboardAdapter:
             y=cum_rets.columns
         )
 
-        start, end = self._slider_to_dates(slider)
+        start, end = self.slider_to_dates(slider)
         fig.add_annotation(
             **build_plotly_annotation(start, end)
         )
@@ -56,13 +59,28 @@ class DashboardAdapter:
 
         return fig
     
+    def build_return_peformance(self, slider):
+        rets_pivot = self._load_pivot_returns(slider)
+
+        rows = []
+        for asset in rets_pivot.columns:
+            values = rets_pivot[asset].dropna()
+            rows.append({
+                self.const_cols["asset"]: asset,
+                self.const_cols["ann_mean_ret"]: calc_annualized_mean_return(values) * 100,
+                self.const_cols["total_ret"]: calc_total_return(values) * 100,
+                self.const_cols["ann_vola"]: calc_annualized_vola(values)
+            })
+        performance_table = pd.DataFrame(rows).round(2).to_dict("records")
+        return performance_table
+    
     @lru_cache(maxsize=32)
     def build_corr_heatmap(self, slider):
         pass
 
     @lru_cache(maxsize=32)
     def _load_pivot_returns(self, slider):
-        start, end = self._slider_to_dates(slider)
+        start, end = self.slider_to_dates(slider)
  
         query = """
         SELECT a.name, r.date, r.return
@@ -91,7 +109,7 @@ class DashboardAdapter:
         
         return rets_pivot
     
-    def _slider_to_dates(self, slider):
+    def slider_to_dates(self, slider):
         start_ts, end_ts = slider
         start = datetime.fromtimestamp(start_ts).strftime("%Y-%m-%d")
         end = datetime.fromtimestamp(end_ts).strftime("%Y-%m-%d")
