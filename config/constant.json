@@ -1,7 +1,11 @@
 {
     "dashboard": {
+        "asset": "Asset",
         "date": "Date",
-        "cum_ret": "Cumulated Return"
+        "cum_ret": "Cumulated Return",
+        "ann_mean_ret": "Annualized Mean Return (%)",
+        "total_ret": "Total Return (%)",
+        "ann_vola": "Annualized Volatility"
     },
 
     "datamodel": {
