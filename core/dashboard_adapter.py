@@ -33,9 +33,9 @@ class DashboardAdapter:
         self.const_cols = read_json("constant.json")["dashboard"]
 
     def build_cum_returns(self, slider):
-        rets_pivot = self._load_pivot_returns(slider)
+        rets = self._load_pivot_returns(slider)
 
-        cum_rets = rets_pivot.cumsum().apply(np.exp)
+        cum_rets = rets.cumsum().apply(np.exp)
         cum_rets = cum_rets * 1000
         fig = px.line(
             cum_rets,
@@ -49,7 +49,7 @@ class DashboardAdapter:
         )
 
         fig.update_layout(
-            title="Kumulierte Renditen",
+            title="Time Series of Cumulated Returns",
             hovermode="x unified",
             title_x=0.5,
         )
@@ -60,11 +60,11 @@ class DashboardAdapter:
         return fig
     
     def build_return_peformance(self, slider):
-        rets_pivot = self._load_pivot_returns(slider)
+        rets = self._load_pivot_returns(slider)
 
         rows = []
-        for asset in rets_pivot.columns:
-            values = rets_pivot[asset].dropna()
+        for asset in rets.columns:
+            values = rets[asset].dropna()
             rows.append({
                 self.const_cols["asset"]: asset,
                 self.const_cols["ann_mean_ret"]: calc_annualized_mean_return(values) * 100,
@@ -74,9 +74,23 @@ class DashboardAdapter:
         performance_table = pd.DataFrame(rows).round(2).to_dict("records")
         return performance_table
     
-    @lru_cache(maxsize=32)
     def build_corr_heatmap(self, slider):
-        pass
+        rets = self._load_pivot_returns(slider)
+
+        corr_matrix = rets.corr().round(2)
+        fig = px.imshow(
+            corr_matrix,
+            text_auto=True,
+            aspect="auto",
+            color_continuous_scale="RdBu_r"
+        )
+
+        fig.update_layout(
+            title="Return Correlation Heatmap",
+            title_x=0.5
+        )
+
+        return fig
 
     @lru_cache(maxsize=32)
     def _load_pivot_returns(self, slider):
